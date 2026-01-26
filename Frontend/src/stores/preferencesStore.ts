@@ -75,7 +75,7 @@ export const usePreferencesStore = defineStore("preferences", () => {
     });
 
     // ---- hydrate state from cookies (with validation)
-    inlineEditMode.value = (inlineCookie.value ?? "auto") as InlineEditMode;
+    inlineEditMode.value = (inlineCookie.value ?? "auto");
 
     const rawSize = Number(pageSizeCookie.value);
     tablePageSize.value = isAllowedPageSize(rawSize)

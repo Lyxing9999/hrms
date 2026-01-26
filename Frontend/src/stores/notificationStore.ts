@@ -1,7 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed, onScopeDispose } from "vue";
 import { useNuxtApp } from "nuxt/app";
-import type { AxiosInstance } from "axios";
 
 import type { NotificationDTO } from "~/api/notifications/notification.dto";
 import { NotificationApi } from "~/api/notifications/notification.api";
@@ -11,6 +10,10 @@ type Wrapped<T> = {
   message?: string;
   data: T;
 };
+function getApi() {
+  const { $api } = useNuxtApp();
+  return new NotificationApi($api);
+}
 
 export const useNotificationStore = defineStore("notification", () => {
   const items = ref<NotificationDTO[]>([]);
@@ -24,10 +27,6 @@ export const useNotificationStore = defineStore("notification", () => {
     drawerOpen.value = typeof v === "boolean" ? v : !drawerOpen.value;
   }
 
-  function getApi() {
-    const { $api } = useNuxtApp();
-    return new NotificationApi($api as AxiosInstance);
-  }
 
   async function refreshUnread(): Promise<number> {
     try {

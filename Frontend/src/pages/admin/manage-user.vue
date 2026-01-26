@@ -186,7 +186,7 @@ function handleSaveWrapper(
   field: keyof AdminGetUserItemData
 ) {
   if (field === "id") return;
-  void save(row, field as keyof AdminUpdateUser).catch((err) => {
+  save(row, field as keyof AdminUpdateUser).catch((err) => {
     reportError(err);
   });
 }
@@ -196,7 +196,7 @@ function handleAutoSaveWrapper(
   field: keyof AdminGetUserItemData
 ) {
   if (field === "id") return;
-  void autoSave(row, field as keyof AdminUpdateUser).catch((err) => {
+  autoSave(row, field as keyof AdminUpdateUser).catch((err) => {
     reportError(err);
   });
 }
@@ -332,5 +332,3 @@ const pageSizes = computed<number[]>(() => [...prefs.ALLOWED_PAGE_SIZES]);
     />
   </div>
 </template>
-
-<style scoped></style>

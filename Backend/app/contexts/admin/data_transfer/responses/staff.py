@@ -1,4 +1,3 @@
-from typing import Optional
 from pydantic import ConfigDict
 
 from app.contexts.staff.data_transfer.responses import StaffReadDataDTO, StaffBaseDataDTO
