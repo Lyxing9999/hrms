@@ -54,6 +54,10 @@ class ScheduleReadModel(MongoErrorMixin):
         """
         return {field: {"$in": [oid, str(oid)]}}
 
+    def _id_in(self, field: str, oids: Iterable[ObjectId]) -> Dict[str, Any]:
+        oids = list(oids)
+        return {field: {"$in": oids + [str(x) for x in oids]}}
+
     def _weekday_candidates(self, dow: int) -> List[int]:
         # detect once per process; cache if you want
         has_zero_based = self.collection.find_one({"day_of_week": {"$in": [0, 6]}}) is not None
@@ -216,6 +220,8 @@ class ScheduleReadModel(MongoErrorMixin):
         s = s.strip()
         return s if ScheduleReadModel._is_hhmm(s) else None
 
+
+
     def list_schedules_for_teacher_paginated(
         self,
         teacher_id: ObjectId | str,
@@ -230,6 +236,7 @@ class ScheduleReadModel(MongoErrorMixin):
         day_of_week: Optional[int] = None,
         start_time_from: Optional[str] = None,
         start_time_to: Optional[str] = None,
+        class_ids_in: Iterable[ObjectId | str] | None = None,   
     ) -> Tuple[List[Dict[str, Any]], int]:
         tid = self._oid(teacher_id)
 
@@ -240,13 +247,19 @@ class ScheduleReadModel(MongoErrorMixin):
         base: Dict[str, Any] = {}
         base.update(self._id_match("teacher_id", tid))
 
+        if class_ids_in is not None:
+            allowed = self._normalize_ids(class_ids_in)
+            if not allowed:
+                return [], 0
+            base.update(self._id_in("class_id", allowed))
+
+        # existing single-class filter (still works)
         if class_id:
             cid = self._oid(class_id)
             base.update(self._id_match("class_id", cid))
 
         if day_of_week is not None:
-            dow = int(day_of_week)
-            base["day_of_week"] = {"$in": self._weekday_candidates(dow)}
+            base["day_of_week"] = {"$in": self._weekday_candidates(int(day_of_week))}
 
         st_from = self._normalize_hhmm(start_time_from)
         st_to = self._normalize_hhmm(start_time_to)
@@ -276,7 +289,6 @@ class ScheduleReadModel(MongoErrorMixin):
         except Exception as e:
             self._handle_mongo_error("list_schedules_for_teacher_paginated", e)
             return [], 0
-
     # --------------------------
     # Subject schedules
     # --------------------------

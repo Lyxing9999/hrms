@@ -79,6 +79,18 @@ def get_current_student_id() -> ObjectId:
         )
 
     return student_doc["_id"]
+
+
+# -----------------------------
+# Get current employee ID (employee._id)
+# -----------------------------
+def get_current_employee_id() -> ObjectId:
+    user_oid = get_current_user_oid()
+
+    employee_doc = g.hrms.employee_read_model.find_employee_by_user_id(user_oid)
+
+
+    return employee_doc["_id"]
 # -----------------------------
 # Get full current user info (from JWT payload)
 # -----------------------------
@@ -109,6 +121,10 @@ def get_current_user(role: str | None = None) -> dict:
 
     g.current_user = user
     return user
+
+# -----------------------------
+# Get Employee ID full current user info (from JWT payload)
+# -----------------------------
 
 
 # -----------------------------

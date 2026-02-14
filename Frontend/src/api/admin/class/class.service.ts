@@ -1,4 +1,3 @@
-// ~/api/class/service.ts
 import type {
   AdminCreateClass,
   AdminClassDataDTO,
@@ -21,9 +20,9 @@ import { ClassStatus } from "~/api/types/enums/class-status.enum";
 import { ClassApi } from "./class.api";
 
 export class ClassService {
-  private callApi = useApiUtils().callApi;
+  private readonly callApi = useApiUtils().callApi;
 
-  constructor(private classApi: ClassApi) {}
+  constructor(private readonly classApi: ClassApi) { }
 
   // ============
   // QUERY

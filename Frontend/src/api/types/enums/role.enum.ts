@@ -7,19 +7,23 @@ export enum Role {
   PARENT = "parent",
   ACADEMIC = "academic",
   FINANCE = "finance",
-  HR = "hr",
+  HR_ADMIN = "hr_admin",
+  EMPLOYEE = 'employee'
 }
 
 // Non-staff users
 export enum UserRole {
   STUDENT = "student",
   PARENT = "parent",
+  EMPLOYEE = 'employee'
 }
 
 // Staff members
 export enum StaffRole {
   TEACHER = "teacher",
   ACADEMIC = "academic",
+  HR_ADMIN = "hr_admin",
+  EMPLOYEE = 'employee'
 }
 
 // Arrays for easy checks
@@ -31,7 +35,8 @@ export const AllRoles: Role[] = [
   Role.PARENT,
   Role.ACADEMIC,
   Role.FINANCE,
-  Role.HR,
+  Role.HR_ADMIN,
+  Role.EMPLOYEE
 ];
 
 export const AllUserRoles: UserRole[] = [UserRole.STUDENT, UserRole.PARENT];
@@ -39,4 +44,5 @@ export const AllUserRoles: UserRole[] = [UserRole.STUDENT, UserRole.PARENT];
 export const AllStaffRoles: StaffRole[] = [
   StaffRole.TEACHER,
   StaffRole.ACADEMIC,
+  StaffRole.EMPLOYEE
 ];

@@ -87,6 +87,11 @@ def create_app():
     app.config.from_object(settings)
 
     # -------------------------
+    # JWT Configuration
+    # -------------------------
+    app.config["JWT_SECRET_KEY"] = settings.SECRET_KEY
+
+    # -------------------------
     # Senior security defaults
     # -------------------------
     app.config["MAX_CONTENT_LENGTH"] = getattr(settings, "MAX_CONTENT_LENGTH", 16 * 1024 * 1024)
@@ -232,26 +237,42 @@ def create_app():
     # -------------------------
     # Blueprints
     # -------------------------
-    from app.uploads.students import upload_bp
+
     from app.contexts.iam.routes.iam_route import iam_bp
     from app.contexts.admin.routes import admin_bp, register_routes
     from app.contexts.student.routes import student_bp, register_routes as register_student_routes
     from app.contexts.teacher.routes import teacher_bp, register_routes as register_teacher_routes
     from app.contexts.notifications.routes.notification_route import notification_bp
 
-    app.register_blueprint(upload_bp, url_prefix="/uploads")
+
     app.register_blueprint(iam_bp, url_prefix="/api/iam")
 
     register_routes()
     register_student_routes()
     register_teacher_routes()
 
+
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(student_bp, url_prefix="/api/student")
     app.register_blueprint(teacher_bp, url_prefix="/api/teacher")
     app.register_blueprint(notification_bp, url_prefix="/api/notifications")
 
+
+    # -------------------------
+    # HRMS Domain
+    # -------------------------
+    from app.contexts.hrms.routes import register_hrms_routes
+    
+    # Register all HRMS routes with context (following admin pattern)
+    register_hrms_routes(app)
+    
+    # Register realtime attendance handlers
+    from app.contexts.hrms.realtime import handlers  # noqa: F401
+
+
+    # -------------------------
     # Swagger UI
+    # -------------------------
     app.register_blueprint(
         get_swaggerui_blueprint(
             "/api/docs",

@@ -13,9 +13,9 @@ import { UserApi } from "./user.api";
 import { Role } from "~/api/types/enums/role.enum";
 import { Status } from "~/api/types/enums/status.enum";
 export class UserService {
-  private callApi = useApiUtils().callApi;
+  private readonly callApi = useApiUtils().callApi;
 
-  constructor(private userApi: UserApi) {}
+  constructor(private readonly userApi: UserApi) { }
 
   async getUserPage(
     roles: Role | Role[],

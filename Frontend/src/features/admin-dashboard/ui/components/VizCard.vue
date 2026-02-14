@@ -30,12 +30,11 @@ const props = withDefaults(
     <!-- Empty state -->
     <div
       v-if="!option"
-      class="flex items-center justify-center text-xs text-gray-500"
+      class="viz-empty"
       :style="{ height: `${height}px` }"
     >
       {{ loading ? "Loading..." : emptyText }}
     </div>
-
     <!-- Chart (client-only) -->
     <ClientOnly v-else>
       <div class="w-full" :style="{ height: `${height}px` }">

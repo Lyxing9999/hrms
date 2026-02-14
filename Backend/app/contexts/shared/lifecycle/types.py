@@ -1,12 +1,9 @@
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any, Dict
 from bson import ObjectId
 
-
-def now_utc() -> datetime:
-    return datetime.utcnow()
-
+from app.contexts.shared.time_utils import ensure_utc
+from app.contexts.shared.time_utils import utc_now as now_utc
 
 # ------------------------------------------------------------
 # Lifecycle field keys (nested under "lifecycle.*")
@@ -34,7 +31,7 @@ FIELDS = LifecycleFields()
 # ------------------------------------------------------------
 
 def apply_soft_delete_update(actor_id: ObjectId) -> Dict[str, Any]:
-    n = now_utc()
+    n = ensure_utc(now_utc())
     return {
         "$set": {
             FIELDS.k(FIELDS.deleted_at): n,
@@ -45,7 +42,7 @@ def apply_soft_delete_update(actor_id: ObjectId) -> Dict[str, Any]:
 
 
 def apply_restore_update(actor_id: ObjectId | None = None) -> Dict[str, Any]:
-    n = now_utc()
+    n = ensure_utc(now_utc())
     payload: Dict[str, Any] = {
         FIELDS.k(FIELDS.deleted_at): None,
         FIELDS.k(FIELDS.deleted_by): None,
@@ -65,7 +62,7 @@ def apply_set_is_active_update(is_active: bool, actor_id: ObjectId | None = None
     - Touches lifecycle.updated_at
     - Optionally records actor_id (if you want)
     """
-    n = now_utc()
+    n = ensure_utc(now_utc())
     payload: Dict[str, Any] = {
         "is_active": bool(is_active),
         FIELDS.k(FIELDS.updated_at): n,

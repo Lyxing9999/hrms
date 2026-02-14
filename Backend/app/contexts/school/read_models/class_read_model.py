@@ -372,6 +372,14 @@ class ClassReadModel:
                 result[cid] = name
         return result
 
+
+    def list_active_class_ids(self, *, show_deleted: ShowDeleted = "active") -> List[ObjectId]:
+        ids = self.collection.distinct(
+            "_id",
+            self._q(show_deleted=show_deleted, only_active_status=True),
+        )
+        # distinct can theoretically return non-ObjectId values if data is weird
+        return [x for x in ids if isinstance(x, ObjectId)]
     # -----------------------------
     # Stats
     # -----------------------------

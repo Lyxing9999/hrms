@@ -12,9 +12,9 @@ import type {
 
 export class ScheduleSlotApi {
   constructor(
-    private $api: AxiosInstance,
-    private baseURL = "/api/admin/schedule"
-  ) {}
+    private readonly $api: AxiosInstance,
+    private readonly baseURL = "/api/admin/schedule"
+  ) { }
 
   // ============
   // QUERY

@@ -11,7 +11,8 @@ const routeRoles: Record<string, Role[]> = {
   "/academic": [Role.ACADEMIC],
   "/finance": [Role.FINANCE],
   "/parent": [Role.PARENT],
-  "/hr": [Role.HR],
+  "/hr": [Role.HR_ADMIN],
+  "/employee": [Role.EMPLOYEE]
 };
 
 const isProtectedPath = (path: string) =>
@@ -63,7 +64,7 @@ export default defineNuxtRouteMiddleware(
               resolve();
             }
           },
-          { immediate: true }
+          { immediate: true },
         );
       });
     }
@@ -81,5 +82,5 @@ export default defineNuxtRouteMiddleware(
         return navigateTo("/auth/login");
       }
     }
-  }
+  },
 );

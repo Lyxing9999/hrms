@@ -25,7 +25,7 @@ export default defineNuxtConfig({
     calendarificApiKey: process.env.CALENDARIFIC_API_KEY || "",
 
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || "",
+      apiBase: process.env.NUXT_PUBLIC_SCHOOL_API_BASE || "",
     },
   },
 

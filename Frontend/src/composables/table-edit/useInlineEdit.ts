@@ -180,10 +180,10 @@ export function useInlineEdit<
     const stack = previousValues.value[rowKey]?.[keyStr];
 
     if (stack && stack.length) {
-      (row as any)[key] = stack.pop();
+      (row)[key] = stack.pop();
     } else {
       const mainOriginal = baseOriginalRows.value[rowKey]?.[key];
-      if (mainOriginal !== undefined) (row as any)[key] = mainOriginal;
+      if (mainOriginal !== undefined) (row)[key] = mainOriginal;
     }
 
     clearFieldError(row, field);
@@ -197,7 +197,7 @@ export function useInlineEdit<
     const rowKey = getKey(row.id);
     const key = fieldToGetKey(field);
     const prevSaved = originalRows.value[rowKey]?.[key];
-    if (prevSaved !== undefined) (row as any)[key] = prevSaved;
+    if (prevSaved !== undefined) (row)[key] = prevSaved;
   }
 
   /**
@@ -218,7 +218,7 @@ export function useInlineEdit<
 
     if (isCellSaving(row, field)) return;
 
-    const nextValue = (row as any)[key];
+    const nextValue = (row)[key];
     const prevSaved = originalRows.value[rowKey]?.[key];
 
     // empty validation -> error + revert to latest server snapshot
@@ -284,7 +284,7 @@ export function useInlineEdit<
     const key = fieldToGetKey(field);
 
     const originalValue = originalRows.value[rowKey]?.[key];
-    const currentValue = (row as any)[key];
+    const currentValue = (row)[key];
 
     if (currentValue === originalValue) return;
     await save(row, field, true);
@@ -348,10 +348,10 @@ export function useInlineEdit<
 
     newData.forEach((row) => {
       const rowKey = getKey(row.id);
-      const snap = shallowClone(row) as TGet;
+      const snap = shallowClone(row);
 
       nextOriginal[rowKey] = snap;
-      nextBase[rowKey] = shallowClone(row) as TGet; // main original (never changes)
+      nextBase[rowKey] = shallowClone(row); // main original (never changes)
       nextPrev[rowKey] = {};
     });
 

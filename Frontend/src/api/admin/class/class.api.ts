@@ -15,9 +15,9 @@ import type {
 import type { ClassStatus } from "~/api/types/enums/class-status.enum";
 export class ClassApi {
   constructor(
-    private $api: AxiosInstance,
-    private baseURL = "/api/admin/classes"
-  ) {}
+    private readonly $api: AxiosInstance,
+    private readonly baseURL = "/api/admin/classes"
+  ) { }
 
   // ============
   // QUERY

@@ -13,7 +13,7 @@ import type {
 } from "~/api/iam/iam.dto";
 import type { UserBaseDataDTO as MeResponse } from "~/api/types/user.dto";
 export class AuthApi {
-  constructor(private $api: AxiosInstance, private baseURL = "/api/iam") {}
+  constructor(private readonly $api: AxiosInstance, private readonly baseURL = "/api/iam") { }
 
   async registerUser(form: UserRegisterForm) {
     return this.$api

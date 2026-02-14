@@ -11,15 +11,14 @@ import type {
   AdminScheduleSlotList,
   AdminTeacherSelectListDTO,
   AdminTeacherSelectQuery,
+  ScheduleListParams,
 } from "./schedule.dto";
 import { ScheduleSlotApi } from "./schedule.api";
 
-type ScheduleListParams = { page?: number; page_size?: number };
-
 export class ScheduleSlotService {
-  private callApi = useApiUtils().callApi;
+  private readonly callApi = useApiUtils().callApi;
 
-  constructor(private scheduleSlotApi: ScheduleSlotApi) {}
+  constructor(private readonly scheduleSlotApi: ScheduleSlotApi) { }
 
   // ============
   // QUERY METHODS
@@ -28,11 +27,11 @@ export class ScheduleSlotService {
   async getClassSchedule(
     classId: string,
     params?: ScheduleListParams,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) {
     const data = await this.callApi<AdminScheduleSlotList>(
       () => this.scheduleSlotApi.getClassSchedule(classId, params),
-      options
+      options,
     );
     return data!;
   }
@@ -40,11 +39,11 @@ export class ScheduleSlotService {
   async getTeacherSchedule(
     teacherId: string,
     params?: ScheduleListParams,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) {
     const data = await this.callApi<AdminScheduleSlotList>(
       () => this.scheduleSlotApi.getTeacherSchedule(teacherId, params),
-      options
+      options,
     );
     return data!;
   }
@@ -52,7 +51,7 @@ export class ScheduleSlotService {
   async getScheduleSlotById(id: string, options?: ApiCallOptions) {
     const data = await this.callApi<AdminScheduleSlotData>(
       () => this.scheduleSlotApi.getScheduleSlotById(id),
-      options
+      options,
     );
     return data!;
   }
@@ -63,11 +62,11 @@ export class ScheduleSlotService {
 
   async createScheduleSlot(
     payload: AdminCreateScheduleSlot,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) {
     const scheduleSlotData = await this.callApi<AdminScheduleSlotData>(
       () => this.scheduleSlotApi.createScheduleSlot(payload),
-      { showSuccess: true, ...(options ?? {}) }
+      { showSuccess: true, ...(options ?? {}) },
     );
     return scheduleSlotData!;
   }
@@ -75,11 +74,11 @@ export class ScheduleSlotService {
   async updateScheduleSlot(
     slotId: string,
     payload: AdminUpdateScheduleSlot,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) {
     const scheduleSlotData = await this.callApi<AdminScheduleSlotData>(
       () => this.scheduleSlotApi.updateScheduleSlot(slotId, payload),
-      { showSuccess: true, ...(options ?? {}) }
+      { showSuccess: true, ...(options ?? {}) },
     );
     return scheduleSlotData!;
   }
@@ -87,11 +86,11 @@ export class ScheduleSlotService {
   async updateScheduleSlotSubject(
     slotId: string,
     payload: AdminAssignScheduleSlotSubject,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) {
     const scheduleSlotData = await this.callApi<AdminScheduleSlotData>(
       () => this.scheduleSlotApi.updateScheduleSlotSubject(slotId, payload),
-      { showSuccess: true, ...(options ?? {}) }
+      { showSuccess: true, ...(options ?? {}) },
     );
     return scheduleSlotData!;
   }
@@ -99,18 +98,18 @@ export class ScheduleSlotService {
   async deleteScheduleSlot(slotId: string, options?: ApiCallOptions) {
     const scheduleSlotData = await this.callApi<AdminScheduleSlotData>(
       () => this.scheduleSlotApi.deleteScheduleSlot(slotId),
-      { showSuccess: true, ...(options ?? {}) }
+      { showSuccess: true, ...(options ?? {}) },
     );
     return scheduleSlotData!;
   }
 
   async listTeacherSelectByAssignment(
     params: AdminTeacherSelectQuery,
-    options?: ApiCallOptions
+    options?: ApiCallOptions,
   ) {
     const data = await this.callApi<AdminTeacherSelectListDTO>(
       () => this.scheduleSlotApi.listTeacherSelectByAssignment(params),
-      options
+      options,
     );
     return data!;
   }

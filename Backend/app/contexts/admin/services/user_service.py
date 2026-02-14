@@ -28,6 +28,8 @@ from app.contexts.iam.errors.iam_exception import (
     UserInactiveException,
 )
 from app.contexts.iam.auth.password_reset_utils import create_reset_token, hash_reset_token, now_utc, RESET_TTL
+from app.contexts.shared.time_utils import ensure_utc
+
 class UserAdminService:
     """
     Admin-facing orchestration service for IAM users.
@@ -151,8 +153,8 @@ class UserAdminService:
             "user_id": str(iam_model.id),
             "token_hash": token_hash,
             "created_by": str(admin_id),
-            "created_at": now_utc(),
-            "expires_at": now_utc() + RESET_TTL,
+            "created_at": ensure_utc(now_utc()),
+            "expires_at": ensure_utc(now_utc() + RESET_TTL),
             "used_at": None,
         })
 

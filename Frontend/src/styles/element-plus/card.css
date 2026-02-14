@@ -30,7 +30,7 @@
 .el-card.app-card.is-hoverable:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 26px var(--card-shadow) !important;
-    border-color: color-mix(in srgb, var(--border-color) 45%, var(--color-primary) 55%) !important;
+    border-color: color-mix(in srgb, var(--border-color) 45%, var(--el-color-primary) 55%) !important;
 }
 
 /* Header + body */

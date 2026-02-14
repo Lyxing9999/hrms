@@ -1,4 +1,3 @@
-
 import type { ApiResponse } from "~/api/types/common/api-response.type";
 import type { ScheduleDTO } from "~/api/types/school.dto";
 
@@ -74,3 +73,5 @@ export interface AdminTeacherSelectQuery {
 
 export type AdminTeacherSelectListResponse =
   ApiResponse<AdminTeacherSelectListDTO>;
+
+export type ScheduleListParams = { page?: number; page_size?: number };

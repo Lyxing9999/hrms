@@ -1,7 +1,7 @@
 import secrets
 import hashlib
-from datetime import datetime, timedelta
-
+from datetime import datetime, timedelta, timezone
+from app.contexts.shared.time_utils import ensure_utc
 from app.contexts.core.config.setting import settings
 
 RESET_TTL = timedelta(minutes=30)
@@ -14,4 +14,4 @@ def hash_reset_token(token: str) -> str:
     return hashlib.sha256((token + RESET_PEPPER).encode("utf-8")).hexdigest()
 
 def now_utc() -> datetime:
-    return datetime.utcnow()
+    return ensure_utc(datetime.now(timezone.utc))

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict
 
@@ -8,7 +8,7 @@ from .filters import FIELDS
 
 
 def now_utc() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc)
 
 
 def apply_soft_delete_update(actor_id: ObjectId) -> Dict[str, Any]:

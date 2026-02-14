@@ -129,13 +129,14 @@ class AdminReadModel(MongoErrorMixin):
         day_of_week: int | None = None,
     ) -> Dict[str, Any]:
         oid = self._oid(teacher_id)
-
+        active_class_ids = self._class_read_model.list_active_class_ids(show_deleted="active")
         items, total = self._schedule_read_model.list_schedules_for_teacher_paginated(
             teacher_id=oid,
             page=page,
             page_size=page_size,
             class_id=class_id,
             day_of_week=day_of_week,
+            class_ids_in=active_class_ids,  
         )
 
         if not items:

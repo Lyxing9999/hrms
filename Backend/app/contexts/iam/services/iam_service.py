@@ -22,10 +22,9 @@ from app.contexts.iam.errors.iam_exception import (
 from app.contexts.iam.auth.refresh_utils import (
     create_refresh_token,
     hash_refresh_token,
-    now_utc,
     REFRESH_TTL,
 )
-
+from app.contexts.shared.time_utils import utc_now as now_utc, ensure_utc
 from app.contexts.iam.auth.password_reset_utils import (
     hash_reset_token
 )
@@ -72,7 +71,7 @@ class IAMService:
     def _revoke_all_refresh_tokens_for_user(self, user_id: str) -> int:
         res = self._refresh_tokens.update_many(
             {"user_id": str(user_id), "revoked_at": None},
-            {"$set": {"revoked_at": now_utc()}},
+            {"$set": {"revoked_at": ensure_utc(now_utc())}},
         )
         return int(res.modified_count)
 
@@ -83,7 +82,7 @@ class IAMService:
         rt_hash = hash_refresh_token(rt)
         res = self._refresh_tokens.update_many(
             {"token_hash": rt_hash, "revoked_at": None},
-            {"$set": {"revoked_at": now_utc()}},
+            {"$set": {"revoked_at": ensure_utc(now_utc())}},
         )
         return int(res.modified_count)
 
@@ -114,8 +113,8 @@ class IAMService:
             {
                 "user_id": str(safe_dict["id"]),
                 "token_hash": hash_refresh_token(refresh),
-                "created_at": now_utc(),
-                "expires_at": now_utc() + REFRESH_TTL,
+                "created_at": ensure_utc(now_utc()),
+                "expires_at": ensure_utc(now_utc() + REFRESH_TTL),
                 "revoked_at": None,
                 "replaced_by_hash": None,
             }
@@ -249,9 +248,9 @@ class IAMService:
             {
                 "token_hash": token_hash,
                 "used_at": None,
-                "expires_at": {"$gt": now_utc()},
+                "expires_at": {"$gt": ensure_utc(now_utc())},
             },
-            {"$set": {"used_at": now_utc()}},
+            {"$set": {"used_at": ensure_utc(now_utc())}},
             return_document=ReturnDocument.AFTER,
         )
 

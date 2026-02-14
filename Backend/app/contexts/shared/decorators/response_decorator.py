@@ -217,3 +217,44 @@ def wrap_response(func):
             return Response._prepare_error_response(error=app_exc)
 
     return wrapper
+
+
+
+
+def success_response(fn=None, *, message="Success", status_code=200):
+    """
+    Decorator: wraps route return value into a standard JSON response.
+    Your route can return:
+      - dict / list / primitive  -> data
+      - (data, status_code)
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+
+            code = status_code
+            data = result
+
+            if isinstance(result, tuple) and len(result) == 2:
+                data, code = result
+
+            return jsonify({
+                "success": True,
+                "message": message,
+                "data": data
+            }), code
+
+        return wrapper
+
+    return decorator(fn) if callable(fn) else decorator
+
+
+def error_response(message="Error", status_code=400, details=None):
+    payload = {
+        "success": False,
+        "message": message,
+    }
+    if details is not None:
+        payload["details"] = details
+    return jsonify(payload), status_code

@@ -1,0 +1,55 @@
+# app/contexts/hrms/domain/public_holiday.py
+from __future__ import annotations
+from datetime import date as date_type
+from bson import ObjectId
+
+from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
+
+
+class PublicHoliday:
+    """
+    Defines public holidays (including Khmer calendar holidays).
+    Used for payroll calculation and OT rate determination.
+    """
+    
+    def __init__(
+        self,
+        *,
+        name: str,
+        date: date_type,
+        is_paid: bool,
+        id: ObjectId | None = None,
+        name_kh: str | None = None,
+        description: str | None = None,
+        created_by: ObjectId | None = None,
+        lifecycle: Lifecycle | None = None,
+    ) -> None:
+        self.id = id or ObjectId()
+        self.name = (name or "").strip()
+        self.name_kh = (name_kh or "").strip() if name_kh else None
+        
+        if not self.name:
+            raise ValueError("Holiday name is required")
+        
+        self.date = date
+        self.is_paid = bool(is_paid)
+        self.description = (description or "").strip() if description else None
+        self.created_by = created_by
+        self.lifecycle = lifecycle or Lifecycle()
+    
+    def update_date(self, new_date: date_type) -> None:
+        """Update holiday date"""
+        self.date = new_date
+        self.lifecycle.touch(now_utc())
+    
+    def set_paid(self, is_paid: bool) -> None:
+        """Set whether this holiday is paid"""
+        self.is_paid = bool(is_paid)
+        self.lifecycle.touch(now_utc())
+    
+    def is_deleted(self) -> bool:
+        return self.lifecycle.is_deleted()
+    
+    def soft_delete(self, *, actor_id: str | ObjectId) -> None:
+        """Soft delete the holiday"""
+        self.lifecycle.soft_delete(actor_id=str(actor_id))

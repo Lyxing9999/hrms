@@ -9,9 +9,9 @@ import type {
 } from "../api/dashboard.dto";
 
 export class DashboardService {
-  private callApi = useApiUtils().callApi;
+  private readonly callApi = useApiUtils().callApi;
 
-  constructor(private dashboardApi: DashboardApi) {}
+  constructor(private readonly dashboardApi: DashboardApi) { }
 
   /**
    * Get admin dashboard data with optional filters.

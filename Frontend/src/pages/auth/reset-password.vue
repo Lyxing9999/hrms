@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted } from "vue";
 import { useRoute, useRouter } from "nuxt/app";
 import type { FormInstance, FormRules } from "element-plus";
-import schoolLogo from "~/assets/image/school-logo-light.png";
+import schoolLogo from "~/assets/image/school-logo-light.jpg";
 const { $authService } = useNuxtApp();
 const route = useRoute();
 const router = useRouter();
@@ -70,6 +70,8 @@ const submit = async () => {
 </script>
 
 <template>
+      <!-- Canvas must be client-only in Nuxt -->
+
   <Transition name="fade-slide" appear>
     <div class="auth-shell">
       <div class="auth-card">
@@ -156,23 +158,36 @@ const submit = async () => {
 </template>
 
 <style scoped>
+.page {
+  min-height: 100vh;
+  position: relative;
+  isolation: isolate; /* keeps z-index layering predictable */
+}
+
 .auth-shell {
   min-height: 100vh;
   display: grid;
   place-items: center;
   padding: 24px;
-  background: var(--color-bg, #f5f7fb);
 }
 
+/* “premium glass” card */
 .auth-card {
   width: 100%;
   max-width: 420px;
   padding: 28px;
-  border-radius: 14px;
-  background: var(--color-card, #ffffff);
-  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
-  box-shadow: 0 10px 30px var(--card-shadow, rgba(0, 0, 0, 0.1));
-  color: var(--text-color, #111827);
+  border-radius: 16px;
+
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.08) 70%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.45),
+    0 1px 0 rgba(255, 255, 255, 0.06) inset;
+
+  color: var(--text-color, #e5e7eb);
 }
 
 .auth-logo {
@@ -182,47 +197,26 @@ const submit = async () => {
   margin: 0 auto;
 }
 
-.auth-title {
-  font-size: 1.1rem;
-  font-weight: 750;
-  color: var(--text-color);
-}
-
-.auth-subtitle {
-  font-size: 0.85rem;
-  color: var(--muted-color);
-  margin-top: 6px;
-}
-
 .auth-primary-btn {
   border-radius: 10px;
   font-weight: 650;
-  background: var(--color-primary);
-  color: var(--color-light);
-  margin-top: 12px;
-  border: 1px solid color-mix(in srgb, var(--color-primary) 80%, transparent);
-  box-shadow: 0 10px 18px
-    color-mix(in srgb, var(--color-primary) 18%, transparent);
-  transition: transform var(--transition-base),
-    background var(--transition-base);
+  background: var(--color-primary, #6366f1);
+  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-primary, #6366f1) 80%, transparent);
+  box-shadow: 0 10px 18px color-mix(in srgb, var(--color-primary, #6366f1) 18%, transparent);
+  transition: transform 200ms ease, background 200ms ease;
 }
 
 .auth-primary-btn:hover {
-  background: var(--color-primary-light);
   transform: translateY(-0.5px);
 }
+
 .auth-primary-btn:active {
   transform: translateY(0px);
 }
 
-.auth-footer {
-  font-size: 0.875rem;
-  color: var(--muted-color);
-  text-align: center;
-}
 .auth-link {
-  margin-left: 6px;
-  color: var(--color-primary);
+  color: #a5b4fc;
   font-weight: 600;
   text-decoration: none;
 }
@@ -230,6 +224,7 @@ const submit = async () => {
   text-decoration: underline;
 }
 
+/* Animation */
 .fade-slide-enter-active,
 .fade-slide-leave-active {
   transition: all 0.5s ease;
@@ -241,5 +236,13 @@ const submit = async () => {
 .fade-slide-enter-to {
   opacity: 1;
   transform: translateY(0);
+}
+.fade-slide-leave-from {
+  opacity: 1;
+  transform: translateY(0);
+}
+.fade-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-16px);
 }
 </style>

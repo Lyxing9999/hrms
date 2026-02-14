@@ -11,9 +11,9 @@ import { Role } from "~/api/types/enums/role.enum";
 import { Status } from "~/api/types/enums/status.enum";
 export class UserApi {
   constructor(
-    private $api: AxiosInstance,
-    private baseURL = "/api/admin/users"
-  ) {}
+    private readonly $api: AxiosInstance,
+    private readonly baseURL = "/api/admin/users"
+  ) { }
 
   async getUserPage(
     roles: Role | Role[],

@@ -21,9 +21,7 @@ const vm = useAdminDashboard();
       :showRefresh="false"
     >
       <template #icon>
-        <span
-          class="px-2 py-0.5 text-[10px] font-medium rounded-full bg-[var(--color-primary-light-6)] text-[color:var(--color-primary)] border border-[color:var(--color-primary-light-4)]"
-        >
+        <span class="badge badge--primary">
           {{ vm.activeFilterLabel }}
         </span>
       </template>

@@ -6,9 +6,9 @@ import type {
 
 export class DashboardApi {
   constructor(
-    private $api: AxiosInstance,
-    private baseURL = "/api/admin/dashboard"
-  ) {}
+    private readonly $api: AxiosInstance,
+    private readonly baseURL = "/api/admin/dashboard"
+  ) { }
 
   async getDashboardData(filters?: AdminDashboardFilterDTO) {
     const res = await this.$api.get<AdminDashboardResponse>(this.baseURL, {

@@ -15,20 +15,20 @@ import { isAxiosError } from "axios";
 type AuthCookieUser = {
   id: string;
   username?: string;
-  role: Role;
+  role?: Role; // legacy single role
+  roles?: Role[]; // future multi role
 };
-
 export class AuthService {
-  private router;
-  private authStore;
-  private message;
+  private readonly router;
+  private readonly authStore;
+  private readonly message;
 
-  private tokenCookie;
-  private roleCookie;
-  private studentHomeCookie;
-  private userCookie;
+  private readonly tokenCookie;
+  private readonly roleCookie;
+  private readonly studentHomeCookie;
+  private readonly userCookie;
 
-  constructor(private authApi: AuthApi) {
+  constructor(private readonly authApi: AuthApi) {
     this.router = useRouter();
     this.authStore = useAuthStore();
     this.message = useMessage();
@@ -48,7 +48,7 @@ export class AuthService {
       {
         sameSite: "lax",
         path: "/",
-      }
+      },
     );
 
     this.userCookie = useCookie<AuthCookieUser | null>("user_cache", {
@@ -68,13 +68,12 @@ export class AuthService {
   private persistAuth(token: string, user: any) {
     this.tokenCookie.value = token;
     this.roleCookie.value = user.role;
-
     this.userCookie.value = {
       id: String(user.id),
       username: user.username,
       role: user.role,
+      roles: user.roles, // if exists
     };
-
     this.authStore.setToken(token);
     this.authStore.setUser(user);
     this.authStore.setReady(true);
@@ -110,7 +109,7 @@ export class AuthService {
       this.persistAuth(token, user);
 
       this.message.showSuccess("Logged in successfully");
-      await this.redirectByRole(user.role);
+      await this.redirectByRole((user as any).roles ?? user.role);
       return;
     } catch (err) {
       this.authStore.setReady(true);
@@ -210,8 +209,8 @@ export class AuthService {
     } catch (err) {
       if (isAxiosError(err)) {
         const msg =
-          (err.response?.data as any)?.msg ||
-          (err.response?.data as any)?.message ||
+          err.response?.data?.msg ||
+          err.response?.data?.message ||
           err.message ||
           "Change password failed";
         this.message.showError(String(msg));
@@ -261,29 +260,48 @@ export class AuthService {
     }
   }
 
-  private async redirectByRole(role: Role) {
-    switch (role) {
-      case Role.ADMIN:
-        await this.router.push("/admin/dashboard");
-        return;
+  private async redirectByRole(roleOrRoles: Role | Role[] | undefined) {
+    const roles = Array.isArray(roleOrRoles)
+      ? roleOrRoles
+      : roleOrRoles
+        ? [roleOrRoles]
+        : [];
 
-      case Role.TEACHER:
-        await this.router.push("/teacher/dashboard");
-        return;
-
-      case Role.STUDENT: {
-        const home = this.studentHomeCookie.value || "dashboard";
-        await this.router.push(
-          home === "attendance" ? "/student/attendance" : "/student/dashboard"
-        );
-        return;
-      }
-
-      default:
-        this.clearAuth();
-        this.message.showError("Unknown role. Please login again.");
-        await this.router.push("/auth/login");
-        return;
+    // Super admin first
+    if (roles.includes(Role.ADMIN)) {
+      await this.router.push("/admin/dashboard");
+      return;
     }
+
+    // HR next
+    if (roles.includes(Role.HR_ADMIN)) {
+      await this.router.push("/hr/dashboard");
+      return;
+    }
+
+    // Teacher
+    if (roles.includes(Role.TEACHER)) {
+      await this.router.push("/teacher/dashboard");
+      return;
+    }
+
+    // Student
+    if (roles.includes(Role.STUDENT)) {
+      const home = this.studentHomeCookie.value || "dashboard";
+      await this.router.push(
+        home === "attendance" ? "/student/attendance" : "/student/dashboard",
+      );
+      return;
+    }
+    // Employee
+    if (roles.includes(Role.EMPLOYEE)) {
+      await this.router.push("/employee/dashboard");
+      return;
+    }
+
+
+    this.clearAuth();
+    this.message.showError("Unknown role. Please login again.");
+    await this.router.push("/auth/login");
   }
 }

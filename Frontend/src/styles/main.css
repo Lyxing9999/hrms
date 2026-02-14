@@ -28,6 +28,8 @@
 @import "./element-plus/el-popconfirm.css";
 @import "./element-plus/el-segmented.css";
 @import "./element-plus/el-message.css";
+@import "./dashboard.css";
+
 /* =========================================================
    0) BASE TOKENS (ALWAYS AVAILABLE)
 ========================================================= */
@@ -41,33 +43,42 @@
   --el-font-size-base: 14px;
 
 
-    --text-base-size: 14px;
-    --text-leading: 1.55;
-    --text-tracking: -0.01em;
+  --text-base-size: 14px;
+  --text-leading: 1.55;
+  --text-tracking: -0.01em;
+
+  --ag-bg-top: #f7f8ff;
+  --ag-bg-bottom: #eef2ff;
+  --ag-c1: #4f46e5;
+  --ag-c2: #0891b2;
+  --ag-c3: #d97706;
+  --ag-vignette: 0.15;
 }
+
+
 
 /* =========================================================
    1) THEMES
-   - light: normal + subtle purple accent
+   - light: normal + vibrant pink accent
    - dark : modern dark + same accent
 ========================================================= */
 
 /* ------------------------- LIGHT ------------------------- */
 html[data-theme="light"] {
-  /* Brand accent (purple) */
-  --color-primary: #6b3fa0;
-  --color-primary-light: #7e57c2;
+  /* Brand accent (vibrant pink) */
+  --color-primary: #FF52A1;
+  --color-primary-light: #FF6BB0;
 
-  /* Purple scale (used everywhere in your UI) */
-  --color-primary-light-1: #7447a9;
-  --color-primary-light-2: #8154b7;
-  --color-primary-light-3: #8f63c6;
-  --color-primary-light-4: #a074d6;
-  --color-primary-light-5: #b18ceb;
-  --color-primary-light-6: #cdb6f7;
-  --color-primary-light-7: #e2d7fd;
-  --color-primary-light-8: #f1ebff;
-  --color-primary-light-9: #f8f4ff;
+  /* Pink scale (used everywhere in your UI) */
+  --color-primary-light-1: #FF5CA7;
+  --color-primary-light-2: #FF6BB0;
+  --color-primary-light-3: #FF7AB9;
+  --color-primary-light-4: #FF8BC3;
+  --color-primary-light-5: #FF9DCD;
+  --color-primary-light-6: #FFB3D9;
+  --color-primary-light-7: #FFCCE8;
+  --color-primary-light-8: #FFE5F3;
+  --color-primary-light-9: #FFF2F9;
 
   /* Surfaces */
   --color-bg: #f6f7fb;
@@ -120,10 +131,10 @@ html[data-theme="light"] {
 
   --button-text-bg: transparent;
   --button-text-text: var(--color-primary);
-  --button-text-hover-bg: rgba(107, 63, 160, 0.10);
+  --button-text-hover-bg: rgba(255, 82, 161, 0.10);
   --button-text-hover-text: var(--color-primary-light);
 
-  /* “Senior” semantic tokens */
+  /* "Senior" semantic tokens */
   --border-color: #e5e7eb;
   --text-color: var(--color-dark);
   --muted-color: #6b7280;
@@ -136,8 +147,8 @@ html[data-theme="light"] {
   --footer-border: var(--border-color);
   --sidebar-border: var(--border-color);
 
-  --hover-bg: rgba(107, 63, 160, 0.06);
-  --active-bg: rgba(107, 63, 160, 0.10);
+  --hover-bg: rgba(255, 82, 161, 0.06);
+  --active-bg: rgba(255, 82, 161, 0.10);
 
   /* Element Plus sync */
   --el-color-primary: var(--color-primary);
@@ -154,66 +165,72 @@ html[data-theme="light"] {
   --el-fill-color-blank: var(--color-card);
 
 
-    /* =========================================================
+  /* =========================================================
          Button system tokens (BaseButton / el-button)
       ========================================================= */
-      --btn-radius: 10px;
-      --btn-font-weight: 650;
-    
-      /* default button border (for type="default") */
-      --btn-border: color-mix(in srgb, var(--border-color) 70%, var(--color-primary) 30%);
-      --btn-border-hover: color-mix(in srgb, var(--border-color) 45%, var(--color-primary) 55%);
-      --btn-border-active: color-mix(in srgb, var(--border-color) 35%, var(--color-primary) 65%);
-    
-      /* disabled */
-      --btn-disabled-bg: color-mix(in srgb, var(--color-card) 70%, var(--color-bg) 30%);
-      --btn-disabled-text: color-mix(in srgb, var(--muted-color) 80%, transparent);
-      --btn-disabled-border: var(--border-color);
-    
-      /* focus ring */
-      --btn-focus-ring: 0 0 0 3px rgba(107, 63, 160, 0.18);
-    
-      /* micro interaction */
-      --btn-lift-hover: -0.5px;
-      --btn-lift-active: 0px;
+  --btn-radius: 10px;
+  --btn-font-weight: 650;
 
-        /* Palette: stable across the app */
-          --chart-1: var(--color-primary);
-          /* brand purple */
-          --chart-2: #16a34a;
-          /* green */
-          --chart-3: #f59e0b;
-          /* amber */
-          --chart-4: #06b6d4;
-          /* cyan */
-          --chart-5: #ef4444;
-          /* red */
-          --chart-6: #3b82f6;
-          /* blue */
-          --chart-7: #a855f7;
-          /* violet */
-          --chart-8: #64748b;
-          /* slate */
-        
-          /* Semantic series colors (always consistent) */
-          --chart-present: var(--chart-2);
-          --chart-absent: var(--chart-5);
-          --chart-excused: var(--chart-3);
-        
-          /* Chart grid + area tint */
-          --chart-grid: var(--border-color);
-          --chart-area: rgba(107, 63, 160, 0.08);
+  /* default button border (for type="default") */
+  --btn-border: color-mix(in srgb, var(--border-color) 70%, var(--color-primary) 30%);
+  --btn-border-hover: color-mix(in srgb, var(--border-color) 45%, var(--color-primary) 55%);
+  --btn-border-active: color-mix(in srgb, var(--border-color) 35%, var(--color-primary) 65%);
+
+  /* disabled */
+  --btn-disabled-bg: color-mix(in srgb, var(--color-card) 70%, var(--color-bg) 30%);
+  --btn-disabled-text: color-mix(in srgb, var(--muted-color) 80%, transparent);
+  --btn-disabled-border: var(--border-color);
+
+  /* focus ring */
+  --btn-focus-ring: 0 0 0 3px rgba(255, 82, 161, 0.18);
+
+  /* micro interaction */
+  --btn-lift-hover: -0.5px;
+  --btn-lift-active: 0px;
+
+  /* Palette: stable across the app */
+  --chart-1: var(--color-primary);
+  /* brand pink */
+  --chart-2: #16a34a;
+  /* green */
+  --chart-3: #f59e0b;
+  /* amber */
+  --chart-4: #06b6d4;
+  /* cyan */
+  --chart-5: #ef4444;
+  /* red */
+  --chart-6: #3b82f6;
+  /* blue */
+  --chart-7: #a855f7;
+  /* violet */
+  --chart-8: #64748b;
+  /* slate */
+
+  /* Semantic series colors (always consistent) */
+  --chart-present: var(--chart-2);
+  --chart-absent: var(--chart-5);
+  --chart-excused: var(--chart-3);
+
+  /* Chart grid + area tint */
+  --chart-grid: var(--border-color);
+  --chart-area: rgba(255, 82, 161, 0.08);
 
 
   --skeleton-bg: color-mix(in srgb, var(--color-card) 60%, var(--color-bg) 40%);
---pagination-active-text: var(--color-light);/* Element Plus border variants (derived from your system border) */
+  --pagination-active-text: var(--color-light);
+  /* Element Plus border variants (derived from your system border) */
   --el-border-color: var(--border-color);
   --el-border-color-light: color-mix(in srgb, var(--border-color) 75%, var(--color-card) 25%);
   --el-border-color-lighter: color-mix(in srgb, var(--border-color) 60%, var(--color-card) 40%);
   --el-border-color-extra-light: color-mix(in srgb, var(--border-color) 45%, var(--color-card) 55%);
 
+  --ag-bg-top: #f7f8ff;
+  --ag-bg-bottom: #eef2ff;
+  --ag-c1: #4f46e5;
+  --ag-c2: #0891b2;
+  --ag-c3: #d97706;
+  --ag-vignette: 0.15;
 
-  
 }
 
 
@@ -221,20 +238,20 @@ html[data-theme="light"] {
 /* -------------------------- DARK ------------------------- */
 html[data-theme="dark"] {
   /* Same brand accent */
-  --color-primary: #a78bfa;
-  --color-primary-light: #c4b5fd;
+  --color-primary: #FF6BB0;
+  --color-primary-light: #FF8BC3;
 
-  /* Purple scale for dark: keep 1..4 as solids, 5..9 as overlays */
-  --color-primary-light-1: #b29bff;
-  --color-primary-light-2: #c4b5fd;
-  --color-primary-light-3: #d7ccff;
-  --color-primary-light-4: #e9e2ff;
+  /* Pink scale for dark: keep 1..4 as solids, 5..9 as overlays */
+  --color-primary-light-1: #FF7AB9;
+  --color-primary-light-2: #FF8BC3;
+  --color-primary-light-3: #FF9DCD;
+  --color-primary-light-4: #FFB3D9;
 
-  --color-primary-light-5: rgba(167, 139, 250, 0.20);
-  --color-primary-light-6: rgba(167, 139, 250, 0.16);
-  --color-primary-light-7: rgba(167, 139, 250, 0.12);
-  --color-primary-light-8: rgba(167, 139, 250, 0.08);
-  --color-primary-light-9: rgba(167, 139, 250, 0.06);
+  --color-primary-light-5: rgba(255, 107, 176, 0.20);
+  --color-primary-light-6: rgba(255, 107, 176, 0.16);
+  --color-primary-light-7: rgba(255, 107, 176, 0.12);
+  --color-primary-light-8: rgba(255, 107, 176, 0.08);
+  --color-primary-light-9: rgba(255, 107, 176, 0.06);
 
   /* Surfaces */
   --color-bg: #0b1220;
@@ -283,8 +300,8 @@ html[data-theme="dark"] {
   --button-default-hover-text: #ffffff;
 
   --button-text-bg: transparent;
-  --button-text-text: #e9d5ff;
-  --button-text-hover-bg: rgba(233, 213, 255, 0.10);
+  --button-text-text: #FFB3D9;
+  --button-text-hover-bg: rgba(255, 179, 217, 0.10);
   --button-text-hover-text: #ffffff;
 
   /* Semantic tokens */
@@ -321,78 +338,88 @@ html[data-theme="dark"] {
        Button system tokens (better for dark)
     ========================================================= */
   /* ========= Button System (Dark) ========= */
-    --btn-radius: 10px;
-    --btn-font-weight: 650;
-  
-    --btn-border: var(--border-color);
-    --btn-border-hover: color-mix(in srgb, var(--border-color) 65%, var(--color-primary) 35%);
-    --btn-border-active: color-mix(in srgb, var(--border-color) 55%, var(--color-primary) 45%);
-  
-    /* Plain needs stronger tint in dark */
-    --btn-plain-hover-pct: 16%;
-    --btn-plain-active-pct: 24%;
-  
-    /* Filled buttons active mix should use surface (NOT #000) */
-    --btn-filled-active-mix: var(--color-bg);
-  
-    --btn-disabled-bg: color-mix(in srgb, var(--color-card) 88%, #000 12%);
-    --btn-disabled-text: color-mix(in srgb, var(--muted-color) 85%, transparent);
-    --btn-disabled-border: var(--border-color);
-  
-    --btn-focus-ring: 0 0 0 3px rgba(167, 139, 250, 0.26);
-  
-    --btn-lift-hover: -0.5px;
-    --btn-lift-active: 0px;
+  --btn-radius: 10px;
+  --btn-font-weight: 650;
 
-      /* Palette: tuned for dark surfaces */
-        --chart-1: var(--color-primary);
-        /* #a78bfa */
-        --chart-2: #22c55e;
-        --chart-3: #fbbf24;
-        --chart-4: #22d3ee;
-        --chart-5: #fb7185;
-        --chart-6: #60a5fa;
-        --chart-7: #c084fc;
-        --chart-8: #94a3b8;
-      
-        --chart-present: var(--chart-2);
-        --chart-absent: var(--chart-5);
-        --chart-excused: var(--chart-3);
-      
-        --chart-grid: rgba(255, 255, 255, 0.10);
-        --chart-area: rgba(167, 139, 250, 0.12);
+  --btn-border: var(--border-color);
+  --btn-border-hover: color-mix(in srgb, var(--border-color) 65%, var(--color-primary) 35%);
+  --btn-border-active: color-mix(in srgb, var(--border-color) 55%, var(--color-primary) 45%);
+
+  /* Plain needs stronger tint in dark */
+  --btn-plain-hover-pct: 16%;
+  --btn-plain-active-pct: 24%;
+
+  /* Filled buttons active mix should use surface (NOT #000) */
+  --btn-filled-active-mix: var(--color-bg);
+
+  --btn-disabled-bg: color-mix(in srgb, var(--color-card) 88%, #000 12%);
+  --btn-disabled-text: color-mix(in srgb, var(--muted-color) 85%, transparent);
+  --btn-disabled-border: var(--border-color);
+
+  --btn-focus-ring: 0 0 0 3px rgba(255, 107, 176, 0.26);
+
+  --btn-lift-hover: -0.5px;
+  --btn-lift-active: 0px;
+
+  /* Palette: tuned for dark surfaces */
+  --chart-1: var(--color-primary);
+  /* #FF6BB0 */
+  --chart-2: #22c55e;
+  --chart-3: #fbbf24;
+  --chart-4: #22d3ee;
+  --chart-5: #fb7185;
+  --chart-6: #60a5fa;
+  --chart-7: #c084fc;
+  --chart-8: #94a3b8;
+
+  --chart-present: var(--chart-2);
+  --chart-absent: var(--chart-5);
+  --chart-excused: var(--chart-3);
+
+  --chart-grid: rgba(255, 255, 255, 0.10);
+  --chart-area: rgba(255, 107, 176, 0.12);
 
 
-          --skeleton-bg: color-mix(in srgb, var(--color-card) 80%, var(--color-bg) 20%);
+  --skeleton-bg: color-mix(in srgb, var(--color-card) 80%, var(--color-bg) 20%);
 
-          
-        --pagination-active-text: var(--color-bg);
+
+  --pagination-active-text: var(--color-bg);
   /* Element Plus border variants (derived from your system border) */
-    --el-border-color: var(--border-color);
-    --el-border-color-light: color-mix(in srgb, var(--border-color) 85%, var(--color-card) 15%);
-    --el-border-color-lighter: color-mix(in srgb, var(--border-color) 72%, var(--color-card) 28%);
-    --el-border-color-extra-light: color-mix(in srgb, var(--border-color) 60%, var(--color-card) 40%);
+  --el-border-color: var(--border-color);
+  --el-border-color-light: color-mix(in srgb, var(--border-color) 85%, var(--color-card) 15%);
+  --el-border-color-lighter: color-mix(in srgb, var(--border-color) 72%, var(--color-card) 28%);
+  --el-border-color-extra-light: color-mix(in srgb, var(--border-color) 60%, var(--color-card) 40%);
 
 
-    --tag-on-accent: var(--color-bg);
-    
-      /* neutral accent */
-      --tag-neutral-accent: color-mix(in srgb, var(--muted-color) 88%, var(--text-color) 12%);
-    
-      /* softer + darker than before (was too white) */
-      --tag-soft-bg: color-mix(in srgb, var(--color-card) 92%, #ffffff 8%);
-      --tag-soft-border: color-mix(in srgb, var(--border-color) 88%, #ffffff 12%);
-      --tag-soft-text: color-mix(in srgb, var(--text-color) 90%, var(--muted-color) 10%);
-    
-      --tag-plain-bg: transparent;
-    
-      /* semantic accents */
-      --tag-primary-accent: var(--color-primary);
-      --tag-success-accent: var(--button-success-bg);
-      --tag-warning-accent: var(--button-warning-bg);
-      --tag-danger-accent: var(--button-danger-bg);
-      --tag-info-accent: var(--button-info-bg);
+  --tag-on-accent: var(--color-bg);
+
+  /* neutral accent */
+  --tag-neutral-accent: color-mix(in srgb, var(--muted-color) 88%, var(--text-color) 12%);
+
+  /* softer + darker than before (was too white) */
+  --tag-soft-bg: color-mix(in srgb, var(--color-card) 92%, #ffffff 8%);
+  --tag-soft-border: color-mix(in srgb, var(--border-color) 88%, #ffffff 12%);
+  --tag-soft-text: color-mix(in srgb, var(--text-color) 90%, var(--muted-color) 10%);
+
+  --tag-plain-bg: transparent;
+
+  /* semantic accents */
+  --tag-primary-accent: var(--color-primary);
+  --tag-success-accent: var(--button-success-bg);
+  --tag-warning-accent: var(--button-warning-bg);
+  --tag-danger-accent: var(--button-danger-bg);
+  --tag-info-accent: var(--button-info-bg);
+
+
+
+  --ag-bg-top: #070a12;
+  --ag-bg-bottom: #0b0f1a;
+  --ag-c1: #7c3aed;
+  --ag-c2: #22d3ee;
+  --ag-c3: #f59e0b;
+  --ag-vignette: 0.55;
 }
+
 /* =========================================================
    2) GLOBAL BASE STYLES
 ========================================================= */
@@ -402,9 +429,9 @@ body {
   background-color: var(--color-bg);
   color: var(--text-color);
   line-height: 1.5;
-    font-size: var(--text-base-size);
-    line-height: var(--text-leading);
-    letter-spacing: var(--text-tracking);
+  font-size: var(--text-base-size);
+  line-height: var(--text-leading);
+  letter-spacing: var(--text-tracking);
 }
 
 a {
@@ -416,6 +443,7 @@ a {
 a:hover {
   color: var(--color-primary-light);
 }
+
 h1,
 h2,
 h3,
@@ -424,6 +452,7 @@ h3,
   letter-spacing: -0.02em;
   font-weight: 650;
 }
+
 html,
 body {
   font-family: var(--font-family-base);

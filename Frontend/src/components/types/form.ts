@@ -11,9 +11,9 @@ export type Field<T = Record<string, any>> = {
   childComponent?: Component;
   childComponentProps?: {
     options?:
-      | { value: any; label: string }[]
-      | Ref<{ value: any; label: string }[]> // reactive options
-      | (() => { value: any; label: string }[]);
+    | { value: any; label: string }[]
+    | Ref<{ value: any; label: string }[]> // reactive options
+    | (() => { value: any; label: string }[]);
     valueKey?: string;
     labelKey?: string;
   };

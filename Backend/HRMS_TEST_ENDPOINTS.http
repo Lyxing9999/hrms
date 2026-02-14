@@ -1,0 +1,198 @@
+### HRMS Module - API Test Endpoints
+### Base URL
+@baseUrl = http://localhost:5001
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ODQ5NzcwNzBiZTQ2ZGVkNTM4NTRiNCIsInJvbGUiOiJocl9hZG1pbiIsInVzZXJuYW1lIjoiaHJfYWRtaW5fMSIsImVtYWlsIjoiaHJfYWRtaW4xQHNjaG9vbC5jb20iLCJleHAiOjE3NzA4MjQxOTF9.Ls0ZKOa6KrzYYjsVA4mZw5h9T9RPSkUMCuEXYPCjMOw
+
+### ============================================
+### EMPLOYEE ENDPOINTS
+### ============================================
+
+### 1. List Employees (Paginated)
+GET {{baseUrl}}/api/hrms/admin/employees?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 2. Get Single Employee
+GET {{baseUrl}}/api/hrms/admin/employees/698c6c7691f550b7ea37e611
+Authorization: Bearer {{token}}
+
+### 3. Create Employee (Permanent)
+POST {{baseUrl}}/api/hrms/admin/employees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employee_code": "EMP-kaingbsdfgu34nly",
+  "full_name": "John Doe",
+  "department": "Engineering",
+  "position": "Senior Developer",
+  "employment_type": "permanent",
+  "status": "active"
+}
+
+### 4. Create Employee (Contract)
+POST {{baseUrl}}/api/hrms/admin/employees
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employee_code": "kaingbunlsadfyasdf1201",
+  "full_name": "Jane Smith",
+  "department": "Marketing",
+  "position": "Marketing Manager",
+  "employment_type": "contract",
+  "contract": {
+    "start_date": "2026-01-01",
+    "end_date": "2026-12-31",
+    "salary_type": "monthly",
+    "rate": 5000.00,
+    "pay_on_holiday": true,
+    "pay_on_weekend": false
+  },
+  "status": "active"
+}
+
+### 5. Update Employee
+PATCH {{baseUrl}}/api/hrms/admin/employees/698c68815a69b291bad62f5a
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "full_name": "John Doe Updated999",
+  "position": "Lead Developer",
+  "department": "Engineering"
+}
+
+### 6. Create Account for Employee
+POST {{baseUrl}}/api/hrms/admin/employees/698c9f1636da45b288fbee3f/create-account
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "email": "kaingbunly@company.com",
+  "password": "12345678",
+  "username": "kaingbunly1202",
+  "role": "employee"
+}
+
+### 7. Upload Employee Photo
+PATCH {{baseUrl}}/uploads/employee/EMPLOYEE_ID_HERE
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary
+
+------WebKitFormBoundary
+Content-Disposition: form-data; name="photo"; filename="photo.jpg"
+Content-Type: image/jpeg
+
+< ./path/to/photo.jpg
+------WebKitFormBoundary--
+
+### 8. Soft Delete Employee
+DELETE {{baseUrl}}/api/hrms/admin/employees/EMPLOYEE_ID_HERE/soft-delete
+Authorization: Bearer {{token}}
+
+### 9. Restore Employee
+POST {{baseUrl}}/api/hrms/admin/employees/EMPLOYEE_ID_HERE/restore
+Authorization: Bearer {{token}}
+
+### 10. List Deleted Employees
+GET {{baseUrl}}/api/hrms/admin/employees?deleted_only=true
+Authorization: Bearer {{token}}
+
+
+### ============================================
+### LEAVE ENDPOINTS
+### ============================================
+
+### 1. List All Leaves
+GET {{baseUrl}}/api/hrms/leaves?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### 2. List Leaves by Employee
+GET {{baseUrl}}/api/hrms/leaves?employee_id=EMPLOYEE_ID_HERE
+Authorization: Bearer {{token}}
+
+### 3. List Leaves by Status
+GET {{baseUrl}}/api/hrms/leaves?status=pending
+Authorization: Bearer {{token}}
+
+### 4. Get Single Leave
+GET {{baseUrl}}/api/hrms/leaves/LEAVE_ID_HERE
+Authorization: Bearer {{token}}
+
+### 5. Submit Leave Request (Employee)
+POST {{baseUrl}}/api/hrms/employee/leaves
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "employee_id": "698c6c7691f550b7ea37e611",
+  "leave_type": "annual",
+  "start_date": "2026-03-01",
+  "end_date": "2026-03-05",
+  "reason": "Family vacation"
+}
+
+### 6. Update Leave Request (Pending Only)
+PATCH {{baseUrl}}/api/hrms/leaves/698c6c7691f550b7ea37e611
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "start_date": "2026-03-02",
+  "end_date": "2026-03-06",
+  "reason": "Updated: Family vacation extended"
+}
+
+### 7. Approve Leave (Manager)
+PATCH {{baseUrl}}/api/hrms/manager/leaves/LEAVE_ID_HERE/approve
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "comment": "Approved. Enjoy your vacation!"
+}
+
+### 8. Reject Leave (Manager)
+PATCH {{baseUrl}}/api/hrms/manager/leaves/LEAVE_ID_HERE/reject
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "comment": "Sorry, we need you during this period."
+}
+
+### 9. Cancel Leave (Employee)
+PATCH {{baseUrl}}/api/hrms/leaves/LEAVE_ID_HERE/cancel
+Authorization: Bearer {{token}}
+
+### 10. Soft Delete Leave
+DELETE {{baseUrl}}/api/hrms/leaves/LEAVE_ID_HERE/soft-delete
+Authorization: Bearer {{token}}
+
+### 11. Restore Leave
+POST {{baseUrl}}/api/hrms/leaves/LEAVE_ID_HERE/restore
+Authorization: Bearer {{token}}
+
+### 12. List Deleted Leaves
+GET {{baseUrl}}/api/hrms/leaves?deleted_only=true
+Authorization: Bearer {{token}}
+
+
+### ============================================
+### SEARCH & FILTER EXAMPLES
+### ============================================
+
+### Search Employees by Name
+GET {{baseUrl}}/api/hrms/admin/employees?q=john&page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Search Leaves by Reason
+GET {{baseUrl}}/api/hrms/leaves?q=vacation
+Authorization: Bearer {{token}}
+
+### Filter Pending Leaves for Specific Employee
+GET {{baseUrl}}/api/hrms/leaves?employee_id=EMPLOYEE_ID_HERE&status=pending
+Authorization: Bearer {{token}}
+
+### Include Deleted Records
+GET {{baseUrl}}/api/hrms/admin/employees?include_deleted=true
+Authorization: Bearer {{token}}

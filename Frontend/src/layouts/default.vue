@@ -5,7 +5,7 @@ import { useRoute } from "vue-router";
 import AppSidebar from "~/components/layouts/AppSidebar.vue";
 import AppHeader from "~/components/layouts/AppHeader.vue";
 import AppFooter from "~/components/layouts/AppFooter.vue";
-import schoolLogoLight from "~/assets/image/school-logo-light.png";
+import schoolLogoLight from "~/assets/image/school-logo-light.jpg";
 
 const route = useRoute();
 

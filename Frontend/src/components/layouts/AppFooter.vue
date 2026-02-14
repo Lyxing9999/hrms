@@ -1,4 +1,3 @@
-<!-- components/layout/BaseFooter.vue -->
 <script setup lang="ts">
 const year = new Date().getFullYear();
 

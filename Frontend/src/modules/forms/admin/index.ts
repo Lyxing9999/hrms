@@ -1,4 +1,3 @@
-// ~/forms/admin/index.ts
 
 export * as userForm from "./user";
 export * as staffForm from "./staff";

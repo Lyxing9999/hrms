@@ -1,4 +1,3 @@
-// ~/api/staff/service.ts
 import {
   useApiUtils,
   type ApiCallOptions,

@@ -3,25 +3,28 @@ from pymongo import MongoClient
 from flask_debugtoolbar import DebugToolbarExtension
 from app.contexts.core.config.setting import settings
 from app.contexts.infra.http.errors import register_error_handlers
+from datetime import timezone
 
 cors = CORS()
 mongo_client: MongoClient | None = None
 toolbar = DebugToolbarExtension()
 
-
 def init_extensions(app):
     global mongo_client
 
     app.config["DATABASE_URI"] = settings.DATABASE_URI
-    app.config["DATABASE_NAME"] = getattr(settings, "DATABASE_NAME", None)
+    app.config["DATABASE_NAME"] = getattr(settings, "DATABASE_NAME", None) or "mvp-lite"
 
     if mongo_client is None:
-        mongo_client = MongoClient(app.config["DATABASE_URI"])
+        mongo_client = MongoClient(
+            app.config["DATABASE_URI"],
+            tz_aware=True,
+            tzinfo=timezone.utc,
+        )
 
     cors.init_app(app)
     toolbar.init_app(app)
     register_error_handlers(app)
-
 
 def get_mongo_client() -> MongoClient:
     if mongo_client is None:

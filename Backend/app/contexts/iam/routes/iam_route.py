@@ -25,6 +25,7 @@ from app.contexts.iam.auth.refresh_utils import (
     REFRESH_TTL,
 )
 
+from app.contexts.shared.time_utils import ensure_utc
 
 iam_bp = Blueprint("iam_bp", __name__)
 
@@ -81,7 +82,9 @@ def refresh_access_token():
     if doc.get("revoked_at") is not None:
         return jsonify({"msg": "Refresh token revoked"}), 401
 
-    if doc["expires_at"] < now_utc():
+    # Ensure timezone-aware comparison
+    expires_at = ensure_utc(doc["expires_at"]) if doc.get("expires_at") else None
+    if expires_at and expires_at < now_utc():
         return jsonify({"msg": "Refresh token expired"}), 401
 
     iam_service = IAMService(db)
@@ -99,15 +102,15 @@ def refresh_access_token():
 
     refresh_tokens.update_one(
         {"_id": doc["_id"]},
-        {"$set": {"revoked_at": now_utc(), "replaced_by_hash": new_hash}},
+        {"$set": {"revoked_at": ensure_utc(now_utc()), "replaced_by_hash": new_hash}},
     )
 
     refresh_tokens.insert_one(
         {
             "user_id": str(safe_dict["id"]),
             "token_hash": new_hash,
-            "created_at": now_utc(),
-            "expires_at": now_utc() + REFRESH_TTL,
+            "created_at": ensure_utc(now_utc()),
+            "expires_at": ensure_utc(now_utc() + REFRESH_TTL),
             "revoked_at": None,
             "replaced_by_hash": None,
         }
