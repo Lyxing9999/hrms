@@ -1,4 +1,3 @@
-# app/contexts/hrms/data_transfer/response/attendance_response.py
 from pydantic import BaseModel, Field
 from datetime import datetime
 from app.contexts.shared.lifecycle.dto import LifecycleDTO

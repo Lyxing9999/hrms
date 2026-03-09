@@ -1,4 +1,3 @@
-# app/contexts/hrms/data_transfer/request/attendance_request.py
 from pydantic import BaseModel, Field
 from datetime import datetime
 
