@@ -1,9 +1,14 @@
-from pydantic import BaseModel, Field, EmailStr
-from typing import Optional, Literal
+from __future__ import annotations
+
 from datetime import date
+from typing import Optional, Literal
+
+from pydantic import BaseModel, Field, EmailStr, model_validator
+
 
 EmploymentType = Literal["permanent", "contract"]
 SalaryType = Literal["monthly", "daily", "hourly"]
+
 
 class ContractSchema(BaseModel):
     start_date: date
@@ -14,6 +19,13 @@ class ContractSchema(BaseModel):
     pay_on_holiday: bool = True
     pay_on_weekend: bool = False
 
+    @model_validator(mode="after")
+    def validate_dates(self):
+        if self.end_date < self.start_date:
+            raise ValueError("end_date cannot be before start_date")
+        return self
+
+
 class EmployeeCreateSchema(BaseModel):
     employee_code: str = Field(..., min_length=2, max_length=30)
     full_name: str = Field(..., min_length=2, max_length=120)
@@ -21,26 +33,36 @@ class EmployeeCreateSchema(BaseModel):
     position: Optional[str] = None
 
     employment_type: EmploymentType = "contract"
+    basic_salary: float = Field(..., ge=0)
     contract: Optional[ContractSchema] = None
 
-    # optional links / metadata
     manager_user_id: Optional[str] = None
     schedule_id: Optional[str] = None
     status: str = "active"
+    photo_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_contract_requirement(self):
+        if self.employment_type == "contract" and self.contract is None:
+            raise ValueError("contract is required when employment_type is 'contract'")
+        return self
+
 
 class EmployeeUpdateSchema(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=120)
     department: Optional[str] = None
     position: Optional[str] = None
     employment_type: Optional[EmploymentType] = None
+    basic_salary: Optional[float] = Field(None, ge=0)
     contract: Optional[ContractSchema] = None
     manager_user_id: Optional[str] = None
     schedule_id: Optional[str] = None
     status: Optional[str] = None
+    photo_url: Optional[str] = None
 
 
 class EmployeeCreateAccountSchema(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6)
     username: Optional[str] = None
-    role: str = Field(default="employee")  # employee|manager|payroll_manager|admin
+    role: str = Field(default="employee")

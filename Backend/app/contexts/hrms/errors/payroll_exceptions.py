@@ -39,3 +39,12 @@ class PayrollNotFoundException(AppBaseException):
             hint="Generate payroll first",
             recoverable=True,
         )
+
+
+
+class PayrollRunNotFoundException(AppBaseException):
+    pass
+
+
+class PayslipNotFoundException(AppBaseException):
+    pass

@@ -1,19 +1,22 @@
-# app/contexts/hrms/data_transfer/request/public_holiday_request.py
+from __future__ import annotations
+
+from datetime import date
+from typing import Optional
+
 from pydantic import BaseModel, Field
-from datetime import date as date_type
 
 
 class PublicHolidayCreateSchema(BaseModel):
-    name: str = Field(..., min_length=2, max_length=200, description="Holiday name")
-    name_kh: str | None = Field(None, max_length=200, description="Khmer name")
-    date: date_type = Field(..., description="Holiday date")
-    is_paid: bool = Field(default=True, description="Is this a paid holiday")
-    description: str | None = Field(None, max_length=500, description="Holiday description")
+    name: str = Field(..., min_length=2, max_length=120)
+    name_kh: Optional[str] = None
+    date: date
+    is_paid: bool = True
+    description: Optional[str] = None
 
 
 class PublicHolidayUpdateSchema(BaseModel):
-    name: str | None = Field(None, min_length=2, max_length=200)
-    name_kh: str | None = Field(None, max_length=200)
-    date: date_type | None = None
-    is_paid: bool | None = None
-    description: str | None = Field(None, max_length=500)
+    name: Optional[str] = Field(None, min_length=2, max_length=120)
+    name_kh: Optional[str] = None
+    date: Optional[date] = None
+    is_paid: Optional[bool] = None
+    description: Optional[str] = None

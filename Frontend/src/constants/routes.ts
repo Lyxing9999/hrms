@@ -48,105 +48,59 @@ export const ROUTES = {
   // HRMS ROUTES (Human Resource Management)
   // ============================================
   HR_ADMIN: {
-    // Dashboard
     DASHBOARD: "/hr",
-    
-    // Employee Management
-    EMPLOYEES: "/hr/employees/employee-profile",
-    EMPLOYEE_DETAIL: (id: string) => `/hr/employees/${id}`,
+    EMPLOYEES: "/hr/employees",
     EMPLOYEE_CREATE: "/hr/employees/create",
-    
-    // Leave Management
-    LEAVES: "/hr/leaves",
-    LEAVE_DETAIL: "/hr/leaves/:id",
-    MY_LEAVES: "/hr/my-leaves",
-    LEAVE_APPROVALS: "/hr/leave-approvals",
-    
-    // Attendance System
     ATTENDANCE: "/hr/attendance",
-    ATTENDANCE_CHECK_IN: "/hr/attendance/check-in",
-    ATTENDANCE_HISTORY: "/hr/attendance/history",
-    ATTENDANCE_TEAM: "/hr/attendance/team",
+    ATTENDANCE_WRONG_LOCATION: "/hr/attendance/wrong-location",
     ATTENDANCE_REPORTS: "/hr/attendance/reports",
-    
-    // Overtime Management
     OVERTIME: "/hr/overtime",
-    OVERTIME_REQUEST: "/hr/overtime/request",
-    OVERTIME_APPROVALS: "/hr/overtime/approvals",
-    OVERTIME_HISTORY: "/hr/overtime/history",
-    
-    // Payroll System
-    PAYROLL: "/hr/payroll",
-    PAYROLL_PROCESS: "/hr/payroll/process",
-    PAYROLL_HISTORY: "/hr/payroll/history",
-    PAYSLIPS: "/hr/payslips",
-    PAYSLIP_DETAIL: "/hr/payslips/:id",
-    
-    // Configuration
-    CONFIG: "/hr/config",
+    OVERTIME_REVIEWS: "/hr/overtime/reviews",
+    LEAVES: "/hr/leaves",
+    LEAVE_REVIEWS: "/hr/leaves/reviews",
+    PAYROLL_RUNS: "/hr/payroll/runs",
+    PAYSLIPS: "/hr/payroll/payslips",
     WORKING_SCHEDULES: "/hr/config/schedules",
     WORK_LOCATIONS: "/hr/config/locations",
-    PUBLIC_HOLIDAYS: "/hr/config/holidays",
-    DEDUCTION_RULES: "/hr/config/deductions",
-    
-    // Reports & Analytics
-    REPORTS: "/hr/reports",
+    PUBLIC_HOLIDAYS: "/hr/config/public-holidays",
+    DEDUCTION_RULES: "/hr/config/deduction-rules",
     REPORTS_ATTENDANCE: "/hr/reports/attendance",
     REPORTS_OVERTIME: "/hr/reports/overtime",
     REPORTS_PAYROLL: "/hr/reports/payroll",
-    REPORTS_DEDUCTIONS: "/hr/reports/deductions",
-    
-    // Organization Structure (Legacy)
-    COMPANY: "/hr/company",
-    DEPARTMENT: "/hr/department",
-    POSITION: "/hr/position",
-    
-    // System
-    NOTIFICATIONS: "/hr/notifications",
-    CALENDAR: "/hr/calendar",
-    SETTINGS: "/hr/settings",
+    REPORTS_WRONG_LOCATION: "/hr/reports/wrong-location",
   },
 
-  // ============================================
-  // EMPLOYEE ROUTES (Self-Service Portal)
-  // ============================================
   EMPLOYEE: {
-    DASHBOARD: "/employee/dashboard",
-    MY_PROFILE: "/employee/profile",
+    DASHBOARD: "/employee",
+    PROFILE: "/employee/profile",
+    ATTENDANCE_CHECK_IN: "/employee/attendance/check-in",
+    ATTENDANCE_HISTORY: "/employee/attendance/history",
+    OVERTIME_REQUEST: "/employee/overtime/request",
+    OVERTIME_HISTORY: "/employee/overtime/history",
+    LEAVE_REQUEST: "/employee/leaves/request",
     MY_LEAVES: "/employee/leaves",
-    MY_ATTENDANCE: "/employee/attendance",
-    CHECK_IN: "/employee/check-in",
-    MY_OVERTIME: "/employee/overtime",
-    MY_PAYSLIPS: "/employee/payslips",
-    MY_SCHEDULE: "/employee/schedule",
-    NOTIFICATIONS: "/employee/notifications",
-    SETTINGS: "/employee/settings",
+    PAYSLIPS: "/employee/payslips",
   },
 
-  // ============================================
-  // MANAGER ROUTES
-  // ============================================
   MANAGER: {
-    DASHBOARD: "/manager/dashboard",
-    TEAM: "/manager/team",
-    TEAM_ATTENDANCE: "/manager/team/attendance",
-    LEAVE_APPROVALS: "/manager/leave-approvals",
-    OVERTIME_APPROVALS: "/manager/overtime-approvals",
-    TEAM_REPORTS: "/manager/reports",
-    NOTIFICATIONS: "/manager/notifications",
-    SETTINGS: "/manager/settings",
+    DASHBOARD: "/manager",
+    ATTENDANCE_TEAM: "/manager/attendance/team",
+    ATTENDANCE_REPORTS: "/manager/attendance/reports",
+    OVERTIME_REVIEWS: "/manager/overtime/reviews",
+    OVERTIME_HISTORY: "/manager/overtime/history",
+    LEAVE_REVIEWS: "/manager/leaves/reviews",
+    LEAVE_HISTORY: "/manager/leaves/history",
+    REPORTS_TEAM: "/manager/reports/team",
   },
 
-  // ============================================
-  // PAYROLL MANAGER ROUTES
-  // ============================================
   PAYROLL_MANAGER: {
-    DASHBOARD: "/payroll/dashboard",
-    PROCESS_PAYROLL: "/payroll/process",
-    PAYROLL_HISTORY: "/payroll/history",
+    DASHBOARD: "/payroll",
+    PAYROLL_PROCESS: "/payroll/runs/generate",
+    PAYROLL_RUNS: "/payroll/runs",
     PAYSLIPS: "/payroll/payslips",
-    REPORTS: "/payroll/reports",
-    SETTINGS: "/payroll/settings",
+    ATTENDANCE_FINAL: "/payroll/attendance/final",
+    OVERTIME_APPROVED: "/payroll/overtime/approved",
+    REPORTS_PAYROLL: "/payroll/reports",
   },
 } as const;
 

@@ -175,6 +175,10 @@ def create_app():
             limiter.limit(auth_limit, override_defaults=False)(lambda: None)()
         elif _is_reset_path(path):
             limiter.limit(reset_limit, override_defaults=False)(lambda: None)()
+        if not hasattr(g, "hrms"):
+            from app.contexts.hrms.composition import build_hrms_facade
+            g.hrms = build_hrms_facade(get_db())
+
 
     @app.after_request
     def _after(resp):
@@ -261,11 +265,9 @@ def create_app():
     # -------------------------
     # HRMS Domain
     # -------------------------
-    from app.contexts.hrms.routes import register_hrms_routes
-    
-    # Register all HRMS routes with context (following admin pattern)
-    register_hrms_routes(app)
-    
+    from app.contexts.hrms.api.employee import register_employee_routes
+
+    register_employee_routes(app)
     # Register realtime attendance handlers
     from app.contexts.hrms.realtime import handlers  # noqa: F401
 

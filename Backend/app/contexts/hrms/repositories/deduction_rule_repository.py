@@ -1,49 +1,62 @@
-# app/contexts/hrms/repositories/deduction_rule_repository.py
-from typing import Optional
-from bson import ObjectId
-from pymongo.collection import Collection
+from __future__ import annotations
 
-from app.contexts.shared.lifecycle.filters import not_deleted, by_show_deleted
-from app.contexts.shared.lifecycle.domain import now_utc as lifecycle_now_utc
-from app.contexts.hrms.mapper.deduction_rule_mapper import DeductionRuleMapper
+from bson import ObjectId
+from pymongo.database import Database
+
 from app.contexts.hrms.domain.deduction_rule import DeductionRule
+from app.contexts.hrms.mapper.deduction_rule_mapper import DeductionRuleMapper
+from app.contexts.hrms.errors.deduction_exceptions import DeductionRuleNotFoundException
 
 
 class MongoDeductionRuleRepository:
-    def __init__(self, collection: Collection):
-        self.collection = collection
+    def __init__(self, db: Database):
+        self.collection = db["hr_deduction_rules"]
         self.mapper = DeductionRuleMapper()
 
-    def find_one(self, id: ObjectId, *, include_deleted: bool = False) -> Optional[DeductionRule]:
-        show = "all" if include_deleted else "active"
-        raw = self.collection.find_one(by_show_deleted(show, {"_id": id}))
-        return None if not raw else self.mapper.to_domain(raw)
-
-    def save(self, payload: dict) -> DeductionRule:
-        res = self.collection.insert_one(dict(payload))
-        rule = self.find_one(res.inserted_id)
-        if rule is None:
-            raise RuntimeError(f"DeductionRule insert ok but load failed: {res.inserted_id}")
+    def save(self, rule: DeductionRule) -> DeductionRule:
+        doc = self.mapper.to_persistence(rule)
+        self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
         return rule
 
-    def update(self, rule_id: ObjectId, payload: dict) -> Optional[DeductionRule]:
-        data = dict(payload)
-        data.pop("_id", None)
-        
-        lifecycle_data = data.pop("lifecycle", None)
-        
-        update_doc = {"$set": {**data, "lifecycle.updated_at": lifecycle_now_utc()}}
-        
-        if lifecycle_data:
-            if "deleted_at" in lifecycle_data:
-                update_doc["$set"]["lifecycle.deleted_at"] = lifecycle_data["deleted_at"]
-            if "deleted_by" in lifecycle_data:
-                update_doc["$set"]["lifecycle.deleted_by"] = lifecycle_data["deleted_by"]
+    def find_by_id(self, rule_id: ObjectId) -> DeductionRule:
+        doc = self.collection.find_one({"_id": rule_id})
+        if not doc:
+            raise DeductionRuleNotFoundException(rule_id)
+        return self.mapper.to_domain(doc)
 
-        res = self.collection.update_one(
-            {"_id": rule_id},
-            update_doc,
-        )
-        if res.matched_count == 0:
-            return None
-        return self.find_one(rule_id, include_deleted=True)
+    def list_rules(
+        self,
+        *,
+        type: str | None = None,
+        is_active: bool | None = None,
+        include_deleted: bool = False,
+        deleted_only: bool = False,
+    ) -> list[DeductionRule]:
+        query = {}
+
+        if type:
+            query["type"] = type
+        if is_active is not None:
+            query["is_active"] = is_active
+
+        if deleted_only:
+            query["lifecycle.deleted_at"] = {"$ne": None}
+        elif not include_deleted:
+            query["lifecycle.deleted_at"] = None
+
+        docs = self.collection.find(query).sort([("type", 1), ("min_minutes", 1)])
+        return [self.mapper.to_domain(doc) for doc in docs]
+
+    def list_active(self, *, type: str | None = None) -> list[DeductionRule]:
+        query = {
+            "is_active": True,
+            "lifecycle.deleted_at": None,
+        }
+        if type:
+            query["type"] = type
+
+        docs = self.collection.find(query).sort("min_minutes", 1)
+        return [self.mapper.to_domain(doc) for doc in docs]
+
+    def delete(self, rule_id: ObjectId) -> None:
+        self.collection.delete_one({"_id": rule_id})

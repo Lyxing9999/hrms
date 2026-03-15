@@ -1,49 +1,55 @@
-# app/contexts/hrms/repositories/working_schedule_repository.py
-from typing import Optional
-from bson import ObjectId
-from pymongo.collection import Collection
+from __future__ import annotations
 
-from app.contexts.shared.lifecycle.filters import not_deleted, by_show_deleted
-from app.contexts.shared.lifecycle.domain import now_utc as lifecycle_now_utc
-from app.contexts.hrms.mapper.working_schedule_mapper import WorkingScheduleMapper
+from bson import ObjectId
+from pymongo.database import Database
+
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
+from app.contexts.hrms.mapper.working_schedule_mapper import WorkingScheduleMapper
+from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFoundException
 
 
 class MongoWorkingScheduleRepository:
-    def __init__(self, collection: Collection):
-        self.collection = collection
+    def __init__(self, db: Database):
+        self.collection = db["hr_working_schedules"]
         self.mapper = WorkingScheduleMapper()
 
-    def find_one(self, id: ObjectId, *, include_deleted: bool = False) -> Optional[WorkingSchedule]:
-        show = "all" if include_deleted else "active"
-        raw = self.collection.find_one(by_show_deleted(show, {"_id": id}))
-        return None if not raw else self.mapper.to_domain(raw)
-
-    def save(self, payload: dict) -> WorkingSchedule:
-        res = self.collection.insert_one(dict(payload))
-        schedule = self.find_one(res.inserted_id)
-        if schedule is None:
-            raise RuntimeError(f"WorkingSchedule insert ok but load failed: {res.inserted_id}")
+    def save(self, schedule: WorkingSchedule) -> WorkingSchedule:
+        doc = self.mapper.to_persistence(schedule)
+        self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
         return schedule
 
-    def update(self, schedule_id: ObjectId, payload: dict) -> Optional[WorkingSchedule]:
-        data = dict(payload)
-        data.pop("_id", None)
-        
-        lifecycle_data = data.pop("lifecycle", None)
-        
-        update_doc = {"$set": {**data, "lifecycle.updated_at": lifecycle_now_utc()}}
-        
-        if lifecycle_data:
-            if "deleted_at" in lifecycle_data:
-                update_doc["$set"]["lifecycle.deleted_at"] = lifecycle_data["deleted_at"]
-            if "deleted_by" in lifecycle_data:
-                update_doc["$set"]["lifecycle.deleted_by"] = lifecycle_data["deleted_by"]
+    def find_by_id(self, schedule_id: ObjectId) -> WorkingSchedule:
+        doc = self.collection.find_one({"_id": schedule_id})
+        if not doc:
+            raise WorkingScheduleNotFoundException(schedule_id)
+        return self.mapper.to_domain(doc)
 
-        res = self.collection.update_one(
-            {"_id": schedule_id},
-            update_doc,
-        )
-        if res.matched_count == 0:
-            return None
-        return self.find_one(schedule_id, include_deleted=True)
+    def find_default(self) -> WorkingSchedule | None:
+        doc = self.collection.find_one({
+            "is_default": True,
+            "lifecycle.deleted_at": None,
+        })
+        return self.mapper.to_domain(doc) if doc else None
+
+    def list_schedules(
+        self,
+        *,
+        is_default: bool | None = None,
+        include_deleted: bool = False,
+        deleted_only: bool = False,
+    ) -> list[WorkingSchedule]:
+        query = {}
+
+        if is_default is not None:
+            query["is_default"] = is_default
+
+        if deleted_only:
+            query["lifecycle.deleted_at"] = {"$ne": None}
+        elif not include_deleted:
+            query["lifecycle.deleted_at"] = None
+
+        docs = self.collection.find(query).sort("name", 1)
+        return [self.mapper.to_domain(doc) for doc in docs]
+
+    def delete(self, schedule_id: ObjectId) -> None:
+        self.collection.delete_one({"_id": schedule_id})

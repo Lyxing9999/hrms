@@ -1,4 +1,5 @@
-# app/contexts/hrms/mapper/work_location_mapper.py
+from __future__ import annotations
+
 from bson import ObjectId
 
 from app.contexts.hrms.domain.work_location import WorkLocation
@@ -23,7 +24,7 @@ class WorkLocationMapper:
     def to_domain(data: dict) -> WorkLocation:
         if not isinstance(data, dict):
             raise TypeError(f"to_domain expected dict, got {type(data)}")
-        
+
         lc_src = data.get("lifecycle") or {}
         lifecycle = Lifecycle(
             created_at=lc_src.get("created_at") or data.get("created_at"),
@@ -36,9 +37,9 @@ class WorkLocationMapper:
             id=WorkLocationMapper._oid(data.get("_id") or data.get("id")),
             name=data.get("name") or "",
             address=data.get("address") or "",
-            latitude=float(data.get("latitude", 0.0)),
-            longitude=float(data.get("longitude", 0.0)),
-            radius_meters=int(data.get("radius_meters", 100)),
+            latitude=float(data.get("latitude", 0)),
+            longitude=float(data.get("longitude", 0)),
+            radius_meters=int(data.get("radius_meters", 0)),
             is_active=bool(data.get("is_active", True)),
             created_by=WorkLocationMapper._oid(data.get("created_by")),
             lifecycle=lifecycle,
@@ -48,7 +49,7 @@ class WorkLocationMapper:
     def to_persistence(location: WorkLocation) -> dict:
         if not isinstance(location, WorkLocation):
             raise TypeError(f"to_persistence expected WorkLocation, got {type(location)}")
-        
+
         lc = location.lifecycle
         doc = {
             "name": location.name,

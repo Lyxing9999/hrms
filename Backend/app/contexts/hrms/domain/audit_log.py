@@ -1,0 +1,46 @@
+from __future__ import annotations
+
+from enum import Enum
+from datetime import datetime
+from bson import ObjectId
+
+from app.contexts.shared.lifecycle.domain import Lifecycle
+
+
+class AuditAction(str, Enum):
+    WRONG_LOCATION_SUBMITTED = "wrong_location_submitted"
+    WRONG_LOCATION_APPROVED = "wrong_location_approved"
+    WRONG_LOCATION_REJECTED = "wrong_location_rejected"
+    ATTENDANCE_CHECK_IN = "attendance_check_in"
+    ATTENDANCE_CHECK_OUT = "attendance_check_out"
+    OT_SUBMITTED = "ot_submitted"
+    OT_APPROVED = "ot_approved"
+    OT_REJECTED = "ot_rejected"
+    PAYROLL_GENERATED = "payroll_generated"
+    PAYROLL_FINALIZED = "payroll_finalized"
+
+
+class AuditLog:
+    def __init__(
+        self,
+        *,
+        entity_type: str,
+        entity_id: ObjectId,
+        action: AuditAction | str,
+        actor_id: ObjectId | None,
+        action_at: datetime,
+        details: dict | None = None,
+        id: ObjectId | None = None,
+        lifecycle: Lifecycle | None = None,
+    ) -> None:
+        self.id = id or ObjectId()
+        self.entity_type = (entity_type or "").strip()
+        self.entity_id = entity_id
+        self.action = AuditAction(str(action).strip().lower())
+        self.actor_id = actor_id
+        self.action_at = action_at
+        self.details = details or {}
+        self.lifecycle = lifecycle or Lifecycle()
+
+        if not self.entity_type:
+            raise ValueError("entity_type is required")

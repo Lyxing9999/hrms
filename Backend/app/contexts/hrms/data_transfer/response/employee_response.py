@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from typing import Optional, Dict, Any
+
 from pydantic import BaseModel, ConfigDict
 
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
-from app.contexts.admin.data_transfer.responses.common import PaginatedDTO  
+from app.contexts.admin.data_transfer.responses.common import PaginatedDTO
 from app.contexts.iam.data_transfer.response import IAMBaseDataDTO
 
 
@@ -18,6 +21,7 @@ class EmployeeDTO(BaseModel):
     position: Optional[str] = None
 
     employment_type: str
+    basic_salary: float
     contract: Optional[Dict[str, Any]] = None
 
     manager_user_id: Optional[str] = None
@@ -26,7 +30,7 @@ class EmployeeDTO(BaseModel):
 
     created_by: Optional[str] = None
     photo_url: Optional[str] = None
-    
+
     lifecycle: LifecycleDTO
 
 

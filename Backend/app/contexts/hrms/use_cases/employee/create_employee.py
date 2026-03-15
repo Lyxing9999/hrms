@@ -1,0 +1,38 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+
+
+class CreateEmployeeUseCase:
+    def __init__(self, *, employee_repository) -> None:
+        self.employee_repository = employee_repository
+
+    def execute(self, *, payload, created_by_user_id):
+        existing = self.employee_repository.find_by_employee_code(payload.employee_code)
+        if existing:
+            raise ValueError("Employee code already exists")
+        print("this is type of payload:", type(payload))
+        print("get from payload:", payload)
+        doc = {
+            "employee_code": payload.employee_code,
+            "full_name": payload.full_name,
+            "department": payload.department,
+            "position": payload.position,
+            "employment_type": payload.employment_type,
+            "basic_salary": payload.basic_salary,
+            "contract": payload.contract.model_dump() if payload.contract else None,
+            "manager_user_id": payload.manager_user_id,
+            "schedule_id": payload.schedule_id,
+            "status": payload.status,
+            "photo_url": payload.photo_url,
+            "user_id": None,
+            "created_by": created_by_user_id,
+            "lifecycle": {
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+                "deleted_at": None,
+                "deleted_by": None,
+            },
+        }
+
+        return self.employee_repository.create(doc)

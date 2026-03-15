@@ -1,9 +1,10 @@
-# app/contexts/hrms/data_transfer/response/work_location_response.py
+from __future__ import annotations
+
 from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
-from app.contexts.admin.data_transfer.responses.common import PaginatedDTO
 
 
 class WorkLocationDTO(BaseModel):
@@ -18,7 +19,3 @@ class WorkLocationDTO(BaseModel):
     is_active: bool
     created_by: Optional[str] = None
     lifecycle: LifecycleDTO
-
-
-class WorkLocationPaginatedDTO(PaginatedDTO[WorkLocationDTO]):
-    pass

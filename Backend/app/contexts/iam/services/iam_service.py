@@ -28,6 +28,9 @@ from app.contexts.shared.time_utils import utc_now as now_utc, ensure_utc
 from app.contexts.iam.auth.password_reset_utils import (
     hash_reset_token
 )
+
+from app.contexts.iam.factory.iam_factory import IAMFactory
+
 from app.contexts.iam.policies.iam_uniqueness_policy import IAMUniquenessPolicy
 # NOTE: This assumes your MongoIAMRepository has:
 # - update_password(user_id: ObjectId|str, password_hash: str) -> int
@@ -46,6 +49,7 @@ class IAMService:
         self._auth_service = AuthService()
         self._uniqueness_policy = IAMUniquenessPolicy(self._iam_read_model)
 
+        self._factory = IAMFactory(iam_read_model=self._iam_read_model)
         self._refresh_tokens = db["refresh_tokens"]
         self._password_resets = db["password_resets"]
 
@@ -280,3 +284,13 @@ class IAMService:
     def logout(self, refresh_token: str) -> dict:
         self._revoke_refresh_token(refresh_token)
         return {"message": "Logged out"}
+    
+    # -------------------------
+    # for adapt
+    # -------------------------
+    def create_user(self, *, email, password, username=None, role=None, created_by=None):
+        iam_user = self._factory.create_user(
+            email=email, password=password, username=username, role=role, created_by=created_by
+        )
+        self._iam_repository.save(iam_user) 
+        return iam_user

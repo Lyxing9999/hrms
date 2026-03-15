@@ -1,5 +1,5 @@
 import type { EmployeeApi } from "~/api/hr_admin/employee/employee.api";
-import type { EmployeeService } from "~/api/hr_admin/employee/employee.service";
+import type { EmployeeService } from "~/api/hr_admin/employees/service";
 
 declare module "#app" {
   interface NuxtApp {

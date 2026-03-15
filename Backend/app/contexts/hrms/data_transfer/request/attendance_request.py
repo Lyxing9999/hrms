@@ -1,25 +1,35 @@
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class AttendanceCheckInSchema(BaseModel):
-    employee_id: str | None = Field(None, description="Employee ID (optional, extracted from token)")
-    location_id: str | None = Field(None, description="Work location ID")
-    latitude: float | None = Field(None, ge=-90, le=90, description="Check-in latitude")
-    longitude: float | None = Field(None, ge=-180, le=180, description="Check-in longitude")
-    notes: str | None = Field(None, max_length=500, description="Optional notes")
+    employee_id: str
+    check_in_time: datetime
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    wrong_location_reason: Optional[str] = None
 
 
 class AttendanceCheckOutSchema(BaseModel):
-    latitude: float | None = Field(None, ge=-90, le=90, description="Check-out latitude")
-    longitude: float | None = Field(None, ge=-180, le=180, description="Check-out longitude")
-    notes: str | None = Field(None, max_length=500, description="Optional notes")
+    employee_id: str
+    check_out_time: datetime
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
 
 
-class AttendanceUpdateSchema(BaseModel):
-    check_in_time: datetime | None = None
-    check_out_time: datetime | None = None
-    location_id: str | None = None
-    notes: str | None = Field(None, max_length=500)
-    late_minutes: int | None = Field(None, ge=0)
-    early_leave_minutes: int | None = Field(None, ge=0)
+class AttendanceApproveWrongLocationSchema(BaseModel):
+    attendance_id: str
+    admin_id: str
+    approved: bool
+    comment: Optional[str] = None
+
+
+class AttendanceListQuerySchema(BaseModel):
+    employee_id: Optional[str] = None
+    status: Optional[str] = None
+    page: int = Field(default=1, ge=1)
+    limit: int = Field(default=10, ge=1, le=100)
