@@ -5,27 +5,34 @@ import {
 
 import type {
   HrEmployeeDTO,
-  HrEmployeePaginatedDTO,
+  HrEmployeeAccountDTO,
+  HrEmployeeWithAccountDTO,
+  HrEmployeeWithAccountSummaryPaginatedDTO,
   HrCreateEmployeeDTO,
   HrUpdateEmployeeDTO,
+  HrCreateEmployeeAccountDTO,
   ListEmployeesParams,
+  ListEmployeeAccountsParams,
+  HrLinkEmployeeAccountDTO,
+  HrEmployeeAccountPaginatedDTO,
+  HrUpdateEmployeeAccountDTO,
+  HrPasswordResetResponse,
 } from "./dto";
-
 import { EmployeeApi } from "./api";
-
+import { Status } from "../../types/enums/status.enum";
 export class EmployeeService {
   private readonly callApi = useApiUtils().callApi;
 
   constructor(private readonly employeeApi: EmployeeApi) {}
 
-  // QUERY
-
-  async getEmployees(params?: ListEmployeesParams, options?: ApiCallOptions) {
-    const data = await this.callApi<HrEmployeePaginatedDTO>(
-      () => this.employeeApi.getEmployees(params),
+  async getEmployeesWithAccounts(
+    params?: ListEmployeesParams,
+    options?: ApiCallOptions,
+  ): Promise<HrEmployeeWithAccountSummaryPaginatedDTO> {
+    const data = await this.callApi<HrEmployeeWithAccountSummaryPaginatedDTO>(
+      () => this.employeeApi.getEmployeesWithAccounts(params),
       options,
     );
-
     return data!;
   }
 
@@ -34,74 +41,18 @@ export class EmployeeService {
       () => this.employeeApi.getEmployee(id),
       options,
     );
-
     return data!;
   }
 
-  // COMMAND
-
-  private mapFormToCreateDTO(form: any): HrCreateEmployeeDTO {
-    return {
-      employee_code: form.employee_code,
-      full_name: form.full_name,
-      department: form.department,
-      position: form.position,
-      employment_type: form.employment_type,
-      basic_salary: form.basic_salary,
-      status: form.status ?? "active",
-      contract:
-        form.employment_type === "contract"
-          ? {
-              start_date: form.start_date,
-              end_date: form.end_date,
-              salary_type: form.salary_type,
-              rate: form.rate,
-              leave_policy_id: form.leave_policy_id,
-              pay_on_holiday: form.pay_on_holiday ?? true,
-              pay_on_weekend: form.pay_on_weekend ?? false,
-            }
-          : undefined,
-      manager_user_id: form.manager_user_id,
-      schedule_id: form.schedule_id,
-      photo_url: form.photo_url,
-    };
+  async getEmployeeAccount(id: string, options?: ApiCallOptions) {
+    const data = await this.callApi<HrEmployeeAccountDTO | null>(
+      () => this.employeeApi.getEmployeeAccount(id),
+      options,
+    );
+    return data!;
   }
 
-  // --- Helper: map form data to update DTO ---
-  private mapFormToUpdateDTO(form: any): HrUpdateEmployeeDTO {
-    const payload: HrUpdateEmployeeDTO = {
-      full_name: form.full_name,
-      department: form.department,
-      position: form.position,
-      employment_type: form.employment_type,
-      basic_salary: form.basic_salary,
-      status: form.status,
-      manager_user_id: form.manager_user_id,
-      schedule_id: form.schedule_id,
-      photo_url: form.photo_url,
-    };
-
-    if (form.employment_type === "contract" || form.contract) {
-      payload.contract = {
-        start_date: form.start_date,
-        end_date: form.end_date,
-        salary_type: form.salary_type,
-        rate: form.rate,
-        leave_policy_id: form.leave_policy_id,
-        pay_on_holiday: form.pay_on_holiday ?? true,
-        pay_on_weekend: form.pay_on_weekend ?? false,
-      };
-    }
-
-    return payload;
-  }
-
-  // --- Create Employee ---
-  async createEmployee(
-    form: any,
-    options?: ApiCallOptions,
-  ): Promise<HrEmployeeDTO> {
-    const payload = this.mapFormToCreateDTO(form);
+  async createEmployee(payload: HrCreateEmployeeDTO, options?: ApiCallOptions) {
     const data = await this.callApi<HrEmployeeDTO>(
       () => this.employeeApi.createEmployee(payload),
       { showSuccess: true, ...(options ?? {}) },
@@ -109,13 +60,11 @@ export class EmployeeService {
     return data!;
   }
 
-  // --- Update Employee ---
   async updateEmployee(
     id: string,
-    form: any,
+    payload: HrUpdateEmployeeDTO,
     options?: ApiCallOptions,
-  ): Promise<HrEmployeeDTO> {
-    const payload = this.mapFormToUpdateDTO(form);
+  ) {
     const data = await this.callApi<HrEmployeeDTO>(
       () => this.employeeApi.updateEmployee(id, payload),
       { showSuccess: true, ...(options ?? {}) },
@@ -128,7 +77,6 @@ export class EmployeeService {
       () => this.employeeApi.softDeleteEmployee(id),
       { showSuccess: true, ...(options ?? {}) },
     );
-
     return data!;
   }
 
@@ -137,34 +85,94 @@ export class EmployeeService {
       () => this.employeeApi.restoreEmployee(id),
       { showSuccess: true, ...(options ?? {}) },
     );
-
     return data!;
   }
 
   async createAccount(
     employeeId: string,
-    payload: any,
+    payload: HrCreateEmployeeAccountDTO,
     options?: ApiCallOptions,
   ) {
-    const data = await this.callApi<HrEmployeeDTO>(
+    const data = await this.callApi<HrEmployeeWithAccountDTO>(
       () => this.employeeApi.createAccount(employeeId, payload),
       { showSuccess: true, ...(options ?? {}) },
     );
-
     return data!;
   }
-  // TODO
-  // async uploadEmployeePhoto(
-  //   employeeId: string,
-  //   file: File,
-  //   oldPhotoUrl?: string | null,
-  //   options?: ApiCallOptions,
-  // ) {
-  //   const data = await this.callApi<{ photo_url: string }>(
-  //     () => this.employeeApi.uploadEmployeePhoto(employeeId, file, oldPhotoUrl),
-  //     { showSuccess: true, ...(options ?? {}) },
-  //   );
 
-  //   return data!;
-  // }
+  async softDeleteEmployeeAccount(
+    employeeId: string,
+    options?: ApiCallOptions,
+  ) {
+    const data = await this.callApi<HrEmployeeAccountDTO>(
+      () => this.employeeApi.softDeleteEmployeeAccount(employeeId),
+      { showSuccess: true, ...(options ?? {}) },
+    );
+    return data!;
+  }
+
+  async restoreEmployeeAccount(employeeId: string, options?: ApiCallOptions) {
+    const data = await this.callApi<HrEmployeeAccountDTO>(
+      () => this.employeeApi.restoreEmployeeAccount(employeeId),
+      { showSuccess: true, ...(options ?? {}) },
+    );
+    return data!;
+  }
+  async getEmployeeAccounts(
+    params?: ListEmployeeAccountsParams,
+    options?: ApiCallOptions,
+  ): Promise<HrEmployeeAccountPaginatedDTO> {
+    const data = await this.callApi<HrEmployeeAccountPaginatedDTO>(
+      () => this.employeeApi.getEmployeeAccounts(params),
+      options,
+    );
+    return data!;
+  }
+
+  async linkAccount(
+    employeeId: string,
+    payload: HrLinkEmployeeAccountDTO,
+    options?: ApiCallOptions,
+  ) {
+    const data = await this.callApi<HrEmployeeDTO>(
+      () => this.employeeApi.linkAccount(employeeId, payload),
+      { showSuccess: true, ...(options ?? {}) },
+    );
+    return data!;
+  }
+
+  async updateEmployeeAccount(
+    employeeId: string,
+    payload: HrUpdateEmployeeAccountDTO,
+    options?: ApiCallOptions,
+  ) {
+    const data = await this.callApi<HrEmployeeAccountDTO>(
+      () => this.employeeApi.updateEmployeeAccount(employeeId, payload),
+      { showSuccess: true, ...(options ?? {}) },
+    );
+    return data!;
+  }
+
+  async requestEmployeeAccountPasswordReset(
+    employeeId: string,
+    options?: ApiCallOptions,
+  ) {
+    const data = await this.callApi<HrPasswordResetResponse>(
+      () => this.employeeApi.requestEmployeeAccountPasswordReset(employeeId),
+      { showSuccess: false, ...(options ?? {}) },
+    );
+    return data!;
+  }
+
+  async setEmployeeAccountStatus(
+    employeeId: string,
+    payload: { status: Status },
+    options?: ApiCallOptions,
+  ) {
+    const data = await this.callApi<{ id: string; status: Status }>(
+      () => this.employeeApi.setEmployeeAccountStatus(employeeId, payload),
+      { showSuccess: true, ...(options ?? {}) },
+    );
+    return data!;
+  }
 }

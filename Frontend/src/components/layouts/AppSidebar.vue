@@ -187,9 +187,14 @@ const menus: Record<RoleKey, MenuItem[]> = {
           route: ROUTES.HR_ADMIN.EMPLOYEES,
         },
         {
-          title: "Create Employee",
-          icon: "Plus",
-          route: ROUTES.HR_ADMIN.EMPLOYEE_CREATE,
+          title: "Employee Accounts",
+          icon: "Avatar",
+          route: ROUTES.HR_ADMIN.EMPLOYEE_ACCOUNTS,
+        },
+        {
+          title: "Archived Employees",
+          icon: "FolderDelete",
+          route: ROUTES.HR_ADMIN.EMPLOYEE_ARCHIVED,
         },
       ],
     },
@@ -206,6 +211,11 @@ const menus: Record<RoleKey, MenuItem[]> = {
           title: "Wrong Location Reviews",
           icon: "Location",
           route: ROUTES.HR_ADMIN.ATTENDANCE_WRONG_LOCATION,
+        },
+        {
+          title: "Adjustments",
+          icon: "EditPen",
+          route: ROUTES.HR_ADMIN.ATTENDANCE_ADJUSTMENTS,
         },
         {
           title: "Attendance Reports",
@@ -229,6 +239,11 @@ const menus: Record<RoleKey, MenuItem[]> = {
           icon: "CircleCheck",
           route: ROUTES.HR_ADMIN.OVERTIME_REVIEWS,
         },
+        {
+          title: "OT History",
+          icon: "List",
+          route: ROUTES.HR_ADMIN.OVERTIME_HISTORY,
+        },
       ],
     },
     {
@@ -245,6 +260,11 @@ const menus: Record<RoleKey, MenuItem[]> = {
           icon: "CircleCheck",
           route: ROUTES.HR_ADMIN.LEAVE_REVIEWS,
         },
+        {
+          title: "Leave Balances",
+          icon: "Memo",
+          route: ROUTES.HR_ADMIN.LEAVE_BALANCES,
+        },
       ],
     },
     {
@@ -260,6 +280,11 @@ const menus: Record<RoleKey, MenuItem[]> = {
           title: "Payslips",
           icon: "Document",
           route: ROUTES.HR_ADMIN.PAYSLIPS,
+        },
+        {
+          title: "Payroll History",
+          icon: "List",
+          route: ROUTES.HR_ADMIN.PAYROLL_HISTORY,
         },
       ],
     },
@@ -286,6 +311,11 @@ const menus: Record<RoleKey, MenuItem[]> = {
           title: "Deduction Rules",
           icon: "Coin",
           route: ROUTES.HR_ADMIN.DEDUCTION_RULES,
+        },
+        {
+          title: "OT Rules",
+          icon: "SetUp",
+          route: ROUTES.HR_ADMIN.OT_RULES,
         },
       ],
     },
@@ -334,7 +364,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
         {
           title: "Check In / Out",
           icon: "Clock",
-          route: ROUTES.EMPLOYEE.ATTENDANCE_CHECK_IN,
+          route: ROUTES.EMPLOYEE.ATTENDANCE_CHECK,
         },
         {
           title: "My Attendance",
@@ -353,7 +383,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
           route: ROUTES.EMPLOYEE.OVERTIME_REQUEST,
         },
         {
-          title: "My OT",
+          title: "My OT History",
           icon: "List",
           route: ROUTES.EMPLOYEE.OVERTIME_HISTORY,
         },
@@ -369,9 +399,14 @@ const menus: Record<RoleKey, MenuItem[]> = {
           route: ROUTES.EMPLOYEE.LEAVE_REQUEST,
         },
         {
-          title: "My Leaves",
+          title: "My Leave History",
           icon: "Document",
-          route: ROUTES.EMPLOYEE.MY_LEAVES,
+          route: ROUTES.EMPLOYEE.LEAVE_HISTORY,
+        },
+        {
+          title: "Leave Balance",
+          icon: "Memo",
+          route: ROUTES.EMPLOYEE.LEAVE_BALANCE,
         },
       ],
     },
@@ -400,7 +435,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
       route: ROUTES.MANAGER.DASHBOARD,
     },
     {
-      title: "Team Attendance",
+      title: "Attendance",
       icon: "Clock",
       children: [
         {
@@ -474,7 +509,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
       children: [
         {
           title: "Process Payroll",
-          icon: "Money",
+          icon: "Operation",
           route: ROUTES.PAYROLL_MANAGER.PAYROLL_PROCESS,
         },
         {

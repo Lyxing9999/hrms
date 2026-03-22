@@ -92,6 +92,8 @@ class Employee:
         self.lifecycle.touch(now_utc())
 
     def link_user(self, user_id: ObjectId) -> None:
+        if self.user_id is not None and self.user_id != user_id:
+            raise ValueError("Employee already linked to another account")
         self.user_id = user_id
         self.lifecycle.touch(now_utc())
 

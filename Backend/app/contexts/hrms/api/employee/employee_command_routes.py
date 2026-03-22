@@ -11,9 +11,12 @@ from app.contexts.hrms.data_transfer.request.employee_request import (
     EmployeeCreateSchema,
     EmployeeUpdateSchema,
     EmployeeCreateAccountSchema,
+    EmployeeAccountUpdateSchema,
+    EmployeeAccountStatusSchema
 )
 from app.contexts.hrms.data_transfer.response.employee_response import (
     EmployeeWithAccountDTO,
+    EmployeeAccountSummaryDTO
 )
 from app.contexts.hrms.mapper.employee_mapper import EmployeeMapper
 
@@ -26,16 +29,13 @@ mapper = EmployeeMapper()
 @login_required(allowed_roles=["hr_admin"])
 @wrap_response
 def create_employee():
-    """
-    Create a new employee.
-    """
-    staff_id = get_current_staff_id()   
+    staff_id = get_current_staff_id()
     payload = pydantic_converter.convert_to_model(request.json, EmployeeCreateSchema)
+
     employee = g.hrms.employee.create(
         payload=payload,
         created_by_user_id=staff_id,
     )
-
     return mapper.to_dto(employee)
 
 
@@ -43,9 +43,6 @@ def create_employee():
 @login_required(allowed_roles=["hr_admin"])
 @wrap_response
 def update_employee(employee_id: str):
-    """
-    Update an existing employee.
-    """
     staff_id = get_current_staff_id()
     payload = pydantic_converter.convert_to_model(request.json, EmployeeUpdateSchema)
 
@@ -54,7 +51,6 @@ def update_employee(employee_id: str):
         payload=payload,
         actor_id=staff_id,
     )
-
     return mapper.to_dto(employee)
 
 
@@ -62,9 +58,6 @@ def update_employee(employee_id: str):
 @login_required(allowed_roles=["hr_admin"])
 @wrap_response
 def create_employee_account(employee_id: str):
-    """
-    Create IAM account and link it to employee.
-    """
     staff_id = get_current_staff_id()
     payload = pydantic_converter.convert_to_model(request.json, EmployeeCreateAccountSchema)
 
@@ -80,20 +73,44 @@ def create_employee_account(employee_id: str):
     )
 
 
+@employee_command_bp.route("/employees/<employee_id>/account/soft-delete", methods=["POST"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def soft_delete_employee_account(employee_id: str):
+    staff_id = get_current_staff_id()
+
+    result = g.hrms.employee.soft_delete_account(
+        employee_id=employee_id,
+        actor_id=staff_id,
+    )
+
+    return EmployeeAccountSummaryDTO(**result)
+
+
+@employee_command_bp.route("/employees/<employee_id>/account/restore", methods=["POST"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def restore_employee_account(employee_id: str):
+    staff_id = get_current_staff_id()
+
+    result = g.hrms.employee.restore_account(
+        employee_id=employee_id,
+        actor_id=staff_id,
+    )
+
+    return EmployeeAccountSummaryDTO(**result)
+
+
 @employee_command_bp.route("/employees/<employee_id>/soft-delete", methods=["DELETE"], strict_slashes=False)
 @login_required(allowed_roles=["hr_admin"])
 @wrap_response
 def soft_delete_employee(employee_id: str):
-    """
-    Soft delete employee.
-    """
     staff_id = get_current_staff_id()
 
     employee = g.hrms.employee.soft_delete(
         employee_id=employee_id,
         actor_id=staff_id,
     )
-
     return mapper.to_dto(employee)
 
 
@@ -101,11 +118,79 @@ def soft_delete_employee(employee_id: str):
 @login_required(allowed_roles=["hr_admin"])
 @wrap_response
 def restore_employee(employee_id: str):
-    """
-    Restore soft-deleted employee.
-    """
     employee = g.hrms.employee.restore(
         employee_id=employee_id,
     )
-
     return mapper.to_dto(employee)
+
+@employee_command_bp.route("/employees/<employee_id>/link-account", methods=["POST"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def link_employee_account(employee_id: str):
+    staff_id = get_current_staff_id()
+    user_id = request.json.get("user_id")
+
+    employee = g.hrms.employee.link_account(
+        employee_id=employee_id,
+        user_id=user_id,
+        actor_id=staff_id,
+    )
+    return mapper.to_dto(employee)
+
+
+
+@employee_command_bp.route("/employees/<employee_id>/account", methods=["PATCH"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def update_employee_account(employee_id: str):
+    payload = pydantic_converter.convert_to_model(request.json, EmployeeAccountUpdateSchema)
+
+    account = g.hrms.employee.update_account(
+        employee_id=employee_id,
+        email=payload.email,
+        username=payload.username,
+        password=payload.password,
+    )
+
+    return {
+        "id": str(account.id),
+        "email": account.email,
+        "username": account.username,
+        "role": account.role,
+        "status": account.status,
+    }
+
+
+@employee_command_bp.route("/employees/<employee_id>/account/password-reset", methods=["POST"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def request_employee_account_password_reset(employee_id: str):
+    staff_id = get_current_staff_id()
+
+    result = g.hrms.employee.request_account_password_reset(
+        employee_id=employee_id,
+        actor_id=staff_id,
+    )
+    return result
+
+
+
+
+@employee_command_bp.route("/employees/<user_id>/account/status", methods=["PATCH"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def set_employee_account_status(user_id: str):
+    payload = pydantic_converter.convert_to_model(
+        request.json,
+        EmployeeAccountStatusSchema,
+    )
+
+    result = g.hrms.employee.set_account_status(
+        user_id=user_id,
+        status=payload.status,
+    )
+    return result
+
+
+
+

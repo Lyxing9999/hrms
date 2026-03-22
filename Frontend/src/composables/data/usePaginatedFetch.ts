@@ -9,13 +9,13 @@ export function usePaginatedFetch<T, F>(
     filter: F,
     page: number,
     pageSize: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ) => Promise<{ items: T[]; total: number }>,
   opts?: {
     initialPage?: number;
     pageSizeRef?: MaybeRef<number>;
     filter?: MaybeRef<F>;
-  }
+  },
 ) {
   const data = ref<T[]>([]);
   const error = ref<Error | null>(null);
@@ -24,7 +24,7 @@ export function usePaginatedFetch<T, F>(
   const currentPage = ref(opts?.initialPage ?? 1);
 
   const pageSize = ref<number>(
-    opts?.pageSizeRef ? Number(unref(opts.pageSizeRef)) : 10
+    opts?.pageSizeRef ? Number(unref(opts.pageSizeRef)) : 10,
   );
 
   const totalRows = ref(0);
@@ -57,7 +57,7 @@ export function usePaginatedFetch<T, F>(
         filterValue,
         page,
         pageSize.value,
-        myController.signal
+        myController.signal,
       );
 
       if (myReqId !== reqId) return;
@@ -107,7 +107,7 @@ export function usePaginatedFetch<T, F>(
 
         pageSize.value = v;
         fetchPage(1);
-      }
+      },
     );
   }
 

@@ -1,118 +1,99 @@
-import { ElInput } from "element-plus";
 import type { ColumnConfig } from "~/components/types/tableEdit";
-import type { HrEmployeeDTO } from "~/api/hr_admin/employees/dto";
-
-export type HrEmployeeColumnConfig = HrEmployeeDTO & {
-  photo_url?: string | null;
+import type {
+  HrEmployeeDTO,
+  HrEmployeeAccountDTO,
+} from "~/api/hr_admin/employees/dto";
+import { ElInput, ElTag } from "element-plus";
+export type EmployeeTableRow = {
+  id: string;
+  employee: HrEmployeeDTO;
+  account: HrEmployeeAccountDTO | null;
 };
 
-export const employeeColumns: ColumnConfig<HrEmployeeColumnConfig>[] = [
+export const employeeColumns: ColumnConfig<EmployeeTableRow>[] = [
   {
-    field: "photo_url",
-    label: "Photo",
-    width: "120px",
-    align: "center",
-    sortable: false,
+    field: "username",
+    label: "Username",
+    sortable: true,
     controls: false,
-    autoSave: false,
+    autoSave: true,
     revertSlots: true,
-    useSlot: true,
-    slotName: "photo",
-  },
 
-  {
-    field: "employee_code",
-    label: "Code",
-    minWidth: "120px",
-    sortable: true,
-    controls: false,
-    autoSave: false,
-    revertSlots: true,
+    minWidth: "150px",
+    rules: [
+      { required: true, message: "Please input username", trigger: "blur" },
+      { min: 6, message: "At least 6 characters", trigger: "blur" },
+      { max: 20, message: "Max 20 characters", trigger: "blur" },
+      {
+        pattern: /^[A-Za-z]+$/,
+        message: "Only letters allowed (no numbers, no spaces)",
+      },
+    ],
     component: ElInput,
-    componentProps: {
-      disabled: true,
-      class: "w-full",
-    },
+    componentProps: { placeholder: "Enter username" },
   },
   {
-    field: "full_name",
-    label: "Name",
-    minWidth: "180px",
-    sortable: true,
+    field: "email",
+    label: "Email",
     controls: false,
-    autoSave: false,
+    autoSave: true,
     revertSlots: true,
+    minWidth: "300px",
+
     component: ElInput,
     componentProps: {
-      disabled: true,
+      placeholder: "Enter email",
       class: "w-full",
-    },
-  },
-  {
-    field: "department",
-    label: "Dept",
-    minWidth: "140px",
-    sortable: true,
-    controls: false,
-    autoSave: false,
-    revertSlots: true,
-    component: ElInput,
-    componentProps: {
-      disabled: true,
-      class: "w-full",
-    },
-  },
-  {
-    field: "position",
-    label: "Position",
-    minWidth: "160px",
-    sortable: true,
-    controls: false,
-    autoSave: false,
-    revertSlots: true,
-    component: ElInput,
-    componentProps: {
-      disabled: true,
-      class: "w-full",
-    },
-  },
-  {
-    field: "employment_type",
-    label: "Type",
-    minWidth: "120px",
-    sortable: true,
-    controls: false,
-    autoSave: false,
-    revertSlots: true,
-    component: ElInput,
-    componentProps: {
-      disabled: true,
-      class: "w-full",
+      style: { width: "100%" },
     },
   },
   {
     field: "status",
     label: "Status",
-    minWidth: "120px",
-    align: "center",
-    sortable: true,
-    controls: false,
-    autoSave: false,
-    revertSlots: true,
-    component: ElInput,
-    componentProps: {
-      disabled: true,
-      class: "w-full",
-    },
+    width: "130px",
+    useSlot: true,
+    slotName: "status",
   },
   {
-    field: "id",
-    label: "Operation",
+    field: "role",
+    label: "Role",
+    width: "120px",
     align: "center",
-    width: "220px",
+    render: (row: EmployeeTableRow, _field: keyof EmployeeTableRow) => {
+      const role = String(row.role ?? "");
+
+      let tagType: "success" | "danger" | "warning" = "success";
+      if (role === "manager") tagType = "danger";
+      else if (role === "employee") tagType = "warning";
+
+      return h(
+        ElTag,
+        { type: tagType, effect: "plain", size: "small" },
+        { default: () => role || "N/A" },
+      );
+    },
+  },
+  // {
+  //   field: "created_by_name",
+  //   label: "Created By",
+  //   controls: false,
+  //   minWidth: "140px",
+  //   align: "center",
+  //   render: (row: EmployeeTableRow) =>
+  //     h(
+  //       "span",
+  //       { style: { color: "#999" } },
+  //       String(row.created_by_name ?? "—"),
+  //     ),
+  // },
+
+  {
+    field: "id",
     operation: true,
+    label: "Operation",
     inlineEditActive: false,
-    useSlot: true,
-    slotName: "operation",
+    align: "center",
+    minWidth: "300px",
+    smartProps: {},
   },
 ];

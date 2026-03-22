@@ -1,28 +1,43 @@
 import type { AxiosInstance } from "axios";
-import type { UserRegisterForm } from "../../iam/iam.dto";
 import type { ApiResponse } from "~/api/types/common/api-response.type";
 import type {
   HrCreateEmployeeDTO,
   HrUpdateEmployeeDTO,
-  ListEmployeesParams,
-  HrGetEmployeesResponse,
+  HrGetEmployeesWithAccountsResponse,
   HrGetEmployeeResponse,
   HrCreateEmployeeResponse,
   HrUpdateEmployeeResponse,
+  HrGetEmployeeAccountResponse,
+  HrCreateEmployeeAccountDTO,
+  HrCreateEmployeeAccountResponse,
+  HrSoftDeleteEmployeeAccountResponse,
+  HrRestoreEmployeeAccountResponse,
+  ListEmployeesParams,
+  ListEmployeeAccountsParams,
+  HrGetEmployeeAccountsResponse,
+  HrLinkEmployeeAccountDTO,
+  HrLinkEmployeeAccountResponse,
+  HrUpdateEmployeeAccountDTO,
+  HrEmployeeAccountDTO,
+  HrPasswordResetResponse,
 } from "./dto";
-
+import { Status } from "../../types/enums/status.enum";
 export class EmployeeApi {
   constructor(
     private readonly $api: AxiosInstance,
     private readonly baseURL = "/api/hrms/employees",
   ) {}
 
-  // QUERY
-
-  async getEmployees(params?: ListEmployeesParams) {
-    const res = await this.$api.get<HrGetEmployeesResponse>(this.baseURL, {
-      params,
-    });
+  async getEmployeesWithAccounts(params?: ListEmployeesParams) {
+    const res = await this.$api.get<HrGetEmployeesWithAccountsResponse>(
+      this.baseURL,
+      {
+        params: {
+          ...params,
+          with_accounts: true,
+        },
+      },
+    );
     return res.data;
   }
 
@@ -33,7 +48,12 @@ export class EmployeeApi {
     return res.data;
   }
 
-  // COMMAND
+  async getEmployeeAccount(id: string) {
+    const res = await this.$api.get<HrGetEmployeeAccountResponse>(
+      `${this.baseURL}/${id}/account`,
+    );
+    return res.data;
+  }
 
   async createEmployee(payload: HrCreateEmployeeDTO) {
     const res = await this.$api.post<HrCreateEmployeeResponse>(
@@ -65,29 +85,68 @@ export class EmployeeApi {
     return res.data;
   }
 
-  async createAccount(id: string, payload: UserRegisterForm) {
-    const res = await this.$api.post<HrCreateEmployeeResponse>(
+  async createAccount(id: string, payload: HrCreateEmployeeAccountDTO) {
+    const res = await this.$api.post<HrCreateEmployeeAccountResponse>(
       `${this.baseURL}/${id}/create-account`,
       payload,
     );
     return res.data;
   }
-  // TODO
-  // async uploadEmployeePhoto(
-  //   employeeId: string,
-  //   file: File,
-  //   oldPhotoUrl?: string | null,
-  // ) {
-  //   const form = new FormData();
-  //   form.append("photo", file);
-  //   if (oldPhotoUrl) form.append("old_photo_url", oldPhotoUrl);
 
-  //   const res = await this.$api.patch<ApiResponse<{ photo_url: string }>>(
-  //     `/uploads/employee/${employeeId}`,
-  //     form,
-  //     { headers: { "Content-Type": "multipart/form-data" } },
-  //   );
+  async softDeleteEmployeeAccount(id: string) {
+    const res = await this.$api.post<HrSoftDeleteEmployeeAccountResponse>(
+      `${this.baseURL}/${id}/account/soft-delete`,
+    );
+    return res.data;
+  }
 
-  //   return res.data;
-  // }
+  async restoreEmployeeAccount(id: string) {
+    const res = await this.$api.post<HrRestoreEmployeeAccountResponse>(
+      `${this.baseURL}/${id}/account/restore`,
+    );
+    return res.data;
+  }
+
+  async getEmployeeAccounts(params?: ListEmployeeAccountsParams) {
+    const res = await this.$api.get<HrGetEmployeeAccountsResponse>(
+      "/api/hrms/employee-accounts",
+      { params },
+    );
+    return res.data;
+  }
+
+  async linkAccount(employeeId: string, payload: HrLinkEmployeeAccountDTO) {
+    const res = await this.$api.post<HrLinkEmployeeAccountResponse>(
+      `${this.baseURL}/${employeeId}/link-account`,
+      payload,
+    );
+    return res.data;
+  }
+
+  async updateEmployeeAccount(id: string, payload: HrUpdateEmployeeAccountDTO) {
+    const res = await this.$api.patch<ApiResponse<HrEmployeeAccountDTO>>(
+      `${this.baseURL}/${id}/account`,
+      payload,
+    );
+    return res.data;
+  }
+
+  async requestEmployeeAccountPasswordReset(id: string) {
+    const res = await this.$api.post<ApiResponse<HrPasswordResetResponse>>(
+      `${this.baseURL}/${id}/account/password-reset`,
+      {},
+    );
+    return res.data;
+  }
+
+  async setEmployeeAccountStatus(
+    employeeId: string,
+    payload: { status: Status },
+  ) {
+    console.log("employee api baseURL:", this.$api.defaults.baseURL);
+    const res = await this.$api.patch<
+      ApiResponse<{ id: string; status: Status }>
+    >(`${this.baseURL}/${employeeId}/account/status`, payload);
+    return res.data;
+  }
 }

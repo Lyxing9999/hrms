@@ -70,7 +70,20 @@ class IAMReadModel(MongoErrorMixin):
             return None
         query = {"username": {"$regex": f"^{u}$", "$options": "i"}}
         return self.collection.find_one(by_show_deleted(show_deleted, query))
+    def list_by_ids(self, ids: list[ObjectId]) -> list[dict]:
+        if not ids:
+            return []
 
+        projection = {
+            "password": 0,
+        }
+
+        return list(
+            self.collection.find(
+                {"_id": {"$in": ids}},
+                projection,
+            )
+        )
     def get_page_by_role(
         self,
         roles: Union[str, list[str]],

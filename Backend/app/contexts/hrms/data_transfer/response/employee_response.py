@@ -41,3 +41,29 @@ class EmployeePaginatedDTO(PaginatedDTO[EmployeeDTO]):
 class EmployeeWithAccountDTO(BaseModel):
     employee: EmployeeDTO
     user: IAMBaseDataDTO
+
+
+
+
+
+
+
+class EmployeeAccountSummaryDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="ignore", populate_by_name=True)
+
+    id: str
+    email: Optional[str] = None
+    username: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+
+
+class EmployeeWithAccountSummaryDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="ignore", populate_by_name=True)
+
+    employee: EmployeeDTO
+    account: Optional[EmployeeAccountSummaryDTO] = None
+
+
+class EmployeeWithAccountSummaryPaginatedDTO(PaginatedDTO[EmployeeWithAccountSummaryDTO]):
+    pass

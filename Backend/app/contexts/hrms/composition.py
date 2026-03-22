@@ -10,7 +10,6 @@ from app.contexts.hrms.facade import (
     PayrollFacade,
     HrmsFacade,
 )
-
 # repositories
 from app.contexts.hrms.repositories.employee_repository import MongoEmployeeRepository
 from app.contexts.hrms.repositories.attendance_repository import MongoAttendanceRepository
@@ -46,20 +45,25 @@ from app.contexts.hrms.use_cases.leave.approve_leave_request import ApproveLeave
 # use cases - payroll
 from app.contexts.hrms.use_cases.payroll.generate_monthly_payroll import GenerateMonthlyPayrollUseCase
 
-#use cases - master data employee
+# use cases - master data employee
 from app.contexts.hrms.use_cases.employee.create_employee import CreateEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.update_employee import UpdateEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.create_employee_account import CreateEmployeeAccountUseCase
 from app.contexts.hrms.use_cases.employee.soft_delete_employee import SoftDeleteEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.restore_employee import RestoreEmployeeUseCase
-
+from app.contexts.hrms.use_cases.employee.update_employee_account import UpdateEmployeeAccountUseCase
+from app.contexts.hrms.use_cases.employee.request_employee_account_password_reset import RequestEmployeeAccountPasswordResetUseCase
+from app.contexts.hrms.use_cases.employee.set_account_status import SetAccountStatusUseCase
+from app.contexts.hrms.use_cases.employee.link_employee_account import LinkEmployeeAccountUseCase
+# query 
 from app.contexts.hrms.queries.employee.list_employees import ListEmployeesQuery
 from app.contexts.hrms.queries.employee.get_employee import GetEmployeeQuery
 from app.contexts.hrms.queries.employee.get_my_employee_profile import GetMyEmployeeProfileQuery
-
-# external - service 
-from app.contexts.iam.services.iam_service import IAMService
-
+from app.contexts.hrms.queries.employee.list_employees_with_accounts import ListEmployeesWithAccountsQuery
+from app.contexts.hrms.queries.employee.get_employee_account import GetEmployeeAccountQuery
+from app.contexts.hrms.queries.employee.list_employee_accounts import ListEmployeeAccountsQuery
+# import Get Way from external service
+from app.contexts.hrms.integrations.iam_gateway import HRMSIamGateway
 class HrmsRepositories:
     def __init__(self, *, db: Database) -> None:
         self.employee_repository = MongoEmployeeRepository(db)
@@ -73,13 +77,39 @@ class HrmsRepositories:
         self.payroll_run_repository = MongoPayrollRunRepository(db)
         self.payslip_repository = MongoPayslipRepository(db)
         self.audit_log_repository = MongoAuditLogRepository(db)
-        self.iam_service = IAMService(db)
-
+        
+        self.iam_gateway = HRMSIamGateway(db)
 
 class HrmsUseCases:
     def __init__(self, *, repositories: HrmsRepositories) -> None:
         self.repositories = repositories
 
+        # account
+    
+        self.get_account = GetEmployeeAccountQuery(
+            employee_repository=repositories.employee_repository,
+            iam_gateway=repositories.iam_gateway,
+        )
+        self.set_account_status = SetAccountStatusUseCase(
+            iam_gateway=repositories.iam_gateway,
+        )
+        self.update_employee_account = UpdateEmployeeAccountUseCase(
+            employee_repository=repositories.employee_repository,
+            iam_gateway=repositories.iam_gateway,
+        )
+
+        self.request_employee_account_password_reset = RequestEmployeeAccountPasswordResetUseCase(
+            employee_repository=repositories.employee_repository,
+            iam_gateway=repositories.iam_gateway,
+        )
+        # list account
+        self.list_employee_accounts = ListEmployeeAccountsQuery(
+            iam_gateway=repositories.iam_gateway,
+        )
+        self.link_employee_account = LinkEmployeeAccountUseCase(
+            employee_repository=repositories.employee_repository,
+            iam_gateway=repositories.iam_gateway,
+        )
         # employee
         self.create_employee = CreateEmployeeUseCase(
             employee_repository=repositories.employee_repository,
@@ -91,9 +121,12 @@ class HrmsUseCases:
 
         self.create_employee_account = CreateEmployeeAccountUseCase(
             employee_repository=repositories.employee_repository,
-            iam_service=repositories.iam_service, 
+            iam_gateway=repositories.iam_gateway,
         )
-
+        self.list_employees_with_accounts = ListEmployeesWithAccountsQuery(
+            employee_repository=repositories.employee_repository,
+            iam_gateway=repositories.iam_gateway,
+        )
         self.soft_delete_employee = SoftDeleteEmployeeUseCase(
             employee_repository=repositories.employee_repository,
         )
@@ -113,6 +146,8 @@ class HrmsUseCases:
         self.get_my_employee_profile = GetMyEmployeeProfileQuery(
             employee_repository=repositories.employee_repository,
         )
+
+
         # attendance
         self.check_in_employee = CheckInEmployeeUseCase(
             employee_repository=repositories.employee_repository,
@@ -191,14 +226,21 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
     use_cases = build_hrms_use_cases(db)
 
     employee = EmployeeFacade(
+        get_account=use_cases.get_account,
+        request_employee_account_password_reset=use_cases.create_employee_account,
+        update_employee_account=use_cases.update_employee_account,
+        list_employee_accounts=use_cases.list_employee_accounts,
         create_employee=use_cases.create_employee,
         update_employee=use_cases.update_employee,
         create_employee_account=use_cases.create_employee_account,
         soft_delete_employee=use_cases.soft_delete_employee,
         restore_employee=use_cases.restore_employee,
         list_employees=use_cases.list_employees,
+        list_employees_with_accounts=use_cases.list_employees_with_accounts,
         get_employee=use_cases.get_employee,
         get_my_employee_profile=use_cases.get_my_employee_profile,
+        set_account_status=use_cases.set_account_status,
+        link_employee_account=use_cases.link_employee_account,
     )
 
     attendance = AttendanceFacade(

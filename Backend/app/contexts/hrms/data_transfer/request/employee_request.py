@@ -66,3 +66,18 @@ class EmployeeCreateAccountSchema(BaseModel):
     password: str = Field(..., min_length=6)
     username: Optional[str] = None
     role: str = Field(default="employee")
+
+
+
+
+class EmployeeAccountStatusSchema(BaseModel):
+    status: str
+
+
+class EmployeeLinkAccountSchema(BaseModel):
+    user_id: str
+    
+class EmployeeAccountUpdateSchema(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
