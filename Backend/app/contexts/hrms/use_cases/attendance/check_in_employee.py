@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class CheckInEmployeeUseCase:
@@ -22,16 +22,18 @@ class CheckInEmployeeUseCase:
     def execute(
         self,
         *,
-        employee_id: str,
+        employee_id,
         check_in_time: datetime,
         latitude: float,
         longitude: float,
         wrong_location_reason: str | None = None,
     ) -> dict:
         employee = self._get_employee(employee_id)
-        schedule = self._get_employee_schedule(employee)
-        location = self._get_active_work_location()
-        self._ensure_no_existing_attendance(employee, check_in_time)
+        schedule = self._get_schedule(employee)
+        location = self._get_default_location()
+
+        attendance_date = check_in_time.date()
+        self._ensure_not_checked_in(employee_id=employee["_id"], attendance_date=attendance_date)
 
         is_valid_location = self._is_valid_location(
             location=location,
@@ -39,103 +41,158 @@ class CheckInEmployeeUseCase:
             longitude=longitude,
         )
 
-        attendance = self._build_attendance(
-            employee=employee,
-            schedule=schedule,
-            location=location,
-            check_in_time=check_in_time,
-            latitude=latitude,
-            longitude=longitude,
-            is_valid_location=is_valid_location,
-            wrong_location_reason=wrong_location_reason,
-        )
+        if not is_valid_location and not wrong_location_reason:
+            raise ValueError("wrong_location_reason is required when check-in location is invalid")
 
-        self._apply_late_rule(
-            attendance=attendance,
+        late_minutes = self._calculate_late_minutes(
             schedule=schedule,
             check_in_time=check_in_time,
         )
 
-        self._save_attendance(attendance)
-        self._write_audit_log(attendance=attendance, employee=employee)
+        status = "checked_in"
+        if late_minutes > 0:
+            status = "late"
 
-        return self._build_result(attendance)
+        if not is_valid_location:
+            status = "wrong_location_pending"
 
-    def _get_employee(self, employee_id: str):
-        # TODO: load employee from repository
-        # TODO: raise exception if not found or inactive
-        return self.employee_repository.get_by_id(employee_id)
+        now = datetime.now(timezone.utc)
 
-    def _get_employee_schedule(self, employee):
-        # TODO: validate employee has schedule_id
-        # TODO: load schedule by employee.schedule_id
-        return self.working_schedule_repository.get_by_id(employee.schedule_id)
+        attendance_doc = {
+            "employee_id": employee["_id"],
+            "attendance_date": attendance_date,
+            "check_in_time": check_in_time,
+            "check_out_time": None,
+            "schedule_id": schedule["_id"] if schedule else None,
+            "location_id": location["_id"] if location else None,
+            "check_in_latitude": latitude,
+            "check_in_longitude": longitude,
+            "check_out_latitude": None,
+            "check_out_longitude": None,
+            "status": status,
+            "notes": None,
+            "late_minutes": late_minutes,
+            "early_leave_minutes": 0,
+            "wrong_location_reason": wrong_location_reason,
+            "admin_comment": None,
+            "location_reviewed_by": None,
+            "lifecycle": {
+                "created_at": now,
+                "updated_at": now,
+                "deleted_at": None,
+                "deleted_by": None,
+            },
+        }
 
-    def _get_active_work_location(self):
-        # TODO: change this to your actual repository method
-        return self.work_location_repository.get_active_default()
+        attendance = self.attendance_repository.create(attendance_doc)
 
-    def _ensure_no_existing_attendance(self, employee, check_in_time: datetime) -> None:
-        # TODO: check if attendance already exists for employee and date
-        # TODO: raise domain/application exception if already checked in
-        existing = self.attendance_repository.get_by_employee_and_date(
-            employee.id,
-            check_in_time.date(),
+        self._write_audit_log(
+            action="attendance_check_in",
+            actor_id=employee["_id"],
+            entity_id=attendance["_id"],
+            details={
+                "status": attendance["status"],
+                "late_minutes": attendance["late_minutes"],
+                "attendance_date": str(attendance["attendance_date"]),
+            },
         )
-        if existing is not None:
-            raise ValueError("Attendance already exists for this date")
-
-    def _is_valid_location(self, *, location, latitude: float, longitude: float) -> bool:
-        # TODO: if you have multiple allowed locations, replace with matching logic
-        return location.contains(latitude, longitude)
-
-    def _build_attendance(
-        self,
-        *,
-        employee,
-        schedule,
-        location,
-        check_in_time: datetime,
-        latitude: float,
-        longitude: float,
-        is_valid_location: bool,
-        wrong_location_reason: str | None,
-    ):
-        # TODO: import Attendance from your domain
-        # TODO: create Attendance with your real constructor fields
-        attendance = None
-
-        # TODO: call attendance.check_in(...)
-        # example:
-        # attendance.check_in(
-        #     check_in_time=check_in_time,
-        #     latitude=latitude,
-        #     longitude=longitude,
-        #     is_valid_location=is_valid_location,
-        #     reason=wrong_location_reason,
-        # )
 
         return attendance
 
-    def _apply_late_rule(self, *, attendance, schedule, check_in_time: datetime) -> None:
-        # TODO: compute schedule start datetime
-        # TODO: calculate late minutes
-        # TODO: call attendance.mark_late(late_minutes) if needed
-        pass
+    def _get_employee(self, employee_id):
+        employee = self.employee_repository.find_by_id(employee_id)
+        if not employee:
+            raise ValueError("Employee not found")
+        if employee.get("status") != "active":
+            raise ValueError("Employee is not active")
+        return employee
 
-    def _save_attendance(self, attendance) -> None:
-        # TODO: use create/save/update based on your repository style
-        self.attendance_repository.save(attendance)
+    def _get_schedule(self, employee: dict) -> dict:
+        schedule_id = employee.get("schedule_id")
+        if not schedule_id:
+            raise ValueError("Employee has no assigned schedule")
+        schedule = self.working_schedule_repository.find_by_id(schedule_id)
+        if not schedule:
+            raise ValueError("Working schedule not found")
+        return schedule
 
-    def _write_audit_log(self, *, attendance, employee) -> None:
-        # TODO: write audit log if your project supports it
-        if self.audit_log_repository is None:
+    def _get_default_location(self) -> dict | None:
+        # Replace with your real method if different
+        if hasattr(self.work_location_repository, "find_active_default"):
+            return self.work_location_repository.find_active_default()
+        if hasattr(self.work_location_repository, "find_default"):
+            return self.work_location_repository.find_default()
+        if hasattr(self.work_location_repository, "list_locations"):
+            items = self.work_location_repository.list_locations(is_active=True)
+            return items[0] if items else None
+        return None
+
+    def _ensure_not_checked_in(self, *, employee_id, attendance_date) -> None:
+        existing = self.attendance_repository.find_by_employee_and_date(employee_id, attendance_date)
+        if existing:
+            raise ValueError("Attendance already exists for this date")
+
+    def _is_valid_location(self, *, location: dict | None, latitude: float, longitude: float) -> bool:
+        if not location:
+            return True
+
+        office_lat = float(location["latitude"])
+        office_lng = float(location["longitude"])
+        radius_meters = int(location["radius_meters"])
+
+        distance = self._distance_meters(office_lat, office_lng, latitude, longitude)
+        return distance <= radius_meters
+
+    def _distance_meters(self, lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+        from math import radians, sin, cos, sqrt, atan2
+
+        r = 6371000.0
+        dlat = radians(lat2 - lat1)
+        dlng = radians(lng2 - lng1)
+
+        a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        return r * c
+
+    def _calculate_late_minutes(self, *, schedule: dict, check_in_time: datetime) -> int:
+        start_time = schedule.get("start_time")
+        if not start_time:
+            return 0
+
+        # supports "08:00:00" or time object
+        if hasattr(start_time, "hour"):
+            schedule_start = check_in_time.replace(
+                hour=start_time.hour,
+                minute=start_time.minute,
+                second=getattr(start_time, "second", 0),
+                microsecond=0,
+            )
+        else:
+            hh, mm, *rest = str(start_time).split(":")
+            ss = int(rest[0]) if rest else 0
+            schedule_start = check_in_time.replace(
+                hour=int(hh),
+                minute=int(mm),
+                second=ss,
+                microsecond=0,
+            )
+
+        if check_in_time <= schedule_start:
+            return 0
+
+        return int((check_in_time - schedule_start).total_seconds() // 60)
+
+    def _write_audit_log(self, *, action: str, actor_id, entity_id, details: dict) -> None:
+        if not self.audit_log_repository:
             return
 
-    def _build_result(self, attendance) -> dict:
-        # TODO: customize response structure
-        return {
-            "attendance_id": str(attendance.id),
-            "status": attendance.status.value,
-            "late_minutes": attendance.late_minutes,
-        }
+        self.audit_log_repository.save(
+            {
+                "entity_type": "attendance",
+                "entity_id": entity_id,
+                "action": action,
+                "actor_id": actor_id,
+                "action_at": datetime.now(timezone.utc),
+                "details": details,
+            }
+        )

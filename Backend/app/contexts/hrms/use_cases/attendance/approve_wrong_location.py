@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 
 class ApproveWrongLocationUseCase:
     def __init__(
@@ -14,58 +16,59 @@ class ApproveWrongLocationUseCase:
     def execute(
         self,
         *,
-        attendance_id: str,
-        admin_id: str,
+        attendance_id,
+        admin_id,
         approved: bool,
         comment: str | None = None,
     ) -> dict:
-        attendance = self._get_attendance(attendance_id)
-        self._ensure_pending_wrong_location(attendance)
+        attendance = self.attendance_repository.find_by_id(attendance_id)
+        if not attendance:
+            raise ValueError("Attendance not found")
+
+        if attendance.get("status") != "wrong_location_pending":
+            raise ValueError("Attendance is not pending wrong-location review")
 
         if approved:
-            self._approve(attendance=attendance, admin_id=admin_id, comment=comment)
+            new_status = "late" if attendance.get("late_minutes", 0) > 0 else "checked_in"
+            action = "attendance_wrong_location_approved"
         else:
-            self._reject(attendance=attendance, admin_id=admin_id, comment=comment)
+            new_status = "wrong_location_rejected"
+            action = "attendance_wrong_location_rejected"
 
-        self._save_attendance(attendance)
-        self._write_audit_log(attendance=attendance, admin_id=admin_id, approved=approved)
-
-        return self._build_result(attendance)
-
-    def _get_attendance(self, attendance_id: str):
-        # TODO
-        return self.attendance_repository.get_by_id(attendance_id)
-
-    def _ensure_pending_wrong_location(self, attendance) -> None:
-        # TODO: validate current status is WRONG_LOCATION_PENDING
-        pass
-
-    def _approve(self, *, attendance, admin_id: str, comment: str | None) -> None:
-        # TODO: convert admin_id if needed
-        attendance.approve_wrong_location(
-            admin_id=admin_id,
-            comment=comment,
+        updated = self.attendance_repository.update_fields(
+            attendance["_id"],
+            {
+                "status": new_status,
+                "admin_comment": comment,
+                "location_reviewed_by": admin_id,
+                "lifecycle.updated_at": datetime.now(timezone.utc),
+            },
         )
 
-    def _reject(self, *, attendance, admin_id: str, comment: str | None) -> None:
-        # TODO: convert admin_id if needed
-        attendance.reject_wrong_location(
-            admin_id=admin_id,
-            comment=comment,
+        self._write_audit_log(
+            action=action,
+            actor_id=admin_id,
+            entity_id=updated["_id"],
+            details={
+                "approved": approved,
+                "comment": comment,
+                "attendance_date": str(updated["attendance_date"]),
+            },
         )
 
-    def _save_attendance(self, attendance) -> None:
-        # TODO
-        self.attendance_repository.save(attendance)
+        return updated
 
-    def _write_audit_log(self, *, attendance, admin_id: str, approved: bool) -> None:
-        # TODO
-        if self.audit_log_repository is None:
+    def _write_audit_log(self, *, action: str, actor_id, entity_id, details: dict) -> None:
+        if not self.audit_log_repository:
             return
 
-    def _build_result(self, attendance) -> dict:
-        return {
-            "attendance_id": str(attendance.id),
-            "status": attendance.status.value,
-            "admin_comment": attendance.admin_comment,
-        }
+        self.audit_log_repository.save(
+            {
+                "entity_type": "attendance",
+                "entity_id": entity_id,
+                "action": action,
+                "actor_id": actor_id,
+                "action_at": datetime.now(timezone.utc),
+                "details": details,
+            }
+        )

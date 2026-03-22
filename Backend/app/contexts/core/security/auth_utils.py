@@ -87,8 +87,16 @@ def get_current_student_id() -> ObjectId:
 def get_current_employee_id() -> ObjectId:
     user_oid = get_current_user_oid()
 
-    employee_doc = g.hrms.employee_read_model.find_employee_by_user_id(user_oid)
-
+    employee_doc = g.hrms.employee.find_by_user_id(user_id=user_oid)
+    if not employee_doc:
+        raise AppBaseException(
+            message="No employee profile for current user",
+            severity=ErrorSeverity.MEDIUM,
+            category=ErrorCategory.AUTHENTICATION,
+            status_code=403,
+            user_message="No employee profile found",
+            recoverable=False,
+        )
 
     return employee_doc["_id"]
 # -----------------------------

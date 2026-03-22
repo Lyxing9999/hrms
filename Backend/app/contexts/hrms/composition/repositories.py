@@ -1,0 +1,31 @@
+from __future__ import annotations
+
+from pymongo.database import Database
+
+from app.contexts.hrms.repositories.employee_repository import MongoEmployeeRepository
+from app.contexts.hrms.repositories.attendance_repository import MongoAttendanceRepository
+from app.contexts.hrms.repositories.working_schedule_repository import MongoWorkingScheduleRepository
+from app.contexts.hrms.repositories.work_location_repository import MongoWorkLocationRepository
+from app.contexts.hrms.repositories.overtime_repository import MongoOvertimeRepository
+from app.contexts.hrms.repositories.leave_repository import MongoLeaveRepository
+from app.contexts.hrms.repositories.public_holiday_repository import MongoPublicHolidayRepository
+from app.contexts.hrms.repositories.deduction_rule_repository import MongoDeductionRuleRepository
+from app.contexts.hrms.repositories.payroll_repository import MongoPayrollRunRepository, MongoPayslipRepository
+from app.contexts.hrms.repositories.audit_log_repository import MongoAuditLogRepository
+from app.contexts.hrms.integrations.iam_gateway import HRMSIamGateway
+
+
+class HrmsRepositories:
+    def __init__(self, *, db: Database) -> None:
+        self.employee_repository = MongoEmployeeRepository(db)
+        self.attendance_repository = MongoAttendanceRepository(db)
+        self.working_schedule_repository = MongoWorkingScheduleRepository(db)
+        self.work_location_repository = MongoWorkLocationRepository(db)
+        self.overtime_repository = MongoOvertimeRepository(db)
+        self.leave_repository = MongoLeaveRepository(db)
+        self.public_holiday_repository = MongoPublicHolidayRepository(db)
+        self.deduction_rule_repository = MongoDeductionRuleRepository(db)
+        self.payroll_run_repository = MongoPayrollRunRepository(db)
+        self.payslip_repository = MongoPayslipRepository(db)
+        self.audit_log_repository = MongoAuditLogRepository(db)
+        self.iam_gateway = HRMSIamGateway(db)

@@ -267,7 +267,10 @@ def create_app():
     # -------------------------
     from app.contexts.hrms.api.employee import register_employee_routes
 
+    from app.contexts.hrms.api.attendance import register_attendance_routes
+
     register_employee_routes(app)
+    register_attendance_routes(app)
     # Register realtime attendance handlers
     from app.contexts.hrms.realtime import handlers  # noqa: F401
 
