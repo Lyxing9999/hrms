@@ -26,6 +26,7 @@ export default defineNuxtConfig({
 
     public: {
       apiBase: process.env.NUXT_PUBLIC_SCHOOL_API_BASE || "",
+      googleMapsApiKey: process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
     },
   },
 
@@ -43,8 +44,12 @@ export default defineNuxtConfig({
             "School management dashboard for attendance, grades, and schedules.",
         },
       ],
-
-      script: [],
+      script: [
+        {
+          src: `https://maps.googleapis.com/maps/api/js?key=${process.env.NUXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places`,
+          defer: true,
+        },
+      ],
     },
   },
 
@@ -87,19 +92,9 @@ export default defineNuxtConfig({
 
     build: {
       sourcemap: true,
-
       minify: "esbuild",
-
       rollupOptions: {
-        output: {
-          /*
-          manualChunks(id: string) {
-            if (!id.includes("node_modules")) return;
-            if (id.includes("element-plus")) return "vendor_element-plus";
-            return "vendor";
-          },
-          */
-        },
+        output: {},
       },
     },
 

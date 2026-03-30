@@ -99,7 +99,7 @@ const configModules = ref([
   border-radius: 12px;
   display: flex;
   align-items: center;
-  justify-center;
+  justify-content: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 </style>

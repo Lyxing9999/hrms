@@ -1,15 +1,121 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, watch } from "vue";
 import { useNuxtApp } from "#app";
 import { ElMessage, ElMessageBox, ElTag } from "element-plus";
 
-import type {
-  HrCreateEmployeeDTO,
-  HrUpdateEmployeeDTO,
-  HrEmployeeDTO,
-  HrEmployeeAccountDTO,
-  HrCreateEmployeeAccountDTO,
-} from "~/api/hr_admin/employees/dto";
+import type { ColumnConfig } from "~/components/table-edit/core/types";
+import type { Field } from "~/components/types/form";
+import { Role } from "~/api/types/enums/role.enum";
+
+import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
+import SmartFormDialog from "~/components/form/SmartFormDialog.vue";
+import OverviewHeader from "~/components/overview/OverviewHeader.vue";
+import ActionButtons from "~/components/buttons/ActionButtons.vue";
+import ManageEmployeeAccountDialog from "~/components/hrms/employees/ManageEmployeeAccountDialog.vue";
+
+import {
+  ElCard,
+  ElInput,
+  ElSelect,
+  ElOption,
+  ElInputNumber,
+  ElButton,
+  ElPagination,
+  ElDatePicker,
+} from "element-plus";
+
+/* ------------------------------------------------------------------
+ * Frontend types aligned to backend Pydantic schemas
+ * ------------------------------------------------------------------ */
+
+type EmploymentType = "permanent" | "contract";
+type SalaryType = "monthly" | "daily" | "hourly";
+type EmployeeStatus = "active" | "inactive";
+
+interface ContractSchema {
+  start_date: string; // YYYY-MM-DD
+  end_date: string;   // YYYY-MM-DD
+  salary_type: SalaryType;
+  rate: number;
+  leave_policy_id?: string | null;
+  pay_on_holiday?: boolean;
+  pay_on_weekend?: boolean;
+}
+
+interface HrCreateEmployeeDTO {
+  employee_code: string;
+  full_name: string;
+  department?: string | null;
+  position?: string | null;
+  employment_type: EmploymentType;
+  basic_salary: number;
+  contract?: ContractSchema | null;
+  manager_user_id?: string | null;
+  schedule_id?: string | null;
+  status?: string;
+  photo_url?: string | null;
+}
+
+interface HrUpdateEmployeeDTO {
+  full_name?: string;
+  department?: string | null;
+  position?: string | null;
+  employment_type?: EmploymentType;
+  basic_salary?: number;
+  contract?: ContractSchema | null;
+  manager_user_id?: string | null;
+  schedule_id?: string | null;
+  status?: string;
+  photo_url?: string | null;
+}
+
+interface HrEmployeeDTO {
+  id: string;
+  employee_code: string;
+  full_name: string;
+  department?: string | null;
+  position?: string | null;
+  employment_type: EmploymentType;
+  basic_salary: number;
+  contract?: ContractSchema | null;
+  manager_user_id?: string | null;
+  schedule_id?: string | null;
+  status?: string;
+  photo_url?: string | null;
+}
+
+interface HrEmployeeAccountDTO {
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  role?: string;
+  status?: string;
+}
+
+interface HrCreateEmployeeAccountDTO {
+  email: string;
+  password: string;
+  username?: string | null;
+  role: string;
+}
+
+type EmployeeTableRow = {
+  id: string;
+  employee: HrEmployeeDTO;
+  account: HrEmployeeAccountDTO | null;
+};
+
+type EmployeeFormModel = {
+  employee_code: string;
+  full_name: string;
+  department: string | null;
+  position: string | null;
+  employment_type: EmploymentType;
+  basic_salary: number;
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+};
 
 const employeeColumns: ColumnConfig<EmployeeTableRow>[] = [
   {
@@ -79,25 +185,6 @@ const employeeColumns: ColumnConfig<EmployeeTableRow>[] = [
   },
 ];
 
-import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
-import SmartFormDialog from "~/components/form/SmartFormDialog.vue";
-import OverviewHeader from "~/components/overview/OverviewHeader.vue";
-import ActionButtons from "~/components/buttons/ActionButtons.vue";
-import ManageEmployeeAccountDialog from "~/components/hrms/employees/ManageEmployeeAccountDialog.vue";
-
-import {
-  ElCard,
-  ElInput,
-  ElSelect,
-  ElOption,
-  ElInputNumber,
-  ElButton,
-  ElPagination,
-} from "element-plus";
-
-import type { Field } from "~/components/types/form";
-import { Role } from "~/api/types/enums/role.enum";
-
 const { $hrEmployeeService } = useNuxtApp();
 
 /* -----------------------------
@@ -119,7 +206,7 @@ const editingEmployeeId = ref<string | null>(null);
 const loadingEmployeeForm = ref(false);
 const employeeDialogInitialLoading = ref(false);
 
-const employeeForm = reactive<HrCreateEmployeeDTO>({
+const employeeForm = reactive<EmployeeFormModel>({
   employee_code: "",
   full_name: "",
   department: "",
@@ -127,7 +214,19 @@ const employeeForm = reactive<HrCreateEmployeeDTO>({
   employment_type: "contract",
   basic_salary: 0,
   status: "active",
+  start_date: "",
+  end_date: "",
 });
+
+watch(
+  () => employeeForm.employment_type,
+  (newType) => {
+    if (newType !== "contract") {
+      employeeForm.start_date = "";
+      employeeForm.end_date = "";
+    }
+  },
+);
 
 /* -----------------------------
  * Account state
@@ -170,138 +269,288 @@ const roleOptions = [
 ];
 
 /* -----------------------------
+ * Helpers
+ * ----------------------------- */
+function normalizeNullableText(value?: string | null) {
+  const trimmed = (value ?? "").trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function buildContractPayload(
+  model: Pick<EmployeeFormModel, "start_date" | "end_date" | "basic_salary">,
+): ContractSchema {
+  return {
+    start_date: model.start_date || "",
+    end_date: model.end_date || "",
+    salary_type: "monthly",
+    rate: Number(model.basic_salary),
+    pay_on_holiday: true,
+    pay_on_weekend: false,
+    leave_policy_id: null,
+  };
+}
+
+function validateEmployeeFormBeforeSubmit(
+  payload: Partial<EmployeeFormModel>,
+): string | null {
+  const employmentType =
+    payload.employment_type ?? employeeForm.employment_type;
+  const basicSalary = Number(payload.basic_salary ?? employeeForm.basic_salary);
+  const startDate = payload.start_date ?? employeeForm.start_date;
+  const endDate = payload.end_date ?? employeeForm.end_date;
+
+  if (!String(payload.full_name ?? employeeForm.full_name).trim()) {
+    return "Full name is required";
+  }
+
+  if (!isEdit.value && !String(payload.employee_code ?? employeeForm.employee_code).trim()) {
+    return "Employee code is required";
+  }
+
+  if (basicSalary < 0) {
+    return "Basic salary cannot be negative";
+  }
+
+  if (employmentType === "contract") {
+    if (!startDate) return "Contract start date is required";
+    if (!endDate) return "Contract end date is required";
+    if (new Date(endDate) < new Date(startDate)) {
+      return "Contract end date cannot be before start date";
+    }
+    if (basicSalary <= 0) {
+      return "Contract salary/rate must be greater than 0";
+    }
+  }
+
+  return null;
+}
+
+/* -----------------------------
  * Employee form fields
  * ----------------------------- */
-const employeeFields = computed<Field<HrCreateEmployeeDTO>[]>(() => [
+const employeeFields = computed<Field<EmployeeFormModel>[]>(() => {
+  const baseFields: Field<EmployeeFormModel>[] = [
+    {
+      key: "employee_code",
+      label: "Employee Code",
+      component: ElInput,
+      componentProps: {
+        placeholder: "Enter employee code",
+        clearable: true,
+        disabled: isEdit.value, // backend update schema does not support employee_code
+      },
+      formItemProps: {
+        rules: [
+          {
+            required: !isEdit.value,
+            message: "Employee code is required",
+            trigger: "blur",
+          },
+        ],
+      },
+    },
+    {
+      key: "full_name",
+      label: "Full Name",
+      component: ElInput,
+      componentProps: {
+        placeholder: "Enter full name",
+        clearable: true,
+      },
+      formItemProps: {
+        rules: [
+          {
+            required: true,
+            message: "Full name is required",
+            trigger: "blur",
+          },
+        ],
+      },
+    },
+    {
+      key: "department",
+      label: "Department",
+      component: ElInput,
+      componentProps: {
+        placeholder: "Enter department",
+        clearable: true,
+      },
+    },
+    {
+      key: "position",
+      label: "Position",
+      component: ElInput,
+      componentProps: {
+        placeholder: "Enter position",
+        clearable: true,
+      },
+    },
+    {
+      key: "employment_type",
+      label: "Employment Type",
+      component: ElSelect,
+      componentProps: {
+        placeholder: "Select employment type",
+        clearable: false,
+      },
+      childComponent: ElOption,
+      childComponentProps: {
+        options: employmentTypeOptions,
+        valueKey: "value",
+        labelKey: "label",
+      },
+    },
+    {
+      key: "basic_salary",
+      label: "Basic Salary",
+      component: ElInputNumber,
+      componentProps: {
+        min: 0,
+        step: 1,
+        controlsPosition: "right",
+        style: { width: "100%" },
+      },
+    },
+    {
+      key: "status",
+      label: "Status",
+      component: ElSelect,
+      componentProps: {
+        placeholder: "Select status",
+        clearable: false,
+      },
+      childComponent: ElOption,
+      childComponentProps: {
+        options: statusOptions,
+        valueKey: "value",
+        labelKey: "label",
+      },
+    },
+  ];
+
+  if (employeeForm.employment_type === "contract") {
+    baseFields.push(
+      {
+        key: "start_date",
+        label: "Contract Start Date",
+        component: ElDatePicker,
+        componentProps: {
+          type: "date",
+          placeholder: "Select start date",
+          style: { width: "100%" },
+          clearable: true,
+          valueFormat: "YYYY-MM-DD",
+        },
+        formItemProps: {
+          rules: [
+            {
+              required: true,
+              message: "Start date is required",
+              trigger: "change",
+            },
+          ],
+        },
+      },
+      {
+        key: "end_date",
+        label: "Contract End Date",
+        component: ElDatePicker,
+        componentProps: {
+          type: "date",
+          placeholder: "Select end date",
+          style: { width: "100%" },
+          clearable: true,
+          valueFormat: "YYYY-MM-DD",
+        },
+        formItemProps: {
+          rules: [
+            {
+              required: true,
+              message: "End date is required",
+              trigger: "change",
+            },
+            {
+              validator: (_rule: unknown, value: string, callback: (err?: Error) => void) => {
+                const start = employeeForm.start_date
+                  ? new Date(employeeForm.start_date)
+                  : null;
+                const end = value ? new Date(value) : null;
+
+                if (start && end && end < start) {
+                  callback(new Error("End date cannot be before start date"));
+                } else {
+                  callback();
+                }
+              },
+              trigger: "change",
+            },
+          ],
+        },
+      },
+    );
+  }
+
+  return baseFields;
+});
+
+/* -----------------------------
+ * Create account form fields
+ * ----------------------------- */
+const createAccountFields = computed<Field<HrCreateEmployeeAccountDTO>[]>(() => [
   {
-    key: "employee_code",
-    label: "Employee Code",
+    key: "email",
+    label: "Email",
     component: ElInput,
     componentProps: {
-      placeholder: "Enter employee code",
+      placeholder: "Enter email",
+      clearable: true,
+    },
+    formItemProps: {
+      rules: [
+        { required: true, message: "Email is required", trigger: "blur" },
+      ],
+    },
+  },
+  {
+    key: "username",
+    label: "Username",
+    component: ElInput,
+    componentProps: {
+      placeholder: "Enter username",
       clearable: true,
     },
   },
   {
-    key: "full_name",
-    label: "Full Name",
+    key: "password",
+    label: "Password",
     component: ElInput,
     componentProps: {
-      placeholder: "Enter full name",
-      clearable: true,
+      type: "password",
+      showPassword: true,
+      placeholder: "Enter password",
+    },
+    formItemProps: {
+      rules: [
+        { required: true, message: "Password is required", trigger: "blur" },
+      ],
     },
   },
   {
-    key: "department",
-    label: "Department",
-    component: ElInput,
-    componentProps: {
-      placeholder: "Enter department",
-      clearable: true,
-    },
-  },
-  {
-    key: "position",
-    label: "Position",
-    component: ElInput,
-    componentProps: {
-      placeholder: "Enter position",
-      clearable: true,
-    },
-  },
-  {
-    key: "employment_type",
-    label: "Employment Type",
+    key: "role",
+    label: "Role",
     component: ElSelect,
     componentProps: {
-      placeholder: "Select employment type",
-      clearable: true,
+      placeholder: "Select role",
+      clearable: false,
     },
     childComponent: ElOption,
     childComponentProps: {
-      options: employmentTypeOptions,
-      valueKey: "value",
-      labelKey: "label",
-    },
-  },
-  {
-    key: "basic_salary",
-    label: "Basic Salary",
-    component: ElInputNumber,
-    componentProps: {
-      min: 0,
-      step: 1,
-      controlsPosition: "right",
-      style: { width: "100%" },
-    },
-  },
-  {
-    key: "status",
-    label: "Status",
-    component: ElSelect,
-    componentProps: {
-      placeholder: "Select status",
-      clearable: true,
-    },
-    childComponent: ElOption,
-    childComponentProps: {
-      options: statusOptions,
+      options: roleOptions,
       valueKey: "value",
       labelKey: "label",
     },
   },
 ]);
-
-/* -----------------------------
- * Create account form fields
- * ----------------------------- */
-const createAccountFields = computed<Field<HrCreateEmployeeAccountDTO>[]>(
-  () => [
-    {
-      key: "email",
-      label: "Email",
-      component: ElInput,
-      componentProps: {
-        placeholder: "Enter email",
-        clearable: true,
-      },
-    },
-    {
-      key: "username",
-      label: "Username",
-      component: ElInput,
-      componentProps: {
-        placeholder: "Enter username",
-        clearable: true,
-      },
-    },
-    {
-      key: "password",
-      label: "Password",
-      component: ElInput,
-      componentProps: {
-        type: "password",
-        showPassword: true,
-        placeholder: "Enter password",
-      },
-    },
-    {
-      key: "role",
-      label: "Role",
-      component: ElSelect,
-      componentProps: {
-        placeholder: "Select role",
-        clearable: false,
-      },
-      childComponent: ElOption,
-      childComponentProps: {
-        options: roleOptions,
-        valueKey: "value",
-        labelKey: "label",
-      },
-    },
-  ],
-);
 
 const employeeDialogTitle = computed(() =>
   isEdit.value ? "Edit Employee" : "Create Employee",
@@ -313,9 +562,6 @@ const createAccountDialogTitle = computed(() => {
     : "Create Account";
 });
 
-/* -----------------------------
- * Helpers
- * ----------------------------- */
 function resetEmployeeForm() {
   employeeForm.employee_code = "";
   employeeForm.full_name = "";
@@ -324,6 +570,8 @@ function resetEmployeeForm() {
   employeeForm.employment_type = "contract";
   employeeForm.basic_salary = 0;
   employeeForm.status = "active";
+  employeeForm.start_date = "";
+  employeeForm.end_date = "";
 }
 
 function fillEmployeeForm(employee: Partial<HrEmployeeDTO>) {
@@ -331,18 +579,17 @@ function fillEmployeeForm(employee: Partial<HrEmployeeDTO>) {
   employeeForm.full_name = employee.full_name ?? "";
   employeeForm.department = employee.department ?? "";
   employeeForm.position = employee.position ?? "";
-  employeeForm.employment_type =
-    (employee.employment_type as HrCreateEmployeeDTO["employment_type"]) ??
-    "contract";
+  employeeForm.employment_type = employee.employment_type ?? "contract";
   employeeForm.basic_salary = employee.basic_salary ?? 0;
-  employeeForm.status =
-    (employee.status as HrCreateEmployeeDTO["status"]) ?? "active";
+  employeeForm.status = employee.status ?? "active";
+  employeeForm.start_date = employee.contract?.start_date ?? "";
+  employeeForm.end_date = employee.contract?.end_date ?? "";
 }
 
 function resetCreateAccountForm(employee?: HrEmployeeDTO | null) {
   createAccountForm.value = {
     username: employee?.full_name
-      ? employee.full_name.toLowerCase().replace(/\s+/g, ".")
+      ? employee.full_name.toLowerCase().trim().replace(/\s+/g, ".")
       : "",
     email: "",
     password: "",
@@ -432,20 +679,36 @@ function handleCancelEmployeeForm() {
   resetEmployeeForm();
 }
 
-async function handleSaveEmployeeForm(payload: Partial<HrCreateEmployeeDTO>) {
+async function handleSaveEmployeeForm(payload: Partial<EmployeeFormModel>) {
+  const validationError = validateEmployeeFormBeforeSubmit(payload);
+  if (validationError) {
+    ElMessage.error(validationError);
+    return;
+  }
+
   loadingEmployeeForm.value = true;
 
   try {
+    const employmentType =
+      payload.employment_type ?? employeeForm.employment_type;
+    const basicSalary = Number(payload.basic_salary ?? employeeForm.basic_salary);
+
     if (isEdit.value && editingEmployeeId.value) {
       const updatePayload: HrUpdateEmployeeDTO = {
-        employee_code: payload.employee_code ?? employeeForm.employee_code,
-        full_name: payload.full_name ?? employeeForm.full_name,
-        department: payload.department ?? employeeForm.department,
-        position: payload.position ?? employeeForm.position,
-        employment_type:
-          payload.employment_type ?? employeeForm.employment_type,
-        basic_salary: payload.basic_salary ?? employeeForm.basic_salary,
+        full_name: (payload.full_name ?? employeeForm.full_name).trim(),
+        department: normalizeNullableText(payload.department ?? employeeForm.department),
+        position: normalizeNullableText(payload.position ?? employeeForm.position),
+        employment_type: employmentType,
+        basic_salary: basicSalary,
         status: payload.status ?? employeeForm.status,
+        contract:
+          employmentType === "contract"
+            ? buildContractPayload({
+                start_date: payload.start_date ?? employeeForm.start_date,
+                end_date: payload.end_date ?? employeeForm.end_date,
+                basic_salary: basicSalary,
+              })
+            : null,
       };
 
       await $hrEmployeeService.updateEmployee(
@@ -456,14 +719,21 @@ async function handleSaveEmployeeForm(payload: Partial<HrCreateEmployeeDTO>) {
       ElMessage.success("Employee updated successfully");
     } else {
       const createPayload: HrCreateEmployeeDTO = {
-        employee_code: payload.employee_code ?? employeeForm.employee_code,
-        full_name: payload.full_name ?? employeeForm.full_name,
-        department: payload.department ?? employeeForm.department,
-        position: payload.position ?? employeeForm.position,
-        employment_type:
-          payload.employment_type ?? employeeForm.employment_type,
-        basic_salary: payload.basic_salary ?? employeeForm.basic_salary,
+        employee_code: (payload.employee_code ?? employeeForm.employee_code).trim(),
+        full_name: (payload.full_name ?? employeeForm.full_name).trim(),
+        department: normalizeNullableText(payload.department ?? employeeForm.department),
+        position: normalizeNullableText(payload.position ?? employeeForm.position),
+        employment_type: employmentType,
+        basic_salary: basicSalary,
         status: payload.status ?? employeeForm.status,
+        contract:
+          employmentType === "contract"
+            ? buildContractPayload({
+                start_date: payload.start_date ?? employeeForm.start_date,
+                end_date: payload.end_date ?? employeeForm.end_date,
+                basic_salary: basicSalary,
+              })
+            : null,
       };
 
       await $hrEmployeeService.createEmployee(createPayload);
@@ -498,7 +768,7 @@ async function onDeleteRow(row: EmployeeTableRow) {
     await $hrEmployeeService.softDeleteEmployee(row.employee.id);
     ElMessage.success("Employee deleted successfully");
     await fetchEmployees(currentPage.value);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error === "cancel" || error === "close") return;
     console.error(error);
     ElMessage.error("Failed to delete employee");
@@ -552,13 +822,26 @@ async function handleSaveCreateAccount(
 ) {
   if (!selectedEmployee.value) return;
 
+  const email = (payload.email ?? createAccountForm.value.email ?? "").trim();
+  const password = payload.password ?? createAccountForm.value.password ?? "";
+
+  if (!email) {
+    ElMessage.error("Email is required");
+    return;
+  }
+
+  if (!password || password.length < 6) {
+    ElMessage.error("Password must be at least 6 characters");
+    return;
+  }
+
   loadingCreateAccountForm.value = true;
 
   try {
     const createPayload: HrCreateEmployeeAccountDTO = {
-      email: payload.email ?? createAccountForm.value.email,
-      username: payload.username ?? createAccountForm.value.username,
-      password: payload.password ?? createAccountForm.value.password,
+      email,
+      username: normalizeNullableText(payload.username ?? createAccountForm.value.username),
+      password,
       role: payload.role ?? createAccountForm.value.role,
     };
 
@@ -597,7 +880,7 @@ async function handleSoftDeleteAccount() {
     );
     ElMessage.success("Account soft deleted successfully");
     await fetchEmployees(currentPage.value);
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error === "cancel" || error === "close") return;
     console.error(error);
     ElMessage.error("Failed to soft delete account");
@@ -754,7 +1037,6 @@ onMounted(async () => {
       </div>
     </ElCard>
 
-    <!-- Employee create/edit -->
     <SmartFormDialog
       v-model:modelValue="employeeForm"
       v-model:visible="employeeDialogVisible"
@@ -767,7 +1049,6 @@ onMounted(async () => {
       @cancel="handleCancelEmployeeForm"
     />
 
-    <!-- Account summary/actions -->
     <ManageEmployeeAccountDialog
       v-model:visible="manageAccountDialogVisible"
       :employee="selectedEmployee"
@@ -780,7 +1061,6 @@ onMounted(async () => {
       @close="closeManageAccountDialog"
     />
 
-    <!-- Create account form -->
     <SmartFormDialog
       v-model:modelValue="createAccountForm"
       v-model:visible="createAccountDialogVisible"

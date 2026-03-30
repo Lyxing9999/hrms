@@ -4,6 +4,18 @@ import type { Role } from "~/api/types/enums/role.enum";
 export type HrEmploymentType = "permanent" | "contract";
 export type HrEmployeeStatus = "active" | "inactive";
 
+export type HrSalaryType = "monthly" | "daily" | "hourly";
+
+export type HrEmployeeContractDTO = {
+  start_date: string;
+  end_date: string;
+  salary_type: HrSalaryType;
+  rate: number;
+  pay_on_holiday?: boolean;
+  pay_on_weekend?: boolean;
+  leave_policy_id?: string | null;
+};
+
 export type HrEmployeeDTO = {
   id: string;
   user_id?: string | null;
@@ -13,6 +25,7 @@ export type HrEmployeeDTO = {
   position?: string | null;
   employment_type: HrEmploymentType;
   basic_salary: number;
+  contract?: HrEmployeeContractDTO | null;
   status: HrEmployeeStatus;
   created_by?: string | null;
   photo_url?: string | null;
@@ -30,10 +43,13 @@ export type HrCreateEmployeeDTO = {
   position?: string | null;
   employment_type?: HrEmploymentType;
   basic_salary: number;
+  contract?: HrEmployeeContractDTO | null;
   status?: HrEmployeeStatus;
 };
 
-export type HrUpdateEmployeeDTO = Partial<HrCreateEmployeeDTO>;
+export type HrUpdateEmployeeDTO = Partial<HrCreateEmployeeDTO> & {
+  contract?: HrEmployeeContractDTO | null;
+};
 
 export type ListEmployeesParams = {
   q?: string;

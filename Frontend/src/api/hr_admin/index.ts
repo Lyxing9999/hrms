@@ -1,5 +1,8 @@
 import { EmployeeApi } from "~/api/hr_admin/employees/api";
 import { EmployeeService } from "~/api/hr_admin/employees/service";
+import { WorkingScheduleApi } from "./schedule";
+import { WorkingScheduleService } from "./schedule";
+import { WorkLocationApi, WorkLocationService } from "./workLocations";
 
 let _hrmsAdminService: ReturnType<typeof createHrmsAdminService> | null = null;
 
@@ -9,10 +12,14 @@ function createHrmsAdminService() {
 
   const hrmsApi = {
     employee: new EmployeeApi($api),
+    workingSchedule: new WorkingScheduleApi($api),
+    workLocation: new WorkLocationApi($api),
   };
 
   return {
     employee: new EmployeeService(hrmsApi.employee),
+    workingSchedule: new WorkingScheduleService(hrmsApi.workingSchedule),
+    workLocation: new WorkLocationService(hrmsApi.workLocation),
   };
 }
 

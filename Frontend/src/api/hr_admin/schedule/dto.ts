@@ -14,19 +14,13 @@ export interface WorkingScheduleDTO {
   lifecycle: LifecycleDTO;
 }
 
-export interface WorkingSchedulePaginatedDTO {
-  items: WorkingScheduleDTO[];
-  total: number;
-  page: number;
-  page_size: number;
-  total_pages: number;
-}
-
 export interface WorkingScheduleCreateDTO {
   name: string;
   start_time: string;
   end_time: string;
   working_days: number[];
+  weekend_days?: number[];
+  total_hours_per_day?: number;
   is_default?: boolean;
 }
 
@@ -35,14 +29,11 @@ export interface WorkingScheduleUpdateDTO {
   start_time?: string;
   end_time?: string;
   working_days?: number[];
+  weekend_days?: number[];
+  total_hours_per_day?: number;
   is_default?: boolean;
 }
 
 export interface WorkingScheduleListParams {
-  page?: number;
-  limit?: number;
-  q?: string;
-  include_deleted?: boolean;
-  deleted_only?: boolean;
   signal?: AbortSignal;
 }

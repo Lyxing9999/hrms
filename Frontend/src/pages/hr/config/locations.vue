@@ -1,37 +1,41 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useNuxtApp } from "nuxt/app";
+import { ElMessage, ElMessageBox } from "element-plus";
 import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
-import type { WorkLocationDTO } from "~/api/hr_admin/location/location.dto";
-import { usePaginatedFetch } from "~/composables/data/usePaginatedFetch";
-import { ElMessageBox } from "element-plus";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
 import BaseButton from "~/components/base/BaseButton.vue";
 import SmartFormDialog from "~/components/form/SmartFormDialog.vue";
+import GoogleLocationPicker from "~/components/hrms/location/GoogleLocationPicker.vue";
+import { usePaginatedFetch } from "~/composables/data/usePaginatedFetch";
 import { useFormCreate } from "~/composables/forms/useFormCreate";
+import type { WorkLocationDTO } from "~/api/hr_admin/workLocations/dto";
 
 const { $hrLocationService } = useNuxtApp();
 
-const deleteLoading = ref<Record<string | number, boolean>>({});
-const restoreLoading = ref<Record<string | number, boolean>>({});
-
 const q = ref("");
-const is_active = ref<boolean | undefined>(undefined);
-const include_deleted = ref(false);
-const deleted_only = ref(false);
+const isActiveFilter = ref<boolean | undefined>(undefined);
+const deletedMode = ref<"active_only" | "include_deleted" | "deleted_only">("active_only");
 
-// Table columns
+const deleteLoading = ref<Record<string, boolean>>({});
+const restoreLoading = ref<Record<string, boolean>>({});
+const toggleStatusLoading = ref<Record<string, boolean>>({});
+
+const createDialogKey = ref(0);
+const currentLocationId = ref("");
+
+const includeDeleted = computed(() => deletedMode.value === "include_deleted");
+const deletedOnly = computed(() => deletedMode.value === "deleted_only");
+
 const locationColumns = [
-  { prop: "name", label: "Location Name", minWidth: 180 },
-  { prop: "address", label: "Address", minWidth: 250 },
-  { prop: "latitude", label: "Latitude", width: 120 },
-  { prop: "longitude", label: "Longitude", width: 120 },
-  { prop: "radius_meters", label: "Radius (m)", width: 100 },
-  { prop: "is_active", label: "Status", width: 100, slot: "is_active" },
-  { prop: "operation", label: "Actions", width: 200, fixed: "right", slot: "operation" },
+  { prop: "name", label: "Location", minWidth: 180 },
+  { prop: "address", label: "Address", minWidth: 260 },
+  { prop: "coordinates", label: "Coordinates", minWidth: 200, slot: "coordinates" },
+  { prop: "radius_meters", label: "Radius", width: 110, slot: "radius_meters" },
+  { prop: "is_active", label: "Status", width: 130, slot: "is_active" },
+  { prop: "operation", label: "Actions", width: 260, fixed: "right", slot: "operation" },
 ];
 
-// Fetch data
 const {
   data: locations,
   currentPage,
@@ -43,45 +47,53 @@ const {
   goPage,
   setPageSize,
 } = usePaginatedFetch<WorkLocationDTO, void>(
-  async (_unusedFilter, page, size, signal) => {
-    const keyword = q.value.trim();
-    const res = await $hrLocationService.getLocations({
-      q: keyword.length ? keyword : undefined,
-      page,
-      limit: size,
-      is_active: is_active.value,
-      include_deleted: include_deleted.value,
-      deleted_only: deleted_only.value,
-      signal,
-    });
+  async (_unused, page, size, signal) => {
+    const res = await $hrLocationService.getWorkLocations(
+      {
+        q: q.value.trim() || undefined,
+        page,
+        limit: size,
+        is_active: isActiveFilter.value,
+        include_deleted: includeDeleted.value,
+        deleted_only: deletedOnly.value,
+      },
+      { signal },
+    );
 
     return {
-      items: (res.items ?? []) as WorkLocationDTO[],
+      items: res.items ?? [],
       total: res.total ?? 0,
     };
   },
-  { initialPage: 1 }
+  { initialPage: 1 },
 );
 
-watch([q, is_active, include_deleted, deleted_only], () => {
+watch([isActiveFilter, deletedMode], () => {
   fetchPage(1);
 });
 
-// Form schema
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(q, () => {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    fetchPage(1);
+  }, 400);
+});
+
 const locationFormSchema = [
   {
     prop: "name",
     label: "Location Name",
     type: "input",
     required: true,
-    placeholder: "e.g., Main Office",
+    placeholder: "e.g. Main Office",
   },
   {
     prop: "address",
     label: "Address",
     type: "textarea",
     required: true,
-    placeholder: "Full address",
+    placeholder: "Search or pick from map",
     rows: 3,
   },
   {
@@ -89,29 +101,30 @@ const locationFormSchema = [
     label: "Latitude",
     type: "number",
     required: true,
-    placeholder: "e.g., 11.5564",
     min: -90,
     max: 90,
     step: 0.000001,
+    placeholder: "e.g. 11.5564",
   },
   {
     prop: "longitude",
     label: "Longitude",
     type: "number",
     required: true,
-    placeholder: "e.g., 104.9282",
     min: -180,
     max: 180,
     step: 0.000001,
+    placeholder: "e.g. 104.9282",
   },
   {
     prop: "radius_meters",
     label: "Radius (meters)",
     type: "number",
     required: true,
-    placeholder: "e.g., 100",
     min: 10,
-    max: 1000,
+    max: 5000,
+    step: 1,
+    placeholder: "e.g. 100",
   },
   {
     prop: "is_active",
@@ -120,7 +133,6 @@ const locationFormSchema = [
   },
 ];
 
-// Create form
 const {
   formDialogVisible: createFormVisible,
   formData: createFormData,
@@ -129,7 +141,7 @@ const {
   loading: createFormLoading,
 } = useFormCreate(
   () => async (data: any) => {
-    return await $hrLocationService.createLocation(data);
+    return await $hrLocationService.createWorkLocation(data);
   },
   () => ({
     name: "",
@@ -139,28 +151,33 @@ const {
     radius_meters: 100,
     is_active: true,
   }),
-  () => locationFormSchema
+  () => locationFormSchema,
 );
 
-const handleCreateSave = async (form: any) => {
-  const created = await saveCreateForm(form);
-  if (created) await fetchPage(1);
-};
-
-const createDialogKey = ref(0);
+const updateFormVisible = ref(false);
+const updateFormLoading = ref(false);
+const updateFormData = ref<any>({
+  name: "",
+  address: "",
+  latitude: 11.5564,
+  longitude: 104.9282,
+  radius_meters: 100,
+  is_active: true,
+});
 
 const handleOpenCreateForm = async () => {
-  createDialogKey.value++;
+  createDialogKey.value += 1;
   await openCreateForm({});
 };
 
-// Update form
-const updateFormVisible = ref(false);
-const updateFormData = ref<any>({});
-const updateFormLoading = ref(false);
-const currentLocationId = ref<string>("");
+const handleCreateSave = async (form: any) => {
+  const created = await saveCreateForm(form);
+  if (created) {
+    await fetchPage(1);
+  }
+};
 
-const handleOpenUpdateForm = async (row: WorkLocationDTO) => {
+const handleOpenUpdateForm = (row: WorkLocationDTO) => {
   currentLocationId.value = row.id;
   updateFormData.value = {
     name: row.name,
@@ -176,7 +193,7 @@ const handleOpenUpdateForm = async (row: WorkLocationDTO) => {
 const handleUpdateSave = async (form: any) => {
   updateFormLoading.value = true;
   try {
-    await $hrLocationService.updateLocation(currentLocationId.value, form);
+    await $hrLocationService.updateWorkLocation(currentLocationId.value, form);
     updateFormVisible.value = false;
     await fetchPage(currentPage.value || 1);
   } finally {
@@ -184,187 +201,405 @@ const handleUpdateSave = async (form: any) => {
   }
 };
 
-// Delete
+const handleToggleActive = async (row: WorkLocationDTO, value: boolean) => {
+  toggleStatusLoading.value[row.id] = true;
+  try {
+    if (value) {
+      await $hrLocationService.activateWorkLocation(row.id);
+    } else {
+      await $hrLocationService.deactivateWorkLocation(row.id);
+    }
+    await fetchPage(currentPage.value || 1);
+  } catch {
+    row.is_active = !value;
+  } finally {
+    toggleStatusLoading.value[row.id] = false;
+  }
+};
+
 const handleSoftDeleteLocation = async (row: WorkLocationDTO) => {
   try {
     await ElMessageBox.confirm(
-      "Are you sure you want to delete this location?",
-      "Warning",
-      { confirmButtonText: "Yes", cancelButtonText: "No", type: "warning" }
+      `Delete "${row.name}"? You can restore it later.`,
+      "Delete Location",
+      {
+        confirmButtonText: "Delete",
+        cancelButtonText: "Cancel",
+        type: "warning",
+      },
     );
 
     deleteLoading.value[row.id] = true;
-    await $hrLocationService.softDeleteLocation(row.id);
+    await $hrLocationService.softDeleteWorkLocation(row.id);
+    ElMessage.success("Location deleted successfully");
     await fetchPage(currentPage.value || 1);
   } finally {
     deleteLoading.value[row.id] = false;
   }
 };
 
-// Restore
 const handleRestoreLocation = async (row: WorkLocationDTO) => {
   try {
     await ElMessageBox.confirm(
-      "Are you sure you want to restore this location?",
-      "Confirm Restore",
-      { confirmButtonText: "Yes", cancelButtonText: "No", type: "info" }
+      `Restore "${row.name}"?`,
+      "Restore Location",
+      {
+        confirmButtonText: "Restore",
+        cancelButtonText: "Cancel",
+        type: "info",
+      },
     );
 
     restoreLoading.value[row.id] = true;
-    await $hrLocationService.restoreLocation(row.id);
+    await $hrLocationService.restoreWorkLocation(row.id);
+    ElMessage.success("Location restored successfully");
     await fetchPage(currentPage.value || 1);
   } finally {
     restoreLoading.value[row.id] = false;
   }
 };
 
-// Initial load
+const resetFilters = async () => {
+  q.value = "";
+  isActiveFilter.value = undefined;
+  deletedMode.value = "active_only";
+  await fetchPage(1);
+};
+
+const openInExternalMap = (row: WorkLocationDTO) => {
+  window.open(`https://www.google.com/maps?q=${row.latitude},${row.longitude}`, "_blank");
+};
+
 await fetchPage(1);
 </script>
 
 <template>
-  <OverviewHeader
-    :title="'Work Locations'"
-    :description="'Manage work locations with GPS coordinates for check-in validation'"
-    :backPath="'/hr/config'"
-  >
-    <template #actions>
-      <BaseButton
-        plain
-        :loading="initialLoading || fetching"
-        class="!border-[color:var(--color-primary)] !text-[color:var(--color-primary)] hover:!bg-[var(--color-primary-light-7)]"
-        @click="fetchPage(currentPage || 1)"
-      >
-        Refresh
-      </BaseButton>
+  <div class="space-y-4">
+    <OverviewHeader
+      title="Work Locations"
+      description="Manage work locations and GPS radius for attendance validation"
+      backPath="/hr/config"
+    >
+      <template #actions>
+        <BaseButton
+          plain
+          :loading="initialLoading || fetching"
+          @click="fetchPage(currentPage || 1)"
+        >
+          Refresh
+        </BaseButton>
 
-      <BaseButton
-        type="primary"
-        :disabled="initialLoading || fetching"
-        @click="handleOpenCreateForm"
-      >
-        Add Location
-      </BaseButton>
-    </template>
-  </OverviewHeader>
-
-  <!-- Filters -->
-  <el-row :gutter="16" class="mb-4">
-    <el-col :span="6">
-      <el-input
-        v-model="q"
-        placeholder="Search by name or address..."
-        clearable
-        @clear="fetchPage(1)"
-      />
-    </el-col>
-    <el-col :span="4">
-      <el-select
-        v-model="is_active"
-        placeholder="Filter by status"
-        clearable
-        @change="fetchPage(1)"
-      >
-        <el-option label="Active" :value="true" />
-        <el-option label="Inactive" :value="false" />
-      </el-select>
-    </el-col>
-    <el-col :span="4">
-      <el-checkbox v-model="include_deleted" @change="fetchPage(1)">
-        Include Deleted
-      </el-checkbox>
-    </el-col>
-  </el-row>
-
-  <SmartTable
-    :columns="locationColumns"
-    :data="locations"
-    :loading="initialLoading || fetching"
-    :total="totalRows"
-    :page="currentPage"
-    :page-size="pageSize"
-    @page="goPage"
-    @page-size="setPageSize"
-  >
-    <template #is_active="{ row }">
-      <el-tag v-if="row.is_active" type="success" size="small">Active</el-tag>
-      <el-tag v-else type="info" size="small">Inactive</el-tag>
-    </template>
-
-    <template #operation="{ row }">
-      <el-space>
-        <el-button
+        <BaseButton
           type="primary"
-          size="small"
-          link
-          @click="handleOpenUpdateForm(row as WorkLocationDTO)"
+          :disabled="initialLoading || fetching"
+          @click="handleOpenCreateForm"
         >
-          Edit
-        </el-button>
+          Add Location
+        </BaseButton>
+      </template>
+    </OverviewHeader>
 
-        <el-button
-          v-if="row.lifecycle?.deleted_at"
-          type="success"
-          size="small"
-          link
-          :loading="restoreLoading[row.id]"
-          @click="handleRestoreLocation(row as WorkLocationDTO)"
-        >
-          Restore
-        </el-button>
+    <el-card shadow="never">
+      <el-row :gutter="12">
+        <el-col :xs="24" :sm="24" :md="8">
+          <el-input
+            v-model="q"
+            clearable
+            placeholder="Search by name or address"
+            @clear="fetchPage(1)"
+          />
+        </el-col>
 
-        <el-button
-          v-else
-          type="danger"
-          size="small"
-          link
-          :loading="deleteLoading[row.id]"
-          @click="handleSoftDeleteLocation(row as WorkLocationDTO)"
-        >
-          Delete
-        </el-button>
-      </el-space>
-    </template>
-  </SmartTable>
+        <el-col :xs="24" :sm="12" :md="5">
+          <el-select
+            v-model="isActiveFilter"
+            clearable
+            placeholder="Status"
+            class="w-full"
+          >
+            <el-option label="All Status" :value="undefined" />
+            <el-option label="Active" :value="true" />
+            <el-option label="Inactive" :value="false" />
+          </el-select>
+        </el-col>
 
-  <el-row v-if="totalRows > 0" justify="end" class="m-4">
-    <el-pagination
-      :current-page="currentPage"
-      :page-size="pageSize"
+        <el-col :xs="24" :sm="12" :md="7">
+          <el-segmented
+            v-model="deletedMode"
+            :options="[
+              { label: 'Normal', value: 'active_only' },
+              { label: 'Include Deleted', value: 'include_deleted' },
+              { label: 'Deleted Only', value: 'deleted_only' },
+            ]"
+            class="w-full"
+          />
+        </el-col>
+
+        <el-col :xs="24" :sm="24" :md="4" class="flex justify-end">
+          <BaseButton plain @click="resetFilters">
+            Reset
+          </BaseButton>
+        </el-col>
+      </el-row>
+    </el-card>
+
+    <SmartTable
+      :columns="locationColumns"
+      :data="locations"
+      :loading="initialLoading || fetching"
       :total="totalRows"
-      :page-sizes="[10, 20, 50, 100]"
-      layout="total, sizes, prev, pager, next, jumper"
-      background
-      @current-change="goPage"
-      @size-change="setPageSize"
-    />
-  </el-row>
+      :page="currentPage"
+      :page-size="pageSize"
+      @page="goPage"
+      @page-size="setPageSize"
+    >
+      <template #coordinates="{ row }">
+        <div class="flex flex-col">
+          <span>{{ Number(row.latitude).toFixed(6) }}, {{ Number(row.longitude).toFixed(6) }}</span>
+          <el-button
+            type="primary"
+            link
+            size="small"
+            @click="openInExternalMap(row as WorkLocationDTO)"
+          >
+            Open Map
+          </el-button>
+        </div>
+      </template>
 
-  <!-- Create Dialog -->
-  <SmartFormDialog
-    :key="createDialogKey"
-    v-model:visible="createFormVisible"
-    :model-value="createFormData"
-    :fields="locationFormSchema"
-    :width="'40%'"
-    :loading="createFormLoading"
-    :disabled="createFormLoading"
-    title="Add Work Location"
-    useElForm
-    @save="handleCreateSave"
-  />
+      <template #radius_meters="{ row }">
+        <span>{{ row.radius_meters }} m</span>
+      </template>
 
-  <!-- Update Dialog -->
-  <SmartFormDialog
-    v-model:visible="updateFormVisible"
-    :model-value="updateFormData"
-    :fields="locationFormSchema"
-    :width="'40%'"
-    :loading="updateFormLoading"
-    :disabled="updateFormLoading"
-    title="Update Work Location"
-    useElForm
-    @save="handleUpdateSave"
-    @cancel="updateFormVisible = false"
-  />
+      <template #is_active="{ row }">
+        <div class="flex items-center gap-2">
+          <el-tag
+            v-if="row.lifecycle?.deleted_at"
+            type="danger"
+            size="small"
+          >
+            Deleted
+          </el-tag>
+
+          <el-switch
+            v-else
+            :model-value="row.is_active"
+            :loading="toggleStatusLoading[row.id]"
+            inline-prompt
+            active-text="Active"
+            inactive-text="Inactive"
+            @change="(value: boolean) => handleToggleActive(row as WorkLocationDTO, value)"
+          />
+        </div>
+      </template>
+
+      <template #operation="{ row }">
+        <el-space wrap>
+          <el-button
+            type="primary"
+            size="small"
+            link
+            :disabled="!!row.lifecycle?.deleted_at"
+            @click="handleOpenUpdateForm(row as WorkLocationDTO)"
+          >
+            Edit
+          </el-button>
+
+          <el-button
+            type="primary"
+            size="small"
+            link
+            @click="openInExternalMap(row as WorkLocationDTO)"
+          >
+            Map
+          </el-button>
+
+          <el-button
+            v-if="row.lifecycle?.deleted_at"
+            type="success"
+            size="small"
+            link
+            :loading="restoreLoading[row.id]"
+            @click="handleRestoreLocation(row as WorkLocationDTO)"
+          >
+            Restore
+          </el-button>
+
+          <el-button
+            v-else
+            type="danger"
+            size="small"
+            link
+            :loading="deleteLoading[row.id]"
+            @click="handleSoftDeleteLocation(row as WorkLocationDTO)"
+          >
+            Delete
+          </el-button>
+        </el-space>
+      </template>
+    </SmartTable>
+
+    <el-row v-if="totalRows > 0" justify="end">
+      <el-pagination
+        :current-page="currentPage"
+        :page-size="pageSize"
+        :total="totalRows"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        background
+        @current-change="goPage"
+        @size-change="setPageSize"
+      />
+    </el-row>
+
+    <SmartFormDialog
+      :key="createDialogKey"
+      v-model:visible="createFormVisible"
+      :model-value="createFormData"
+      :fields="locationFormSchema"
+      :width="'70%'"
+      :loading="createFormLoading"
+      :disabled="createFormLoading"
+      title="Add Work Location"
+      useElForm
+      @save="handleCreateSave"
+    >
+      <template #default="{ model }">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div class="space-y-4">
+            <el-form-item label="Location Name" required>
+              <el-input v-model="model.name" placeholder="e.g. Main Office" />
+            </el-form-item>
+
+            <el-form-item label="Address" required>
+              <el-input
+                v-model="model.address"
+                type="textarea"
+                :rows="3"
+                placeholder="Search by place or pick from map"
+              />
+            </el-form-item>
+
+            <el-form-item label="Latitude" required>
+              <el-input-number
+                v-model="model.latitude"
+                :min="-90"
+                :max="90"
+                :step="0.000001"
+                class="!w-full"
+              />
+            </el-form-item>
+
+            <el-form-item label="Longitude" required>
+              <el-input-number
+                v-model="model.longitude"
+                :min="-180"
+                :max="180"
+                :step="0.000001"
+                class="!w-full"
+              />
+            </el-form-item>
+
+            <el-form-item label="Radius (meters)" required>
+              <el-input-number
+                v-model="model.radius_meters"
+                :min="10"
+                :max="5000"
+                :step="1"
+                class="!w-full"
+              />
+            </el-form-item>
+
+            <el-form-item label="Active">
+              <el-switch v-model="model.is_active" />
+            </el-form-item>
+          </div>
+
+          <div>
+            <GoogleLocationPicker
+              v-model:latitude="model.latitude"
+              v-model:longitude="model.longitude"
+              v-model:address="model.address"
+              :radius-meters="model.radius_meters"
+            />
+          </div>
+        </div>
+      </template>
+    </SmartFormDialog>
+
+    <SmartFormDialog
+      v-model:visible="updateFormVisible"
+      :model-value="updateFormData"
+      :fields="locationFormSchema"
+      :width="'70%'"
+      :loading="updateFormLoading"
+      :disabled="updateFormLoading"
+      title="Update Work Location"
+      useElForm
+      @save="handleUpdateSave"
+      @cancel="updateFormVisible = false"
+    >
+      <template #default="{ model }">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div class="space-y-4">
+            <el-form-item label="Location Name" required>
+              <el-input v-model="model.name" placeholder="e.g. Main Office" />
+            </el-form-item>
+
+            <el-form-item label="Address" required>
+              <el-input
+                v-model="model.address"
+                type="textarea"
+                :rows="3"
+                placeholder="Search by place or pick from map"
+              />
+            </el-form-item>
+
+            <el-form-item label="Latitude" required>
+              <el-input-number
+                v-model="model.latitude"
+                :min="-90"
+                :max="90"
+                :step="0.000001"
+                class="!w-full"
+              />
+            </el-form-item>
+
+            <el-form-item label="Longitude" required>
+              <el-input-number
+                v-model="model.longitude"
+                :min="-180"
+                :max="180"
+                :step="0.000001"
+                class="!w-full"
+              />
+            </el-form-item>
+
+            <el-form-item label="Radius (meters)" required>
+              <el-input-number
+                v-model="model.radius_meters"
+                :min="10"
+                :max="5000"
+                :step="1"
+                class="!w-full"
+              />
+            </el-form-item>
+
+            <el-form-item label="Active">
+              <el-switch v-model="model.is_active" />
+            </el-form-item>
+          </div>
+
+          <div>
+            <GoogleLocationPicker
+              v-model:latitude="model.latitude"
+              v-model:longitude="model.longitude"
+              v-model:address="model.address"
+              :radius-meters="model.radius_meters"
+            />
+          </div>
+        </div>
+      </template>
+    </SmartFormDialog>
+  </div>
 </template>
