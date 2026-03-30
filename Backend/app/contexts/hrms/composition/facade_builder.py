@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pymongo.database import Database
 
+from app.contexts.hrms.api.work_location.work_location_command import create_work_location
 from app.contexts.hrms.composition.repositories import HrmsRepositories
 from app.contexts.hrms.composition.application_services import HrmsApplicationServices
 from app.contexts.hrms.facade import (
@@ -12,8 +13,8 @@ from app.contexts.hrms.facade import (
     LeaveFacade,
     PayrollFacade,
     HrmsFacade,
+    WorkLocationFacade
 )
-
 
 def build_hrms_repositories(db: Database) -> HrmsRepositories:
     return HrmsRepositories(db=db)
@@ -44,6 +45,7 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
         link_employee_account=services.link_employee_account,
         list_employee_accounts=services.list_employee_accounts,
         find_employee_by_user_id=services.find_employee_by_user_id,
+        assign_employee_schedule=services.assign_employee_schedule,
     )
 
     attendance = AttendanceFacade(
@@ -61,6 +63,7 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
         update_working_schedule=services.update_working_schedule,
         set_default_working_schedule=services.set_default_working_schedule,
         soft_delete_working_schedule=services.soft_delete_working_schedule,
+        restore_working_schedule=services.restore_working_schedule,
         list_working_schedules=services.list_working_schedules,
         get_working_schedule=services.get_working_schedule,
         get_default_working_schedule=services.get_default_working_schedule,
@@ -81,6 +84,18 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
         generate_monthly_payroll=services.generate_monthly_payroll,
     )
 
+    work_location = WorkLocationFacade(
+        create_work_location=services.create_work_location,
+        update_work_location=services.update_work_location,
+        activate_work_location=services.activate_work_location,
+        deactivate_work_location=services.deactivate_work_location,
+        soft_delete_work_location=services.soft_delete_work_location,
+        restore_work_location=services.restore_work_location,
+        list_work_locations=services.list_work_locations,
+        get_work_location=services.get_work_location,
+        get_active_work_location=services.get_active_work_location,
+    )
+
     return HrmsFacade(
         employee=employee,
         attendance=attendance,
@@ -88,4 +103,5 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
         overtime=overtime,
         leave=leave,
         payroll=payroll,
+        work_location=work_location,
     )

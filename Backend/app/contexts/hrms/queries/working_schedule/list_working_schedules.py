@@ -13,9 +13,9 @@ class ListWorkingSchedulesQuery:
         include_deleted: bool = False,
         deleted_only: bool = False,
     ):
+        # Note: Pagination is handled on the frontend.
+        # The repository returns all matching schedules without pagination.
         return self.working_schedule_repository.list_schedules(
-            page=page,
-            limit=page_size,
             include_deleted=include_deleted,
             deleted_only=deleted_only,
         )

@@ -6,20 +6,31 @@ from pymongo.database import Database
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
 from app.contexts.hrms.mapper.working_schedule_mapper import WorkingScheduleMapper
 from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFoundException
-
+from app.contexts.shared.model_converter import mongo_converter
 
 class MongoWorkingScheduleRepository:
     def __init__(self, db: Database):
         self.collection = db["hr_working_schedules"]
         self.mapper = WorkingScheduleMapper()
 
+
+    @staticmethod
+    def _oid(v) -> ObjectId | None:
+        return mongo_converter.convert_to_object_id(v)
+    
+    @staticmethod
+    def _sid(v) -> str | None:
+        if v is None:
+            return None
+        return str(v)
+
     def save(self, schedule: WorkingSchedule) -> WorkingSchedule:
         doc = self.mapper.to_persistence(schedule)
-        self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
+        self.collection.replace_one({"_id": self._oid(doc["_id"])}, doc, upsert=True)
         return schedule
 
     def find_by_id(self, schedule_id: ObjectId) -> WorkingSchedule:
-        doc = self.collection.find_one({"_id": schedule_id})
+        doc = self.collection.find_one({"_id": self._oid(schedule_id)})
         if not doc:
             raise WorkingScheduleNotFoundException(schedule_id)
         return self.mapper.to_domain(doc)

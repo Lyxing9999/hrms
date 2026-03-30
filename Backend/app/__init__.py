@@ -266,11 +266,14 @@ def create_app():
     # HRMS Domain
     # -------------------------
     from app.contexts.hrms.api.employee import register_employee_routes
-
     from app.contexts.hrms.api.attendance import register_attendance_routes
-
+    from app.contexts.hrms.api.working_schedule import register_working_schedule_routes
+    from app.contexts.hrms.api.work_location import register_work_location_routes
+    
+    register_working_schedule_routes(app)
     register_employee_routes(app)
     register_attendance_routes(app)
+    register_work_location_routes(app)
     # Register realtime attendance handlers
     from app.contexts.hrms.realtime import handlers  # noqa: F401
 

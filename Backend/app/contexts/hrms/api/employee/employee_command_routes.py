@@ -12,7 +12,8 @@ from app.contexts.hrms.data_transfer.request.employee_request import (
     EmployeeUpdateSchema,
     EmployeeCreateAccountSchema,
     EmployeeAccountUpdateSchema,
-    EmployeeAccountStatusSchema
+    EmployeeAccountStatusSchema,
+    EmployeeAssignScheduleSchema
 )
 from app.contexts.hrms.data_transfer.response.employee_response import (
     EmployeeWithAccountDTO,
@@ -194,3 +195,21 @@ def set_employee_account_status(user_id: str):
 
 
 
+
+
+@employee_command_bp.route("/employees/<employee_id>/assign-schedule", methods=["POST"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin"])
+@wrap_response
+def assign_employee_schedule(employee_id: str):
+    staff_id = get_current_staff_id()
+    payload = pydantic_converter.convert_to_model(
+        request.json,
+        EmployeeAssignScheduleSchema,
+    )
+
+    employee = g.hrms.employee.assign_employee_schedule(
+        employee_id=employee_id,
+        schedule_id=payload.schedule_id,
+        actor_id=staff_id,
+    )
+    return mapper.to_dto(employee)

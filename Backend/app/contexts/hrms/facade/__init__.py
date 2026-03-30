@@ -5,3 +5,16 @@ from .overtime_facade import OvertimeFacade
 from .leave_facade import LeaveFacade
 from .payroll_facade import PayrollFacade
 from .hrms_facade import HrmsFacade
+from .work_location_facade import WorkLocationFacade
+
+
+__all__ = [
+    "EmployeeFacade",
+    "AttendanceFacade",
+    "WorkingScheduleFacade",
+    "OvertimeFacade",
+    "LeaveFacade",
+    "PayrollFacade",
+    "HrmsFacade",
+    "WorkLocationFacade",
+]

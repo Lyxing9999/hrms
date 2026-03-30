@@ -21,6 +21,7 @@ from app.contexts.hrms.use_cases.employee.create_employee_account import CreateE
 from app.contexts.hrms.use_cases.employee.soft_delete_employee import SoftDeleteEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.restore_employee import RestoreEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.update_employee_account import UpdateEmployeeAccountUseCase
+from app.contexts.hrms.use_cases.employee.assign_employee_schedule import AssignEmployeeScheduleUseCase
 from app.contexts.hrms.use_cases.employee.request_employee_account_password_reset import (
     RequestEmployeeAccountPasswordResetUseCase,
 )
@@ -41,6 +42,7 @@ from app.contexts.hrms.use_cases.working_schedule.create_working_schedule import
 from app.contexts.hrms.use_cases.working_schedule.update_working_schedule import UpdateWorkingScheduleUseCase
 from app.contexts.hrms.use_cases.working_schedule.set_default_working_schedule import SetDefaultWorkingScheduleUseCase
 from app.contexts.hrms.use_cases.working_schedule.soft_delete_working_schedule import SoftDeleteWorkingScheduleUseCase
+from app.contexts.hrms.use_cases.working_schedule.restore_working_schedule import RestoreWorkingScheduleUseCase
 from app.contexts.hrms.queries.working_schedule.list_working_schedules import ListWorkingSchedulesQuery
 from app.contexts.hrms.queries.working_schedule.get_working_schedule import GetWorkingScheduleQuery
 from app.contexts.hrms.queries.working_schedule.get_default_working_schedule import GetDefaultWorkingScheduleQuery
@@ -57,6 +59,16 @@ from app.contexts.hrms.use_cases.leave.approve_leave_request import ApproveLeave
 # payroll
 from app.contexts.hrms.use_cases.payroll.generate_monthly_payroll import GenerateMonthlyPayrollUseCase
 
+
+from app.contexts.hrms.use_cases.work_location.create_work_location import CreateWorkLocationUseCase
+from app.contexts.hrms.use_cases.work_location.update_work_location import UpdateWorkLocationUseCase
+from app.contexts.hrms.use_cases.work_location.activate_work_location import ActivateWorkLocationUseCase
+from app.contexts.hrms.use_cases.work_location.deactivate_work_location import DeactivateWorkLocationUseCase
+from app.contexts.hrms.use_cases.work_location.soft_delete_work_location import SoftDeleteWorkLocationUseCase
+from app.contexts.hrms.use_cases.work_location.restore_work_location import RestoreWorkLocationUseCase
+from app.contexts.hrms.queries.work_location.list_work_locations import ListWorkLocationsQuery
+from app.contexts.hrms.queries.work_location.get_work_location import GetWorkLocationQuery
+from app.contexts.hrms.queries.work_location.get_active_work_location import GetActiveWorkLocationQuery
 
 class HrmsApplicationServices:
     def __init__(self, *, repositories: HrmsRepositories) -> None:
@@ -119,6 +131,11 @@ class HrmsApplicationServices:
             employee_repository=repositories.employee_repository,
         )
 
+        self.assign_employee_schedule = AssignEmployeeScheduleUseCase(
+            employee_repository=repositories.employee_repository,
+            working_schedule_repository=repositories.working_schedule_repository,
+        )   
+
         # attendance
         self.check_in_employee = CheckInEmployeeUseCase(
             employee_repository=repositories.employee_repository,
@@ -162,6 +179,9 @@ class HrmsApplicationServices:
             working_schedule_repository=repositories.working_schedule_repository,
         )
         self.soft_delete_working_schedule = SoftDeleteWorkingScheduleUseCase(
+            working_schedule_repository=repositories.working_schedule_repository,
+        )
+        self.restore_working_schedule = RestoreWorkingScheduleUseCase(
             working_schedule_repository=repositories.working_schedule_repository,
         )
         self.list_working_schedules = ListWorkingSchedulesQuery(
@@ -212,4 +232,33 @@ class HrmsApplicationServices:
             payslip_repository=repositories.payslip_repository,
             audit_log_repository=repositories.audit_log_repository,
             payroll_calculator=PayrollCalculator,
+        )
+        
+        # work location
+        self.create_work_location = CreateWorkLocationUseCase(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.update_work_location = UpdateWorkLocationUseCase(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.activate_work_location = ActivateWorkLocationUseCase(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.deactivate_work_location = DeactivateWorkLocationUseCase(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.soft_delete_work_location = SoftDeleteWorkLocationUseCase(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.restore_work_location = RestoreWorkLocationUseCase(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.list_work_locations = ListWorkLocationsQuery(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.get_work_location = GetWorkLocationQuery(
+            work_location_repository=repositories.work_location_repository,
+        )
+        self.get_active_work_location = GetActiveWorkLocationQuery(
+            work_location_repository=repositories.work_location_repository,
         )

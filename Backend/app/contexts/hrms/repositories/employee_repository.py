@@ -3,21 +3,34 @@ from __future__ import annotations
 from bson import ObjectId
 from pymongo.database import Database
 
+from app.contexts.shared.model_converter import mongo_converter
+
+
+
 
 class MongoEmployeeRepository:
     def __init__(self, db: Database):
         self.collection = db["hr_employees"]
+    @staticmethod
+    def _oid(v) -> ObjectId | None:
+        return mongo_converter.convert_to_object_id(v)
 
+    @staticmethod
+    def _sid(v) -> str | None:
+        if v is None:
+            return None
+        return str(v)
+    
     def create(self, doc: dict) -> dict:
         result = self.collection.insert_one(doc)
         return self.find_by_id(result.inserted_id)
 
     def save(self, doc: dict) -> dict:
-        self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
+        self.collection.replace_one({"_id": self._oid(doc["_id"])}, doc, upsert=True)
         return self.find_by_id(doc["_id"])
 
     def find_by_id(self, employee_id) -> dict:
-        employee_id = ObjectId(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
+        employee_id = self._oid(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
         doc = self.collection.find_one({
             "_id": employee_id,
             "lifecycle.deleted_at": None,
@@ -27,14 +40,14 @@ class MongoEmployeeRepository:
         return doc
 
     def find_by_id_including_deleted(self, employee_id) -> dict:
-        employee_id = ObjectId(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
+        employee_id = self._oid(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
         doc = self.collection.find_one({"_id": employee_id})
         if not doc:
             raise ValueError("Employee not found")
         return doc
 
     def find_by_user_id(self, user_id) -> dict | None:
-        user_id = ObjectId(user_id) if not isinstance(user_id, ObjectId) else user_id
+        user_id = self._oid(user_id) if not isinstance(user_id, ObjectId) else user_id
         return self.collection.find_one({
             "user_id": user_id,
             "lifecycle.deleted_at": None,
@@ -47,7 +60,7 @@ class MongoEmployeeRepository:
         })
 
     def update_fields(self, employee_id, fields: dict) -> dict:
-        employee_id = ObjectId(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
+        employee_id = self._oid(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
         self.collection.update_one({"_id": employee_id}, {"$set": fields})
         return self.find_by_id_including_deleted(employee_id)
 

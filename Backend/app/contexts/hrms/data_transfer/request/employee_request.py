@@ -81,3 +81,14 @@ class EmployeeAccountUpdateSchema(BaseModel):
     email: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
+
+
+
+
+
+
+
+class EmployeeAssignScheduleSchema(BaseModel):
+    schedule_id: str
+
+

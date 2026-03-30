@@ -20,6 +20,7 @@ class EmployeeFacade:
         get_my_employee_profile,
         link_employee_account,
         find_employee_by_user_id,
+        assign_employee_schedule=None,
         list_employee_accounts=None,
     ) -> None:
         self._get_account = get_account
@@ -38,6 +39,7 @@ class EmployeeFacade:
         self._link_employee_account = link_employee_account
         self._list_employee_accounts = list_employee_accounts
         self._find_employee_by_user_id = find_employee_by_user_id
+        self._assign_employee_schedule = assign_employee_schedule
 
     def create(self, **kwargs):
         return self._create_employee.execute(**kwargs)
@@ -79,6 +81,11 @@ class EmployeeFacade:
         if not self._list_employee_accounts:
             raise ValueError("Employee account listing is not configured")
         return self._list_employee_accounts.execute(**kwargs)
+
+    def assign_employee_schedule(self, **kwargs):
+        if not hasattr(self, "_assign_employee_schedule"):
+            raise ValueError("Assign employee schedule use case is not configured")
+        return self._assign_employee_schedule.execute(**kwargs)
 
     def get(self, **kwargs):
         return self._get_employee.execute(**kwargs)
