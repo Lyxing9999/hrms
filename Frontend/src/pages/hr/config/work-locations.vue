@@ -328,12 +328,25 @@
           <!-- Right Column - Map Picker -->
           <el-col :xs="24" :lg="12">
             <el-form-item label="Location Picker">
-              <GoogleLocationPicker
-                v-model="mapLocation"
-                :radius="formData.radius_meters || 100"
-                map-height="400px"
-                @update:address="updateAddress"
-              />
+              <ClientOnly>
+                <GoogleLocationPicker
+                  :latitude="formData.latitude"
+                  :longitude="formData.longitude"
+                  :radius-meters="formData.radius_meters || 100"
+                  :address="formData.address"
+                  :auto-detect-location="!isEditMode"
+                  height="450px"
+                  @update:latitude="formData.latitude = $event"
+                  @update:longitude="formData.longitude = $event"
+                  @update:address="formData.address = $event"
+                  @picked="handleLocationPicked"
+                />
+                <template #fallback>
+                  <div class="map-fallback">
+                    <el-skeleton :rows="8" animated />
+                  </div>
+                </template>
+              </ClientOnly>
             </el-form-item>
           </el-col>
         </el-row>
@@ -357,6 +370,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { useNuxtApp } from 'nuxt/app';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import {
@@ -370,14 +384,12 @@ import {
 } from '@element-plus/icons-vue';
 import { debounce } from 'lodash-es';
 
-import { WorkLocationService } from '~/services/hr/work-location.service';
 import GoogleLocationPicker from '~/components/hr/location/GoogleLocationPicker.vue';
 import type {
-  WorkLocationDto,
-  CreateWorkLocationDto,
-  UpdateWorkLocationDto,
-  WorkLocationFilters,
-} from '~/types/hr/work-location.dto';
+  WorkLocationDTO,
+  WorkLocationCreateDTO,
+  WorkLocationUpdateDTO,
+} from '~/api/hr_admin/workLocations/dto';
 
 // Page meta
 definePageMeta({
@@ -386,10 +398,10 @@ definePageMeta({
 });
 
 // Services
-const workLocationService = new WorkLocationService();
+const { $hrLocationService } = useNuxtApp();
 
 // Reactive data
-const tableData = ref<WorkLocationDto[]>([]);
+const tableData = ref<WorkLocationDTO[]>([]);
 const isLoading = ref(false);
 const isSubmitting = ref(false);
 const isUpdatingStatus = ref<Record<string, boolean>>({});
@@ -397,10 +409,10 @@ const isDeletingOrRestoring = ref<Record<string, boolean>>({});
 const connectionError = ref(false);
 
 // Filters
-const filters = reactive<WorkLocationFilters>({
-  search: '',
-  status: 'all',
-  deleted_mode: 'normal',
+const filters = reactive({
+  q: '',
+  status: 'all' as 'all' | 'active' | 'inactive',
+  deleted_mode: 'normal' as 'normal' | 'include_deleted' | 'deleted_only',
 });
 
 // Pagination
@@ -417,7 +429,7 @@ const currentEditId = ref<string | null>(null);
 
 // Form
 const formRef = ref<FormInstance>();
-const formData = reactive<CreateWorkLocationDto>({
+const formData = reactive<WorkLocationCreateDTO>({
   name: '',
   address: '',
   latitude: 0,
@@ -425,13 +437,6 @@ const formData = reactive<CreateWorkLocationDto>({
   radius_meters: 100,
   is_active: true,
 });
-
-// Map location binding
-const mapLocation = ref<{
-  latitude: number;
-  longitude: number;
-  address?: string;
-} | undefined>();
 
 // Form validation rules
 const formRules: FormRules = {
@@ -465,7 +470,7 @@ const dialogTitle = computed(() =>
 const emptyText = computed(() => {
   if (isLoading.value) return 'Loading...';
   if (connectionError.value) return 'Connection error - unable to load data';
-  if (filters.search) return 'No locations found matching your search';
+  if (filters.q) return 'No locations found matching your search';
   if (filters.deleted_mode === 'deleted_only') return 'No deleted locations found';
   return 'No work locations found. Click "Add Location" to create your first location.';
 });
@@ -475,54 +480,50 @@ const debouncedSearch = debounce(() => {
   applyFilters();
 }, 300);
 
-// Watch map location changes
-watch(mapLocation, (newLocation) => {
-  if (newLocation) {
-    formData.latitude = newLocation.latitude;
-    formData.longitude = newLocation.longitude;
-    if (newLocation.address) {
-      formData.address = newLocation.address;
-    }
-  }
-}, { deep: true });
-
-// Watch form coordinates to update map
-watch(
-  () => [formData.latitude, formData.longitude],
-  ([lat, lng]) => {
-    if (lat && lng && (lat !== mapLocation.value?.latitude || lng !== mapLocation.value?.longitude)) {
-      mapLocation.value = {
-        latitude: lat,
-        longitude: lng,
-        address: formData.address,
-      };
-    }
-  }
-);
-
 // Lifecycle
 onMounted(() => {
   loadData();
 });
 
 // Methods
+function handleLocationPicked(location: { latitude: number; longitude: number; address?: string }) {
+  formData.latitude = location.latitude;
+  formData.longitude = location.longitude;
+  if (location.address) {
+    formData.address = location.address;
+  }
+}
+
+// Methods
 async function loadData() {
   isLoading.value = true;
   try {
-    const response = await workLocationService.getWorkLocations(
-      filters,
-      pagination.page,
-      pagination.limit
-    );
+    // Map filters to API params
+    const params: any = {};
     
-    tableData.value = response.data;
-    pagination.total = response.total;
-    connectionError.value = false;
-    
-    // Show success message only on manual refresh
-    if (pagination.page === 1 && !filters.search) {
-      // Don't show success on initial load or search
+    if (filters.q) {
+      params.q = filters.q;
     }
+    
+    // Map status filter
+    if (filters.status === 'active') {
+      params.is_active = true;
+    } else if (filters.status === 'inactive') {
+      params.is_active = false;
+    }
+    
+    // Map deleted mode
+    if (filters.deleted_mode === 'include_deleted') {
+      params.include_deleted = true;
+    } else if (filters.deleted_mode === 'deleted_only') {
+      params.deleted_only = true;
+    }
+    
+    const response = await $hrLocationService.getWorkLocations(params);
+    
+    tableData.value = response || [];
+    pagination.total = response?.length || 0;
+    connectionError.value = false;
   } catch (error: any) {
     console.error('Error loading work locations:', error);
     
@@ -583,7 +584,7 @@ function openCreateDialog() {
   dialogVisible.value = true;
 }
 
-function openEditDialog(location: WorkLocationDto) {
+function openEditDialog(location: WorkLocationDTO) {
   isEditMode.value = true;
   currentEditId.value = location.id;
   
@@ -596,13 +597,6 @@ function openEditDialog(location: WorkLocationDto) {
     radius_meters: location.radius_meters,
     is_active: location.is_active,
   });
-
-  // Update map location
-  mapLocation.value = {
-    latitude: location.latitude,
-    longitude: location.longitude,
-    address: location.address,
-  };
 
   dialogVisible.value = true;
 }
@@ -621,7 +615,6 @@ function resetForm() {
     radius_meters: 100,
     is_active: true,
   });
-  mapLocation.value = undefined;
   formRef.value?.clearValidate();
 }
 
@@ -635,7 +628,7 @@ async function submitForm() {
     isSubmitting.value = true;
 
     if (isEditMode.value && currentEditId.value) {
-      const updateData: UpdateWorkLocationDto = {
+      const updateData: WorkLocationUpdateDTO = {
         name: formData.name,
         address: formData.address,
         latitude: formData.latitude,
@@ -644,10 +637,10 @@ async function submitForm() {
         is_active: formData.is_active,
       };
       
-      await workLocationService.updateWorkLocation(currentEditId.value, updateData);
+      await $hrLocationService.updateWorkLocation(currentEditId.value, updateData);
       ElMessage.success('Work location updated successfully');
     } else {
-      await workLocationService.createWorkLocation(formData);
+      await $hrLocationService.createWorkLocation(formData);
       ElMessage.success('Work location created successfully');
     }
 
@@ -661,13 +654,16 @@ async function submitForm() {
   }
 }
 
-async function toggleStatus(location: WorkLocationDto) {
+async function toggleStatus(location: WorkLocationDTO) {
   const locationId = location.id;
   isUpdatingStatus.value[locationId] = true;
 
   try {
-    await workLocationService.toggleWorkLocationStatus(locationId, location.is_active);
-    ElMessage.success(`Location ${location.is_active ? 'activated' : 'deactivated'} successfully`);
+    if (location.is_active) {
+      await $hrLocationService.activateWorkLocation(locationId);
+    } else {
+      await $hrLocationService.deactivateWorkLocation(locationId);
+    }
   } catch (error) {
     console.error('Error toggling status:', error);
     // Revert the switch
@@ -678,7 +674,7 @@ async function toggleStatus(location: WorkLocationDto) {
   }
 }
 
-async function deleteLocation(location: WorkLocationDto) {
+async function deleteLocation(location: WorkLocationDTO) {
   try {
     await ElMessageBox.confirm(
       `Are you sure you want to delete "${location.name}"? This action can be undone.`,
@@ -693,8 +689,7 @@ async function deleteLocation(location: WorkLocationDto) {
     const locationId = location.id;
     isDeletingOrRestoring.value[locationId] = true;
 
-    await workLocationService.softDeleteWorkLocation(locationId);
-    ElMessage.success('Work location deleted successfully');
+    await $hrLocationService.softDeleteWorkLocation(locationId);
     loadData();
   } catch (error: any) {
     if (error !== 'cancel') {
@@ -706,7 +701,7 @@ async function deleteLocation(location: WorkLocationDto) {
   }
 }
 
-async function restoreLocation(location: WorkLocationDto) {
+async function restoreLocation(location: WorkLocationDTO) {
   try {
     await ElMessageBox.confirm(
       `Are you sure you want to restore "${location.name}"?`,
@@ -721,8 +716,7 @@ async function restoreLocation(location: WorkLocationDto) {
     const locationId = location.id;
     isDeletingOrRestoring.value[locationId] = true;
 
-    await workLocationService.restoreWorkLocation(locationId);
-    ElMessage.success('Work location restored successfully');
+    await $hrLocationService.restoreWorkLocation(locationId);
     loadData();
   } catch (error: any) {
     if (error !== 'cancel') {
@@ -734,21 +728,20 @@ async function restoreLocation(location: WorkLocationDto) {
   }
 }
 
-function openInGoogleMaps(location: WorkLocationDto) {
-  const url = workLocationService.generateGoogleMapsUrl(location.latitude, location.longitude);
+function openInGoogleMaps(location: WorkLocationDTO) {
+  const url = `https://www.google.com/maps?q=${location.latitude},${location.longitude}`;
   window.open(url, '_blank');
 }
 
-function updateAddress(address: string) {
-  formData.address = address;
-}
-
 function formatCoordinates(latitude: number, longitude: number): string {
-  return workLocationService.formatCoordinates(latitude, longitude);
+  return `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 }
 
 function formatRadius(radiusMeters: number): string {
-  return workLocationService.formatRadius(radiusMeters);
+  if (radiusMeters >= 1000) {
+    return `${(radiusMeters / 1000).toFixed(1)} km`;
+  }
+  return `${radiusMeters} m`;
 }
 </script>
 
@@ -881,5 +874,16 @@ function formatRadius(radiusMeters: number): string {
   .coordinate-text {
     font-size: 10px;
   }
+}
+
+.map-fallback {
+  width: 100%;
+  height: 450px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
 }
 </style>

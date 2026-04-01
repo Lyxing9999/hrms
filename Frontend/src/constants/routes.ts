@@ -72,7 +72,7 @@ export const ROUTES = {
     PAYROLL_HISTORY: "/hr/payroll/history",
 
     WORKING_SCHEDULES: "/hr/config/schedules",
-    WORK_LOCATIONS: "/hr/config/locations",
+    WORK_LOCATIONS: "/hr/config/work-locations",
     PUBLIC_HOLIDAYS: "/hr/config/public-holidays",
     DEDUCTION_RULES: "/hr/config/deduction-rules",
     OT_RULES: "/hr/config/overtime-rules",

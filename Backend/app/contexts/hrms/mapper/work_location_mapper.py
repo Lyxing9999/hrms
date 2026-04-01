@@ -30,7 +30,9 @@ class WorkLocationMapper:
             created_at=lc_src.get("created_at") or data.get("created_at"),
             updated_at=lc_src.get("updated_at") or data.get("updated_at"),
             deleted_at=lc_src.get("deleted_at") or data.get("deleted_at"),
-            deleted_by=lc_src.get("deleted_by") or data.get("deleted_by"),
+            deleted_by=WorkLocationMapper._oid(
+                lc_src.get("deleted_by") or data.get("deleted_by")
+            ),
         )
 
         return WorkLocation(
@@ -76,7 +78,7 @@ class WorkLocationMapper:
     def to_dto(location: WorkLocation) -> WorkLocationDTO:
         lc = location.lifecycle
         return WorkLocationDTO(
-            id=str(location.id),
+            id=WorkLocationMapper._sid(location.id),
             name=location.name,
             address=location.address,
             latitude=location.latitude,
@@ -88,6 +90,6 @@ class WorkLocationMapper:
                 created_at=lc.created_at,
                 updated_at=lc.updated_at,
                 deleted_at=lc.deleted_at,
-                deleted_by=lc.deleted_by,
+                deleted_by=WorkLocationMapper._sid(lc.deleted_by),
             ),
         )

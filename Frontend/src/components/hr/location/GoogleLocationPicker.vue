@@ -1,110 +1,117 @@
 <template>
   <div class="google-location-picker">
     <!-- Search Input -->
-    <div class="mb-4">
+    <div class="search-section mb-3">
       <el-input
         v-model="searchQuery"
         placeholder="Search for a place or address..."
         :prefix-icon="Search"
         clearable
-        @keyup.enter="searchPlaces"
-        @clear="clearSearch"
+        :disabled="disabled || !isMapReady"
+        @keyup.enter="handleSearch"
       >
         <template #append>
-          <el-button @click="searchPlaces" :loading="isSearching">
+          <el-button 
+            @click="handleSearch" 
+            :loading="isSearching"
+            :disabled="disabled || !isMapReady"
+          >
             Search
           </el-button>
         </template>
       </el-input>
     </div>
 
-    <!-- Current Location Button -->
-    <div class="mb-4">
+    <!-- Action Buttons -->
+    <div class="actions-section mb-3">
       <el-button
-        @click="getCurrentLocation"
-        :loading="isGettingLocation"
+        @click="handleGetCurrentLocation"
+        :loading="isGettingLocation || isAutoDetecting"
         :icon="Location"
+        :disabled="disabled || !isMapReady"
         type="primary"
         plain
+        size="default"
       >
-        Use Current Location
+        {{ isAutoDetecting ? 'Detecting...' : 'Use Current Location' }}
       </el-button>
       
-      <!-- Help text for geolocation -->
-      <div class="geolocation-help mt-2">
-        <el-text size="small" type="info">
-          <el-icon><InfoFilled /></el-icon>
-          Click to detect your location. You'll be asked to allow location access.
-        </el-text>
-      </div>
-      
-      <!-- Permission status indicator -->
-      <div v-if="locationPermissionStatus" class="permission-status mt-1">
-        <el-text 
-          size="small" 
-          :type="locationPermissionStatus.type"
-          :class="{ 'cursor-pointer': locationPermissionStatus.type === 'danger' }"
-          @click="locationPermissionStatus.type === 'danger' ? showPermissionDeniedDialog() : null"
-        >
-          <el-icon>
-            <component :is="locationPermissionStatus.icon" />
-          </el-icon>
-          {{ locationPermissionStatus.message }}
-        </el-text>
-      </div>
+      <el-button
+        v-if="hasValidCoordinates"
+        @click="handleOpenInGoogleMaps"
+        :icon="Link"
+        :disabled="disabled"
+        type="success"
+        plain
+        size="default"
+      >
+        Open in Google Maps
+      </el-button>
+    </div>
+
+    <!-- Auto-detecting indicator -->
+    <div v-if="isAutoDetecting" class="auto-detect-status mb-3">
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+      >
+        <template #default>
+          <div class="flex items-center gap-2">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>Detecting your current location...</span>
+          </div>
+        </template>
+      </el-alert>
     </div>
 
     <!-- Map Container -->
-    <div class="map-container">
+    <div class="map-wrapper" :style="{ height }">
       <div
-        v-if="!mapLoadError"
+        v-show="isMapReady && !mapError"
         ref="mapContainer"
-        class="map-element"
-        :style="{ height: mapHeight }"
+        class="map-container"
       ></div>
       
-      <!-- Fallback when map fails to load -->
-      <div v-else class="map-fallback" :style="{ height: mapHeight }">
-        <div class="fallback-content">
-          <el-icon size="48" color="#909399">
-            <MapLocation />
-          </el-icon>
-          <h3>Map Unavailable</h3>
-          <p>Google Maps failed to load. You can still enter coordinates manually.</p>
-          <el-button @click="retryMapLoad" type="primary" plain>
-            Retry Loading Map
-          </el-button>
-        </div>
-      </div>
-      
-      <!-- Loading Overlay -->
-      <div v-if="isMapLoading && !mapLoadError" class="map-loading">
-        <el-icon class="is-loading">
+      <!-- Loading State -->
+      <div v-if="isMapLoading" class="map-overlay">
+        <el-icon class="is-loading" :size="40">
           <Loading />
         </el-icon>
-        <span>Loading map...</span>
+        <p class="mt-2">Loading map...</p>
+      </div>
+      
+      <!-- Error State -->
+      <div v-if="mapError" class="map-overlay error">
+        <el-icon :size="40" color="#f56c6c">
+          <CircleClose />
+        </el-icon>
+        <p class="mt-2 text-center px-4">{{ mapError }}</p>
+        <el-button @click="retryMapInit" type="primary" plain class="mt-2">
+          Retry Loading Map
+        </el-button>
       </div>
     </div>
 
     <!-- Coordinates Display -->
-    <div class="coordinates-display mt-4">
-      <el-row :gutter="16">
+    <div class="coordinates-section mt-3">
+      <el-row :gutter="12">
         <el-col :span="12">
           <el-input
-            v-model="displayLatitude"
-            label="Latitude"
+            :model-value="displayLatitude"
+            @input="handleLatitudeInput"
             placeholder="Latitude"
-            @input="onCoordinateInput"
+            :disabled="disabled"
           >
             <template #prepend>Lat</template>
           </el-input>
         </el-col>
         <el-col :span="12">
           <el-input
-            v-model="displayLongitude"
-            label="Longitude"
+            :model-value="displayLongitude"
+            @input="handleLongitudeInput"
             placeholder="Longitude"
-            @input="onCoordinateInput"
+            :disabled="disabled"
           >
             <template #prepend>Lng</template>
           </el-input>
@@ -113,36 +120,24 @@
     </div>
 
     <!-- Address Display -->
-    <div v-if="selectedAddress" class="address-display mt-3">
+    <div v-if="displayAddress" class="address-section mt-3">
       <el-input
-        v-model="selectedAddress"
-        placeholder="Address will appear here..."
+        :model-value="displayAddress"
+        placeholder="Address"
         readonly
+        :disabled="disabled"
       >
         <template #prepend>
           <el-icon><MapLocation /></el-icon>
         </template>
       </el-input>
     </div>
-
-    <!-- Open in Google Maps -->
-    <div v-if="selectedLocation" class="mt-3">
-      <el-button
-        @click="openInGoogleMaps"
-        :icon="Link"
-        type="success"
-        plain
-        size="small"
-      >
-        Open in Google Maps
-      </el-button>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue';
-import { Loader } from '@googlemaps/js-api-loader';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Search,
@@ -150,168 +145,266 @@ import {
   Loading,
   MapLocation,
   Link,
-  InfoFilled,
-  SuccessFilled,
-  WarningFilled,
-  CircleCloseFilled,
+  CircleClose,
 } from '@element-plus/icons-vue';
-import type { GooglePlaceResult } from '~/types/hr/work-location.dto';
 
+// Props
 interface Props {
-  modelValue?: {
-    latitude: number;
-    longitude: number;
-    address?: string;
-  };
-  radius?: number;
-  mapHeight?: string;
-  zoom?: number;
-}
-
-interface Emits {
-  (e: 'update:modelValue', value: {
-    latitude: number;
-    longitude: number;
-    address?: string;
-  }): void;
-  (e: 'update:address', address: string): void;
+  latitude?: number | null;
+  longitude?: number | null;
+  radiusMeters?: number;
+  height?: string;
+  disabled?: boolean;
+  address?: string;
+  autoDetectLocation?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  mapHeight: '400px',
-  zoom: 15,
-  radius: 100,
+  latitude: null,
+  longitude: null,
+  radiusMeters: 100,
+  height: '400px',
+  disabled: false,
+  address: '',
+  autoDetectLocation: true,
 });
+
+// Emits
+interface Emits {
+  (e: 'update:latitude', value: number): void;
+  (e: 'update:longitude', value: number): void;
+  (e: 'update:address', value: string): void;
+  (e: 'picked', value: { latitude: number; longitude: number; address?: string }): void;
+}
 
 const emit = defineEmits<Emits>();
 
 // Refs
 const mapContainer = ref<HTMLDivElement>();
 const searchQuery = ref('');
-const selectedLocation = ref<{ latitude: number; longitude: number } | null>(null);
-const selectedAddress = ref('');
 const displayLatitude = ref('');
 const displayLongitude = ref('');
+const displayAddress = ref('');
 
 // State
 const isMapLoading = ref(true);
+const isMapReady = ref(false);
 const isSearching = ref(false);
 const isGettingLocation = ref(false);
-const mapLoadError = ref(false);
-const locationPermissionStatus = ref<{
-  type: 'success' | 'warning' | 'danger' | 'info';
-  icon: string;
-  message: string;
-} | null>(null);
+const isAutoDetecting = ref(false);
+const mapError = ref('');
+const hasAttemptedAutoDetect = ref(false);
 
-// Google Maps objects
+// Google Maps instances
 let map: google.maps.Map | null = null;
 let marker: google.maps.Marker | null = null;
 let circle: google.maps.Circle | null = null;
 let geocoder: google.maps.Geocoder | null = null;
 let placesService: google.maps.places.PlacesService | null = null;
+let clickListener: google.maps.MapsEventListener | null = null;
 
-// Initialize map
-onMounted(async () => {
-  await initializeMap();
-  checkLocationPermissionStatus();
+// Computed
+const hasValidCoordinates = computed(() => {
+  const lat = parseFloat(displayLatitude.value);
+  const lng = parseFloat(displayLongitude.value);
+  return !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
 });
 
-// Watch for prop changes
+// Watch props
 watch(
-  () => props.modelValue,
-  (newValue) => {
-    if (newValue && map) {
-      updateMapLocation(newValue.latitude, newValue.longitude, newValue.address);
+  () => [props.latitude, props.longitude, props.address] as const,
+  ([lat, lng, addr]) => {
+    if (lat !== null && lng !== null && !isNaN(lat) && !isNaN(lng)) {
+      displayLatitude.value = lat.toFixed(6);
+      displayLongitude.value = lng.toFixed(6);
+      
+      if (isMapReady.value && map) {
+        updateMapLocation(lat, lng, addr);
+      }
+    }
+    
+    if (addr) {
+      displayAddress.value = addr;
     }
   },
   { immediate: true }
 );
 
 watch(
-  () => props.radius,
+  () => props.radiusMeters,
   (newRadius) => {
-    if (circle && newRadius) {
+    if (circle && newRadius && newRadius > 0) {
       circle.setRadius(newRadius);
     }
   }
 );
 
+// Lifecycle
+onMounted(() => {
+  if (process.client) {
+    initializeMap();
+  }
+});
+
+onBeforeUnmount(() => {
+  cleanup();
+});
+
+// Methods
 async function initializeMap() {
+  if (!process.client) return;
+  
+  isMapLoading.value = true;
+  mapError.value = '';
+  isMapReady.value = false;
+
   try {
     const config = useRuntimeConfig();
-    
-    if (!config.public.googleMapsApiKey) {
-      throw new Error('Google Maps API key is not configured');
+    const apiKey = config.public.googleMapsApiKey as string;
+
+    if (!apiKey) {
+      throw new Error('Google Maps API key not configured');
     }
 
-    const loader = new Loader({
-      apiKey: config.public.googleMapsApiKey,
+    // Set global options
+    setOptions({
+      apiKey,
       version: 'weekly',
-      libraries: ['places', 'geometry'],
     });
 
-    await loader.load();
+    // Import required libraries
+    const [mapsLib, placesLib, geocodingLib] = await Promise.all([
+      importLibrary('maps') as Promise<google.maps.MapsLibrary>,
+      importLibrary('places') as Promise<google.maps.PlacesLibrary>,
+      importLibrary('geocoding') as Promise<google.maps.GeocodingLibrary>,
+    ]);
+
+    await nextTick();
 
     if (!mapContainer.value) {
       throw new Error('Map container not found');
     }
 
-    // Default location (you can change this to your preferred default)
-    const defaultLocation = { lat: 37.7749, lng: -122.4194 }; // San Francisco
+    // Determine initial center
+    const hasProvidedCoords = props.latitude !== null && props.longitude !== null;
+    const defaultCenter = {
+      lat: hasProvidedCoords ? props.latitude! : 11.5564,
+      lng: hasProvidedCoords ? props.longitude! : 104.9282,
+    };
 
     // Initialize map
-    map = new google.maps.Map(mapContainer.value, {
-      center: defaultLocation,
-      zoom: props.zoom,
-      mapTypeId: google.maps.MapTypeId.ROADMAP,
+    map = new mapsLib.Map(mapContainer.value, {
+      center: defaultCenter,
+      zoom: 15,
       disableDefaultUI: false,
       zoomControl: true,
-      streetViewControl: true,
+      streetViewControl: false,
       fullscreenControl: true,
-      gestureHandling: 'cooperative', // Better mobile experience
+      gestureHandling: 'cooperative',
+      mapTypeControl: false,
     });
 
     // Initialize services
-    geocoder = new google.maps.Geocoder();
-    placesService = new google.maps.places.PlacesService(map);
+    geocoder = new geocodingLib.Geocoder();
+    placesService = new placesLib.PlacesService(map);
 
-    // Add click listener to map
-    map.addListener('click', (event: google.maps.MapMouseEvent) => {
-      if (event.latLng) {
-        const lat = event.latLng.lat();
-        const lng = event.latLng.lng();
-        updateMapLocation(lat, lng);
-        reverseGeocode(lat, lng);
-      }
+    // Add click listener
+    clickListener = map.addListener('click', async (event: google.maps.MapMouseEvent) => {
+      if (props.disabled || !event.latLng) return;
+      
+      const lat = event.latLng.lat();
+      const lng = event.latLng.lng();
+      
+      updateMapLocation(lat, lng);
+      const address = await reverseGeocode(lat, lng);
+      emitUpdate(lat, lng, address);
     });
 
-    // Set initial location if provided
-    if (props.modelValue) {
-      updateMapLocation(
-        props.modelValue.latitude,
-        props.modelValue.longitude,
-        props.modelValue.address
-      );
-    }
+    isMapReady.value = true;
+    isMapLoading.value = false;
 
-    isMapLoading.value = false;
-    ElMessage.success('Map loaded successfully');
-  } catch (error: any) {
-    console.error('Error initializing map:', error);
-    
-    let errorMessage = 'Failed to load Google Maps';
-    if (error.message.includes('API key')) {
-      errorMessage = 'Google Maps API key is missing or invalid';
-    } else if (error.message.includes('quota') || error.message.includes('billing')) {
-      errorMessage = 'Google Maps API quota exceeded or billing not enabled';
-    } else if (error.message.includes('network') || error.message.includes('fetch')) {
-      errorMessage = 'Network error loading Google Maps. Please check your internet connection.';
+    // Handle initial location
+    if (hasProvidedCoords) {
+      // Use provided coordinates
+      updateMapLocation(props.latitude!, props.longitude!, props.address);
+    } else if (props.autoDetectLocation && !hasAttemptedAutoDetect.value) {
+      // Auto-detect location only once
+      hasAttemptedAutoDetect.value = true;
+      setTimeout(() => {
+        autoDetectLocation();
+      }, 300);
     }
+  } catch (error: any) {
+    console.error('Map initialization error:', error);
+    handleMapError(error);
+  }
+}
+
+function handleMapError(error: any) {
+  let errorMessage = 'Failed to load Google Maps';
+  
+  if (error.message?.includes('API key') || error.message?.includes('not configured')) {
+    errorMessage = 'Google Maps API key is missing. Please configure NUXT_PUBLIC_GOOGLE_MAPS_API_KEY in your .env file.';
+  } else if (error.message?.includes('quota') || error.message?.includes('billing')) {
+    errorMessage = 'Google Maps API quota exceeded or billing not enabled. Please check your Google Cloud Console.';
+  } else if (error.message?.includes('RefererNotAllowedMapError')) {
+    errorMessage = 'API key domain restrictions are blocking this site. Please update restrictions in Google Cloud Console.';
+  } else if (error.message?.includes('ApiNotActivatedMapError')) {
+    errorMessage = 'Required APIs not enabled. Please enable Maps JavaScript API, Places API, and Geocoding API.';
+  } else if (error.message) {
+    errorMessage = error.message;
+  }
+  
+  mapError.value = errorMessage;
+  isMapLoading.value = false;
+}
+
+function retryMapInit() {
+  hasAttemptedAutoDetect.value = false;
+  initializeMap();
+}
+
+async function autoDetectLocation() {
+  if (!navigator.geolocation || isAutoDetecting.value) return;
+  
+  // Check HTTPS requirement
+  const isSecure = location.protocol === 'https:' || 
+                   location.hostname === 'localhost' || 
+                   location.hostname === '127.0.0.1';
+  
+  if (!isSecure) {
+    console.warn('Auto-detect skipped: HTTPS required');
+    return;
+  }
+
+  isAutoDetecting.value = true;
+
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        reject,
+        {
+          enableHighAccuracy: false, // Faster response
+          timeout: 10000,
+          maximumAge: 600000, // 10 minutes cache
+        }
+      );
+    });
+
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
     
-    ElMessage.error(errorMessage);
-    isMapLoading.value = false;
-    mapLoadError.value = true;
+    updateMapLocation(lat, lng);
+    const address = await reverseGeocode(lat, lng);
+    emitUpdate(lat, lng, address);
+    
+    console.log('✅ Auto-detected location:', { lat, lng, accuracy: position.coords.accuracy });
+  } catch (error: any) {
+    // Silent fail for auto-detect
+    console.warn('Auto-detect failed (silent):', error.code, error.message);
+  } finally {
+    isAutoDetecting.value = false;
   }
 }
 
@@ -321,77 +414,67 @@ function updateMapLocation(lat: number, lng: number, address?: string) {
   const position = { lat, lng };
 
   // Update map center
-  map.setCenter(position);
+  map.panTo(position);
 
   // Update or create marker
   if (marker) {
     marker.setPosition(position);
   } else {
-    marker = new google.maps.Marker({
-      position,
-      map,
-      draggable: true,
-      title: 'Selected Location',
-    });
-
-    // Add drag listener to marker
-    marker.addListener('dragend', (event: google.maps.MapMouseEvent) => {
-      if (event.latLng) {
-        const newLat = event.latLng.lat();
-        const newLng = event.latLng.lng();
-        updateSelectedLocation(newLat, newLng);
-        reverseGeocode(newLat, newLng);
-      }
-    });
+    createMarker(position);
   }
 
-  // Update or create radius circle
+  // Update or create circle
   if (circle) {
     circle.setCenter(position);
-    circle.setRadius(props.radius);
+    circle.setRadius(props.radiusMeters);
   } else {
     circle = new google.maps.Circle({
       center: position,
-      radius: props.radius,
+      radius: props.radiusMeters,
       map,
       fillColor: '#4285f4',
       fillOpacity: 0.2,
       strokeColor: '#4285f4',
       strokeOpacity: 0.8,
       strokeWeight: 2,
+      clickable: false,
     });
   }
 
-  // Update internal state
-  updateSelectedLocation(lat, lng, address);
-}
-
-function updateSelectedLocation(lat: number, lng: number, address?: string) {
-  selectedLocation.value = { latitude: lat, longitude: lng };
+  // Update display
   displayLatitude.value = lat.toFixed(6);
   displayLongitude.value = lng.toFixed(6);
   
   if (address) {
-    selectedAddress.value = address;
-  }
-
-  // Emit the update
-  emit('update:modelValue', {
-    latitude: lat,
-    longitude: lng,
-    address: selectedAddress.value,
-  });
-
-  if (selectedAddress.value) {
-    emit('update:address', selectedAddress.value);
+    displayAddress.value = address;
   }
 }
 
-async function reverseGeocode(lat: number, lng: number) {
-  if (!geocoder) {
-    console.warn('Geocoder not available');
-    return;
-  }
+function createMarker(position: google.maps.LatLngLiteral) {
+  if (!map) return;
+
+  marker = new google.maps.Marker({
+    map,
+    position,
+    draggable: !props.disabled,
+    title: 'Selected Location',
+    animation: google.maps.Animation.DROP,
+  });
+
+  marker.addListener('dragend', async (event: google.maps.MapMouseEvent) => {
+    if (props.disabled || !event.latLng) return;
+    
+    const lat = event.latLng.lat();
+    const lng = event.latLng.lng();
+    
+    updateMapLocation(lat, lng);
+    const address = await reverseGeocode(lat, lng);
+    emitUpdate(lat, lng, address);
+  });
+}
+
+async function reverseGeocode(lat: number, lng: number): Promise<string | undefined> {
+  if (!geocoder) return undefined;
 
   try {
     const response = await geocoder.geocode({
@@ -400,28 +483,26 @@ async function reverseGeocode(lat: number, lng: number) {
 
     if (response.results && response.results.length > 0) {
       const address = response.results[0].formatted_address;
-      selectedAddress.value = address;
-      emit('update:address', address);
-    } else {
-      console.warn('No address found for coordinates:', lat, lng);
-      selectedAddress.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+      displayAddress.value = address;
+      return address;
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error('Reverse geocoding failed:', error);
-    // Don't show error to user for reverse geocoding failures
-    // Just use coordinates as fallback
-    selectedAddress.value = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   }
+  
+  return undefined;
 }
 
-async function searchPlaces() {
-  if (!searchQuery.value.trim()) {
+async function handleSearch() {
+  const query = searchQuery.value.trim();
+  
+  if (!query) {
     ElMessage.warning('Please enter a search term');
     return;
   }
   
-  if (!placesService) {
-    ElMessage.error('Places service not available. Please wait for map to load.');
+  if (!placesService || !map) {
+    ElMessage.error('Map not ready. Please wait.');
     return;
   }
 
@@ -429,7 +510,7 @@ async function searchPlaces() {
 
   try {
     const request: google.maps.places.TextSearchRequest = {
-      query: searchQuery.value.trim(),
+      query,
     };
 
     placesService.textSearch(request, (results, status) => {
@@ -437,92 +518,87 @@ async function searchPlaces() {
 
       if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
         const place = results[0];
+        
         if (place.geometry?.location) {
           const lat = place.geometry.location.lat();
           const lng = place.geometry.location.lng();
-          const address = place.formatted_address || searchQuery.value;
+          const address = place.formatted_address || query;
           
           updateMapLocation(lat, lng, address);
+          emitUpdate(lat, lng, address);
+          
           searchQuery.value = '';
           ElMessage.success(`Found: ${place.name || address}`);
         } else {
-          ElMessage.warning('Location coordinates not available for this place');
+          ElMessage.warning('Location coordinates not available');
         }
       } else {
-        let errorMessage = 'No places found for your search';
-        
-        switch (status) {
-          case google.maps.places.PlacesServiceStatus.ZERO_RESULTS:
-            errorMessage = 'No places found matching your search';
-            break;
-          case google.maps.places.PlacesServiceStatus.OVER_QUERY_LIMIT:
-            errorMessage = 'Search quota exceeded. Please try again later.';
-            break;
-          case google.maps.places.PlacesServiceStatus.REQUEST_DENIED:
-            errorMessage = 'Search request denied. Please check API configuration.';
-            break;
-          case google.maps.places.PlacesServiceStatus.INVALID_REQUEST:
-            errorMessage = 'Invalid search request. Please try a different search term.';
-            break;
-          default:
-            errorMessage = 'Search failed. Please try again.';
-            break;
-        }
-        
-        ElMessage.warning(errorMessage);
+        ElMessage.warning('No places found. Try a different search term.');
       }
     });
-  } catch (error: any) {
-    console.error('Places search failed:', error);
-    ElMessage.error('Search failed: ' + (error.message || 'Unknown error'));
+  } catch (error) {
+    console.error('Search failed:', error);
+    ElMessage.error('Search failed. Please try again.');
     isSearching.value = false;
   }
 }
 
-function clearSearch() {
-  searchQuery.value = '';
-}
-
-async function getCurrentLocation() {
+async function handleGetCurrentLocation() {
   if (!navigator.geolocation) {
-    showLocationNotSupportedDialog();
+    ElMessageBox.alert(
+      'Your browser doesn\'t support geolocation.\n\nYou can:\n• Search for places\n• Click on the map\n• Enter coordinates manually',
+      'Geolocation Not Supported',
+      { confirmButtonText: 'OK', type: 'info' }
+    );
     return;
   }
 
-  // Check if we're on HTTPS or localhost (required for geolocation)
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    showHttpsRequiredDialog();
+  // Check HTTPS
+  const isSecure = location.protocol === 'https:' || 
+                   location.hostname === 'localhost' || 
+                   location.hostname === '127.0.0.1';
+  
+  if (!isSecure) {
+    ElMessageBox.alert(
+      `Location access requires HTTPS or localhost.\n\nCurrent: ${location.protocol}//${location.hostname}\n\nPlease use HTTPS in production.`,
+      'Secure Connection Required',
+      { confirmButtonText: 'OK', type: 'warning' }
+    );
     return;
   }
 
   isGettingLocation.value = true;
 
-  try {
-    // Check permissions first if supported
-    if ('permissions' in navigator) {
-      try {
-        const permission = await navigator.permissions.query({ name: 'geolocation' });
-        
-        if (permission.state === 'denied') {
-          showPermissionDeniedDialog();
-          return;
-        }
-      } catch (permError) {
-        // Some browsers don't support permissions.query for geolocation
-        console.warn('Permission query not supported:', permError);
-      }
-    }
+  // Log for debugging
+  console.log('🔍 Attempting to get current location...');
+  console.log('🔍 Protocol:', location.protocol);
+  console.log('🔍 Hostname:', location.hostname);
 
+  try {
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
-        resolve,
-        (error) => {
-          reject(error);
+        (pos) => {
+          console.log('✅ Location obtained:', {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            accuracy: pos.coords.accuracy
+          });
+          resolve(pos);
+        },
+        (err) => {
+          console.error('❌ Geolocation error:', {
+            code: err.code,
+            message: err.message,
+            PERMISSION_DENIED: err.code === 1,
+            POSITION_UNAVAILABLE: err.code === 2,
+            TIMEOUT: err.code === 3
+          });
+          reject(err);
         },
         {
           enableHighAccuracy: true,
           timeout: 15000,
-          maximumAge: 300000, // 5 minutes cache
+          maximumAge: 0, // Force fresh location
         }
       );
     });
@@ -530,263 +606,134 @@ async function getCurrentLocation() {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     
+    console.log('✅ Updating map with location:', { lat, lng });
+    
     updateMapLocation(lat, lng);
-    reverseGeocode(lat, lng);
+    const address = await reverseGeocode(lat, lng);
+    emitUpdate(lat, lng, address);
     
-    ElMessage.success(`Current location detected (±${Math.round(position.coords.accuracy)}m accuracy)`);
-    
-    // Update permission status
-    checkLocationPermissionStatus();
+    ElMessage.success(`Location detected (±${Math.round(position.coords.accuracy)}m accuracy)`);
   } catch (error: any) {
-    console.error('Geolocation failed:', error);
     handleGeolocationError(error);
   } finally {
     isGettingLocation.value = false;
-    // Always refresh permission status after attempt
-    setTimeout(checkLocationPermissionStatus, 100);
   }
 }
 
 function handleGeolocationError(error: GeolocationPositionError) {
+  const browser = getBrowserName();
+  const instructions = getBrowserInstructions(browser);
+  
   switch (error.code) {
-    case error.PERMISSION_DENIED:
-      showPermissionDeniedDialog();
+    case 1: // PERMISSION_DENIED
+      ElMessageBox.alert(
+        `Location permission issue detected.\n\n🔧 Quick Fix:\n1. Hard refresh this page: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)\n2. Click "Use Current Location" again\n\nIf that doesn't work:\n${instructions}\n\n💡 Check browser console (F12) for detailed error info.\n\nAlternatives:\n• Search for a place\n• Click on the map\n• Enter coordinates manually`,
+        'Location Permission Issue',
+        { confirmButtonText: 'Got It', type: 'warning' }
+      );
       break;
-    case error.POSITION_UNAVAILABLE:
-      ElMessage.error('Location information unavailable. Please check your device settings and try again.');
+    case 2: // POSITION_UNAVAILABLE
+      ElMessage.error('Location unavailable. Check device GPS/location settings and try again.');
       break;
-    case error.TIMEOUT:
-      ElMessage.error('Location request timed out. Please try again or check your internet connection.');
+    case 3: // TIMEOUT
+      ElMessage.error('Location request timed out. Please try again.');
       break;
     default:
-      ElMessage.error(`Location error: ${error.message}`);
-      break;
+      ElMessage.error('Failed to get location. Please try again.');
   }
-}
-
-function showPermissionDeniedDialog() {
-  const browserName = getBrowserName();
-  const instructions = getBrowserSpecificInstructions(browserName);
-  
-  ElMessageBox.alert(
-    `Location access has been denied. To enable location access:
-
-${instructions}
-
-Alternative options:
-• Search for places using the search box above
-• Click directly on the map to select a location  
-• Enter coordinates manually in the input fields
-
-Note: You may need to refresh the page after changing permissions.`,
-    'Enable Location Access',
-    {
-      confirmButtonText: 'Got it',
-      type: 'warning',
-      dangerouslyUseHTMLString: false,
-    }
-  );
 }
 
 function getBrowserName(): string {
-  const userAgent = navigator.userAgent;
-  if (userAgent.includes('Chrome')) return 'Chrome';
-  if (userAgent.includes('Firefox')) return 'Firefox';
-  if (userAgent.includes('Safari')) return 'Safari';
-  if (userAgent.includes('Edge')) return 'Edge';
+  const ua = navigator.userAgent;
+  if (ua.includes('Edg')) return 'Edge';
+  if (ua.includes('Chrome')) return 'Chrome';
+  if (ua.includes('Firefox')) return 'Firefox';
+  if (ua.includes('Safari')) return 'Safari';
   return 'Browser';
 }
 
-function getBrowserSpecificInstructions(browser: string): string {
-  switch (browser) {
-    case 'Chrome':
-      return `Chrome Instructions:
-1. Click the location/lock icon (🔒) in the address bar
-2. Select "Site settings" or click on "Location"
-3. Change from "Block" to "Allow"
-4. Refresh this page`;
-    
-    case 'Firefox':
-      return `Firefox Instructions:
-1. Click the shield or lock icon in the address bar
-2. Click on "Permissions" or the location icon
-3. Select "Allow" for location access
-4. Refresh this page`;
-    
-    case 'Safari':
-      return `Safari Instructions:
-1. Go to Safari > Preferences > Websites
-2. Click on "Location" in the left sidebar
-3. Find this website and change to "Allow"
-4. Refresh this page`;
-    
-    case 'Edge':
-      return `Edge Instructions:
-1. Click the lock icon in the address bar
-2. Click on "Permissions for this site"
-3. Change Location from "Block" to "Allow"
-4. Refresh this page`;
-    
-    default:
-      return `General Instructions:
-1. Look for a location or lock icon in your address bar
-2. Click it and find location/geolocation settings
-3. Change the setting from "Block" to "Allow"
-4. Refresh this page`;
+function getBrowserInstructions(browser: string): string {
+  const instructions: Record<string, string> = {
+    Chrome: '1. Click lock icon in address bar\n2. Select "Site settings"\n3. Change Location to "Allow"\n4. Refresh page',
+    Firefox: '1. Click shield icon\n2. Click Permissions\n3. Allow Location\n4. Refresh page',
+    Safari: '1. Safari > Preferences > Websites\n2. Click Location\n3. Allow this site\n4. Refresh page',
+    Edge: '1. Click lock icon\n2. Permissions\n3. Allow Location\n4. Refresh page',
+  };
+  
+  return instructions[browser] || instructions.Chrome;
+}
+
+function handleLatitudeInput(value: string) {
+  const lat = parseFloat(value);
+  if (isNaN(lat) || lat < -90 || lat > 90) return;
+  
+  displayLatitude.value = lat.toFixed(6);
+  
+  const lng = parseFloat(displayLongitude.value);
+  if (!isNaN(lng)) {
+    updateMapLocation(lat, lng);
+    reverseGeocode(lat, lng);
+    emitUpdate(lat, lng, displayAddress.value);
   }
 }
 
-function showHttpsRequiredDialog() {
-  ElMessageBox.alert(
-    `Location access requires a secure connection (HTTPS) or localhost.
-
-Current URL: ${location.protocol}//${location.hostname}
-
-To fix this:
-• Use HTTPS in production
-• Use localhost for development
-
-Alternative: You can manually enter coordinates or search for a place.`,
-    'Secure Connection Required',
-    {
-      confirmButtonText: 'Understood',
-      type: 'warning',
-      dangerouslyUseHTMLString: false,
-    }
-  );
+function handleLongitudeInput(value: string) {
+  const lng = parseFloat(value);
+  if (isNaN(lng) || lng < -180 || lng > 180) return;
+  
+  displayLongitude.value = lng.toFixed(6);
+  
+  const lat = parseFloat(displayLatitude.value);
+  if (!isNaN(lat)) {
+    updateMapLocation(lat, lng);
+    reverseGeocode(lat, lng);
+    emitUpdate(lat, lng, displayAddress.value);
+  }
 }
 
-function showLocationNotSupportedDialog() {
-  ElMessageBox.alert(
-    `Your browser doesn't support geolocation.
-
-You can still:
-• Search for places using the search box
-• Click on the map to select a location
-• Enter coordinates manually
-
-Most modern browsers support geolocation. Consider updating your browser for the best experience.`,
-    'Geolocation Not Supported',
-    {
-      confirmButtonText: 'OK',
-      type: 'info',
-      dangerouslyUseHTMLString: false,
-    }
-  );
-}
-
-function onCoordinateInput() {
+function handleOpenInGoogleMaps() {
   const lat = parseFloat(displayLatitude.value);
   const lng = parseFloat(displayLongitude.value);
-
-  // Validate coordinate ranges
-  if (isNaN(lat) || isNaN(lng)) {
-    return; // Don't update if invalid numbers
-  }
-
-  if (lat < -90 || lat > 90) {
-    ElMessage.warning('Latitude must be between -90 and 90');
-    return;
-  }
-
-  if (lng < -180 || lng > 180) {
-    ElMessage.warning('Longitude must be between -180 and 180');
-    return;
-  }
-
-  updateMapLocation(lat, lng);
   
-  // Debounce reverse geocoding to avoid too many API calls
-  clearTimeout(reverseGeocodeTimeout);
-  reverseGeocodeTimeout = setTimeout(() => {
-    reverseGeocode(lat, lng);
-  }, 1000);
+  if (!isNaN(lat) && !isNaN(lng)) {
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+  }
 }
 
-// Add timeout variable
-let reverseGeocodeTimeout: ReturnType<typeof setTimeout>;
-
-function openInGoogleMaps() {
-  if (!selectedLocation.value) return;
-
-  const url = `https://www.google.com/maps?q=${selectedLocation.value.latitude},${selectedLocation.value.longitude}`;
-  window.open(url, '_blank');
+function emitUpdate(lat: number, lng: number, address?: string) {
+  emit('update:latitude', lat);
+  emit('update:longitude', lng);
+  
+  if (address) {
+    emit('update:address', address);
+  }
+  
+  emit('picked', {
+    latitude: lat,
+    longitude: lng,
+    address,
+  });
 }
 
-function retryMapLoad() {
-  mapLoadError.value = false;
-  isMapLoading.value = true;
-  initializeMap();
-}
-
-async function checkLocationPermissionStatus() {
-  if (!navigator.geolocation) {
-    locationPermissionStatus.value = {
-      type: 'warning',
-      icon: 'WarningFilled',
-      message: 'Geolocation not supported by this browser'
-    };
-    return;
+function cleanup() {
+  if (clickListener) {
+    google.maps.event.removeListener(clickListener);
+    clickListener = null;
   }
-
-  // Check HTTPS requirement
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-    locationPermissionStatus.value = {
-      type: 'warning',
-      icon: 'WarningFilled',
-      message: 'HTTPS required for location access'
-    };
-    return;
+  
+  if (marker) {
+    marker.setMap(null);
+    marker = null;
   }
-
-  // Check permission status if supported
-  if ('permissions' in navigator) {
-    try {
-      const permission = await navigator.permissions.query({ name: 'geolocation' });
-      
-      switch (permission.state) {
-        case 'granted':
-          locationPermissionStatus.value = {
-            type: 'success',
-            icon: 'SuccessFilled',
-            message: 'Location access granted'
-          };
-          break;
-        case 'denied':
-          locationPermissionStatus.value = {
-            type: 'danger',
-            icon: 'CircleCloseFilled',
-            message: 'Location access denied - click for help'
-          };
-          break;
-        case 'prompt':
-          locationPermissionStatus.value = {
-            type: 'info',
-            icon: 'InfoFilled',
-            message: 'Location permission will be requested'
-          };
-          break;
-      }
-
-      // Listen for permission changes
-      permission.addEventListener('change', () => {
-        checkLocationPermissionStatus();
-      });
-    } catch (error) {
-      // Permissions API not fully supported
-      locationPermissionStatus.value = {
-        type: 'info',
-        icon: 'InfoFilled',
-        message: 'Click to request location access'
-      };
-    }
-  } else {
-    locationPermissionStatus.value = {
-      type: 'info',
-      icon: 'InfoFilled',
-      message: 'Click to request location access'
-    };
+  
+  if (circle) {
+    circle.setMap(null);
+    circle = null;
   }
+  
+  map = null;
+  geocoder = null;
+  placesService = null;
 }
 </script>
 
@@ -795,88 +742,88 @@ async function checkLocationPermissionStatus() {
   width: 100%;
 }
 
-.map-container {
+.search-section,
+.actions-section,
+.auto-detect-status,
+.coordinates-section,
+.address-section {
+  width: 100%;
+}
+
+.actions-section {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.map-wrapper {
   position: relative;
+  width: 100%;
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--el-border-color);
+  background: #f5f7fa;
 }
 
-.map-element {
+.map-container {
   width: 100%;
-  min-height: 300px;
+  height: 100%;
 }
 
-.map-loading {
+.map-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.9);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 10;
+  padding: 20px;
+}
+
+.map-overlay.error {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.map-overlay p {
+  margin: 0;
   color: var(--el-text-color-regular);
-}
-
-.coordinates-display {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-}
-
-.address-display {
   font-size: 14px;
+  max-width: 400px;
 }
 
-.geolocation-help {
+.flex {
   display: flex;
+}
+
+.items-center {
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--el-text-color-regular);
 }
 
-.geolocation-help .el-icon {
-  font-size: 14px;
+.gap-2 {
+  gap: 8px;
 }
 
-.map-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #f5f7fa;
-  border: 2px dashed #dcdfe6;
-}
-
-.fallback-content {
+.text-center {
   text-align: center;
-  color: var(--el-text-color-regular);
 }
 
-.fallback-content h3 {
-  margin: 16px 0 8px 0;
-  color: var(--el-text-color-primary);
-}
-
-.fallback-content p {
-  margin: 0 0 16px 0;
-  font-size: 14px;
-}
-
-.cursor-pointer {
-  cursor: pointer;
-}
-
-.cursor-pointer:hover {
-  opacity: 0.8;
+.px-4 {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 @media (max-width: 768px) {
-  .map-element {
-    min-height: 250px;
+  .actions-section {
+    flex-direction: column;
+  }
+  
+  .actions-section .el-button {
+    width: 100%;
   }
 }
 </style>
