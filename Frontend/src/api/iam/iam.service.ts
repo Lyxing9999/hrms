@@ -264,8 +264,8 @@ export class AuthService {
     const roles = Array.isArray(roleOrRoles)
       ? roleOrRoles
       : roleOrRoles
-        ? [roleOrRoles]
-        : [];
+      ? [roleOrRoles]
+      : [];
 
     // Super admin first
     if (roles.includes(Role.ADMIN)) {
@@ -298,9 +298,12 @@ export class AuthService {
       await this.router.push("/employee/dashboard");
       return;
     }
-
-
-    this.clearAuth();
+    // Manager
+    if (roles.includes(Role.MANAGER)) {
+      await this.router.push("/manager/dashboard");
+      return;
+    }
+    //    this.clearAuth();
     this.message.showError("Unknown role. Please login again.");
     await this.router.push("/auth/login");
   }

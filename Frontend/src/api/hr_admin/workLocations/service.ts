@@ -97,4 +97,12 @@ export class WorkLocationService {
     );
     return data!;
   }
+
+  async getWorkLocationSelectOptions(options?: ApiCallOptions) {
+    const data = await this.callApi<{ value: string; label: string }[]>(
+      () => this.workLocationApi.getWorkLocationSelectOptions(),
+      options,
+    );
+    return data ?? [];
+  }
 }

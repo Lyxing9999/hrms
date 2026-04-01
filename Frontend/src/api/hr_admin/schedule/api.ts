@@ -7,6 +7,8 @@ import type {
   WorkingScheduleListParams,
 } from "./dto";
 
+import type { SelectOptionDTO } from "~/api/types/common/select-option.type";
+
 export class WorkingScheduleApi {
   constructor(
     private readonly $api: AxiosInstance,
@@ -63,6 +65,13 @@ export class WorkingScheduleApi {
   async restoreSchedule(id: string) {
     const res = await this.$api.post<ApiResponse<WorkingScheduleDTO>>(
       `${this.baseURL}/${id}/restore`,
+    );
+    return res.data;
+  }
+
+  async getScheduleSelectOptions() {
+    const res = await this.$api.get<ApiResponse<SelectOptionDTO[]>>(
+      `${this.baseURL}/select-options`,
     );
     return res.data;
   }

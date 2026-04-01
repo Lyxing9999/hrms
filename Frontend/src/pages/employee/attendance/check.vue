@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { ElMessage } from "element-plus";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
 import { hrmsAdminService } from "~/api/hr_admin";
 import type {
@@ -185,9 +184,15 @@ const loadMyAttendance = async () => {
   pageError.value = "";
 
   try {
-    attendance.value = await attendanceService.getMyAttendance({
+    const result = await attendanceService.getMyAttendance({
       showError: false,
     });
+
+    if (result) {
+      attendance.value = result;
+    } else {
+      attendance.value = null;
+    }
   } catch (error) {
     const message = resolveErrorMessage(error).toLowerCase();
     const status = (error as { response?: { status?: number } })?.response
@@ -231,7 +236,7 @@ const handleCheckIn = async () => {
     });
 
     wrongLocationReason.value = "";
-    ElMessage.success("Check-in completed successfully.");
+
     await loadMyAttendance();
   } catch (error) {
     const message = resolveErrorMessage(error);
@@ -243,8 +248,6 @@ const handleCheckIn = async () => {
     ) {
       geolocationError.value = message;
     }
-
-    ElMessage.error(message);
   } finally {
     isCheckingIn.value = false;
   }
@@ -267,7 +270,6 @@ const handleCheckOut = async () => {
       longitude: location.longitude,
     });
 
-    ElMessage.success("Check-out completed successfully.");
     await loadMyAttendance();
   } catch (error) {
     const message = resolveErrorMessage(error);
@@ -279,8 +281,6 @@ const handleCheckOut = async () => {
     ) {
       geolocationError.value = message;
     }
-
-    ElMessage.error(message);
   } finally {
     isCheckingOut.value = false;
   }
@@ -297,6 +297,15 @@ onMounted(async () => {
 onUnmounted(() => {
   if (clockInterval) clearInterval(clockInterval);
 });
+const formatDate = (iso?: string | null) => {
+  if (!iso) return "-";
+
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
 </script>
 
 <template>
@@ -364,6 +373,7 @@ onUnmounted(() => {
         </div>
 
         <div v-else-if="attendance" class="mt-5 space-y-4">
+          <!-- Basic Info Grid -->
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div
               class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
@@ -374,7 +384,7 @@ onUnmounted(() => {
                 Attendance Date
               </p>
               <p class="mt-1 text-sm font-semibold text-slate-800">
-                {{ formatDateTime(attendance.attendance_date) }}
+                {{ formatDate(attendance.attendance_date) }}
               </p>
             </div>
 
@@ -444,12 +454,82 @@ onUnmounted(() => {
             </div>
           </div>
 
+          <!-- Location Information -->
+          <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <h3 class="text-sm font-semibold text-blue-900">
+              Check-In Location Details
+            </h3>
+            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+              <div>
+                <p class="text-xs font-medium text-blue-700">Latitude</p>
+                <p class="mt-1 font-mono text-blue-900">
+                  {{ attendance.check_in_latitude?.toFixed(6) ?? "-" }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-blue-700">Longitude</p>
+                <p class="mt-1 font-mono text-blue-900">
+                  {{ attendance.check_in_longitude?.toFixed(6) ?? "-" }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-blue-700">Location ID</p>
+                <p class="mt-1 font-mono text-blue-900 truncate">
+                  {{ attendance.location_id ?? "-" }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-blue-700">Schedule ID</p>
+                <p class="mt-1 font-mono text-blue-900 truncate">
+                  {{ attendance.schedule_id ?? "-" }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Wrong Location Reason -->
           <div
-            v-if="showWrongLocationPending"
-            class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800"
+            v-if="showWrongLocationPending || attendance.wrong_location_reason"
+            class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3"
           >
-            Your check-in location is pending admin review. You can still
-            monitor your status here.
+            <div class="flex gap-2">
+              <span class="text-xl">⚠️</span>
+              <div>
+                <p class="font-semibold text-yellow-900">
+                  Location Pending Review
+                </p>
+                <p class="mt-1 text-sm text-yellow-800">
+                  {{
+                    attendance.wrong_location_reason || "Reason not provided"
+                  }}
+                </p>
+              </div>
+            </div>
+            <p class="mt-2 text-xs text-yellow-700">
+              Your check-in location is pending admin review. You can still
+              monitor your status here.
+            </p>
+          </div>
+
+          <!-- Lifecycle Information -->
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <h3 class="text-sm font-semibold text-slate-900">
+              Record Timeline
+            </h3>
+            <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 text-sm">
+              <div>
+                <p class="text-xs font-medium text-slate-600">Created</p>
+                <p class="mt-1 text-slate-800">
+                  {{ formatDateTime(attendance.lifecycle?.created_at) }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs font-medium text-slate-600">Last Updated</p>
+                <p class="mt-1 text-slate-800">
+                  {{ formatDateTime(attendance.lifecycle?.updated_at) }}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 

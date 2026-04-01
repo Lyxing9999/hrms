@@ -2,42 +2,47 @@
 import { ref, watch } from "vue";
 import { useNuxtApp } from "nuxt/app";
 import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
-import type { AttendanceDTO } from "~/api/hr_admin/attendance/attendance.dto";
+import type { AttendanceDTO } from "~/api/hr_admin/attendance/dto";
 import { usePaginatedFetch } from "~/composables/data/usePaginatedFetch";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
 import BaseButton from "~/components/base/BaseButton.vue";
 
 const { $hrAttendanceService } = useNuxtApp();
 
-const selectedDate = ref(new Date().toISOString().split('T')[0]);
+const selectedDate = ref(new Date().toISOString().split("T")[0]);
 const status = ref<string | undefined>(undefined);
 
 // Table columns
 const teamColumns = [
   { prop: "employee_id", label: "Employee", minWidth: 150 },
-  { 
-    prop: "check_in_time", 
-    label: "Check In", 
+  {
+    prop: "check_in_time",
+    label: "Check In",
     width: 100,
-    formatter: (row: any) => new Date(row.check_in_time).toLocaleTimeString()
+    formatter: (row: any) => new Date(row.check_in_time).toLocaleTimeString(),
   },
-  { 
-    prop: "check_out_time", 
-    label: "Check Out", 
+  {
+    prop: "check_out_time",
+    label: "Check Out",
     width: 100,
-    formatter: (row: any) => row.check_out_time ? new Date(row.check_out_time).toLocaleTimeString() : "-"
+    formatter: (row: any) =>
+      row.check_out_time
+        ? new Date(row.check_out_time).toLocaleTimeString()
+        : "-",
   },
-  { 
-    prop: "late_minutes", 
-    label: "Late", 
+  {
+    prop: "late_minutes",
+    label: "Late",
     width: 80,
-    formatter: (row: any) => row.late_minutes > 0 ? `${row.late_minutes}m` : "-"
+    formatter: (row: any) =>
+      row.late_minutes > 0 ? `${row.late_minutes}m` : "-",
   },
-  { 
-    prop: "early_leave_minutes", 
-    label: "Early Leave", 
+  {
+    prop: "early_leave_minutes",
+    label: "Early Leave",
     width: 100,
-    formatter: (row: any) => row.early_leave_minutes > 0 ? `${row.early_leave_minutes}m` : "-"
+    formatter: (row: any) =>
+      row.early_leave_minutes > 0 ? `${row.early_leave_minutes}m` : "-",
   },
   { prop: "status", label: "Status", width: 120, slot: "status" },
   { prop: "notes", label: "Notes", minWidth: 200 },
@@ -70,7 +75,7 @@ const {
       total: res.total ?? 0,
     };
   },
-  { initialPage: 1 }
+  { initialPage: 1 },
 );
 
 watch([selectedDate, status], () => {
@@ -100,9 +105,11 @@ const getStatusLabel = (status: string) => {
 // Stats
 const stats = computed(() => {
   const total = attendances.value?.length || 0;
-  const checkedOut = attendances.value?.filter(a => a.check_out_time).length || 0;
-  const late = attendances.value?.filter(a => a.late_minutes > 0).length || 0;
-  const earlyLeave = attendances.value?.filter(a => a.early_leave_minutes > 0).length || 0;
+  const checkedOut =
+    attendances.value?.filter((a) => a.check_out_time).length || 0;
+  const late = attendances.value?.filter((a) => a.late_minutes > 0).length || 0;
+  const earlyLeave =
+    attendances.value?.filter((a) => a.early_leave_minutes > 0).length || 0;
 
   return { total, checkedOut, late, earlyLeave };
 });
@@ -142,7 +149,9 @@ await fetchPage(1);
     <el-col :span="6">
       <el-card>
         <div class="text-center">
-          <div class="text-2xl font-bold text-green-600">{{ stats.checkedOut }}</div>
+          <div class="text-2xl font-bold text-green-600">
+            {{ stats.checkedOut }}
+          </div>
           <div class="text-sm text-gray-500">Checked Out</div>
         </div>
       </el-card>
@@ -158,7 +167,9 @@ await fetchPage(1);
     <el-col :span="6">
       <el-card>
         <div class="text-center">
-          <div class="text-2xl font-bold text-red-600">{{ stats.earlyLeave }}</div>
+          <div class="text-2xl font-bold text-red-600">
+            {{ stats.earlyLeave }}
+          </div>
           <div class="text-sm text-gray-500">Early Leaves</div>
         </div>
       </el-card>

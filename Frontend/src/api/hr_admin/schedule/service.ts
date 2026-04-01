@@ -9,6 +9,9 @@ import type {
   WorkingScheduleUpdateDTO,
   WorkingScheduleListParams,
 } from "./dto";
+
+import type { SelectOptionDTO } from "~/api/types/common/select-option.type";
+
 import { WorkingScheduleApi } from "./api";
 
 export class WorkingScheduleService {
@@ -80,5 +83,12 @@ export class WorkingScheduleService {
       { showSuccess: true, ...(options ?? {}) },
     );
     return data!;
+  }
+  async getScheduleSelectOptions(options?: ApiCallOptions) {
+    const data = await this.callApi<SelectOptionDTO[]>(
+      () => this.workingScheduleApi.getScheduleSelectOptions(),
+      options,
+    );
+    return data ?? [];
   }
 }

@@ -80,4 +80,11 @@ export class WorkLocationApi {
     );
     return res.data;
   }
+
+  async getWorkLocationSelectOptions() {
+    const res = await this.$api.get<
+      ApiResponse<{ value: string; label: string }[]>
+    >(`${this.baseURL}/select-options`);
+    return res.data;
+  }
 }

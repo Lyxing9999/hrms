@@ -2,7 +2,7 @@
 import { ref, watch } from "vue";
 import { useNuxtApp } from "nuxt/app";
 import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
-import type { AttendanceDTO } from "~/api/hr_admin/attendance/attendance.dto";
+import type { AttendanceDTO } from "~/api/hr_admin/attendance/dto";
 import { usePaginatedFetch } from "~/composables/data/usePaginatedFetch";
 import { Calendar, Clock, ArrowLeft } from "@element-plus/icons-vue";
 
@@ -92,7 +92,7 @@ const {
       total: res.total ?? 0,
     };
   },
-  { initialPage: 1 }
+  { initialPage: 1 },
 );
 
 watch([start_date, end_date, status], () => {

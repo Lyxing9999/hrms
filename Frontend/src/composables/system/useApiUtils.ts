@@ -20,7 +20,7 @@ export const useApiUtils = () => {
 
   const safeApiCall = async <T>(
     fn: () => Promise<ApiResponse<T>>,
-    options: SafeApiCallOptions = {}
+    options: SafeApiCallOptions = {},
   ): Promise<{ data: T | null; errors: Record<string, string> }> => {
     const { showSuccessNotification = true, showErrorNotification = true } =
       options;
@@ -41,7 +41,7 @@ export const useApiUtils = () => {
             apiRes.user_message ||
               apiRes.message ||
               apiRes.details?.hint ||
-              "An unexpected error occurred."
+              "An unexpected error occurred.",
           );
         }
         return { data: null, errors: fieldErrors };
@@ -83,7 +83,7 @@ export const useApiUtils = () => {
           apiErrorData?.user_message ||
             apiErrorData?.message ||
             axiosErr.message ||
-            "An unexpected error occurred."
+            "An unexpected error occurred.",
         );
       }
 
@@ -100,7 +100,7 @@ export const useApiUtils = () => {
     fn:
       | (() => Promise<ApiResponse<T>>)
       | ((opts: ApiCallOptions) => Promise<ApiResponse<T>>),
-    options: ApiCallOptions = {}
+    options: ApiCallOptions = {},
   ): Promise<T | null> => {
     const { showSuccess = false, showError = true } = options;
 
