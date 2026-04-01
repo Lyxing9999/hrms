@@ -11,8 +11,6 @@ class CreateEmployeeUseCase:
         existing = self.employee_repository.find_by_employee_code(payload.employee_code)
         if existing:
             raise ValueError("Employee code already exists")
-        print("this is type of payload:", type(payload))
-        print("get from payload:", payload)
         doc = {
             "employee_code": payload.employee_code,
             "full_name": payload.full_name,
@@ -23,6 +21,7 @@ class CreateEmployeeUseCase:
             "contract": payload.contract.model_dump() if payload.contract else None,
             "manager_user_id": payload.manager_user_id,
             "schedule_id": payload.schedule_id,
+            "work_location_id": payload.work_location_id,          
             "status": payload.status,
             "photo_url": payload.photo_url,
             "user_id": None,
@@ -34,5 +33,7 @@ class CreateEmployeeUseCase:
                 "deleted_by": None,
             },
         }
+
+        print("this is doc to be created:", doc)
 
         return self.employee_repository.create(doc)

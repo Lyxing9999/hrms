@@ -38,6 +38,7 @@ class EmployeeCreateSchema(BaseModel):
 
     manager_user_id: Optional[str] = None
     schedule_id: Optional[str] = None
+    work_location_id: str | None = None
     status: str = "active"
     photo_url: Optional[str] = None
 
@@ -54,6 +55,7 @@ class EmployeeUpdateSchema(BaseModel):
     position: Optional[str] = None
     employment_type: Optional[EmploymentType] = None
     basic_salary: Optional[float] = Field(None, ge=0)
+    work_location_id: str | None = None
     contract: Optional[ContractSchema] = None
     manager_user_id: Optional[str] = None
     schedule_id: Optional[str] = None

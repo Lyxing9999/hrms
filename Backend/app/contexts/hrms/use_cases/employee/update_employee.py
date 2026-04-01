@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from app.contexts.shared.model_converter import mongo_converter
+
 
 class UpdateEmployeeUseCase:
     def __init__(self, *, employee_repository) -> None:
@@ -14,6 +16,21 @@ class UpdateEmployeeUseCase:
 
         if "contract" in update_data and update_data["contract"] is not None:
             update_data["contract"] = payload.contract.model_dump()
+
+        if "schedule_id" in update_data:
+            update_data["schedule_id"] = mongo_converter.convert_to_object_id(
+                update_data["schedule_id"]
+            )
+
+        if "work_location_id" in update_data:
+            update_data["work_location_id"] = mongo_converter.convert_to_object_id(
+                update_data["work_location_id"]
+            )
+
+        if "manager_user_id" in update_data:
+            update_data["manager_user_id"] = mongo_converter.convert_to_object_id(
+                update_data["manager_user_id"]
+            )
 
         update_data["lifecycle.updated_at"] = datetime.now(timezone.utc)
 

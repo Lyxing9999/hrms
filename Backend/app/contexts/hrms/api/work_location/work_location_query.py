@@ -36,3 +36,20 @@ def get_work_location(location_id: str):
 def get_active_work_location():
     item = g.hrms.work_location.get_active()
     return mapper.to_dto(item).model_dump(mode="json") if item else None
+
+
+
+
+@work_location_query_bp.route("/work-locations/select-options", methods=["GET"], strict_slashes=False)
+@login_required(allowed_roles=["hr_admin", "employee", "manager", "payroll_manager"])
+@wrap_response
+def list_work_location_select_options():
+    items = g.hrms.work_location.list(q="", status="active")
+    return [
+        {
+            "value": str(item.id),
+            "label": item.name,
+        }
+        for item in items
+        if not item.lifecycle.deleted_at
+    ]

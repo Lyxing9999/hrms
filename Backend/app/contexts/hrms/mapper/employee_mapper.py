@@ -21,6 +21,7 @@ class EmployeeMapper:
             contract=data.get("contract"),
             manager_user_id=str(data["manager_user_id"]) if data.get("manager_user_id") else None,
             schedule_id=str(data["schedule_id"]) if data.get("schedule_id") else None,
+            work_location_id=str(data["work_location_id"]) if data.get("work_location_id") else None,
             status=data.get("status", "active"),
             created_by=str(data["created_by"]) if data.get("created_by") else None,
             photo_url=data.get("photo_url"),

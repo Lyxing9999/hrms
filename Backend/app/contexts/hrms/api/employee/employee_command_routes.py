@@ -46,7 +46,7 @@ def create_employee():
 def update_employee(employee_id: str):
     staff_id = get_current_staff_id()
     payload = pydantic_converter.convert_to_model(request.json, EmployeeUpdateSchema)
-
+    print("Received update payload:", payload)
     employee = g.hrms.employee.update(
         employee_id=employee_id,
         payload=payload,

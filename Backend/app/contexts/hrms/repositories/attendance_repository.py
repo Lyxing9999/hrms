@@ -6,7 +6,8 @@ from app.contexts.hrms.domain.attendance import Attendance
 from app.contexts.hrms.mapper.attendance_mapper import AttendanceMapper
 from app.contexts.hrms.errors.attendance_exceptions import AttendanceNotFoundException
 from app.contexts.shared.time_utils import ensure_utc
-
+from datetime import datetime
+from bson import ObjectId
 
 class MongoAttendanceRepository:
     def __init__(self, db: Database):
@@ -24,18 +25,14 @@ class MongoAttendanceRepository:
             raise AttendanceNotFoundException(attendance_id)
         return self.mapper.to_domain(doc)
 
-    def find_by_employee_and_date(self, employee_id: ObjectId, check_date: date) -> Attendance | None:
-        """Find attendance record for employee on specific date"""
-        # Create timezone-aware datetime objects
-        start_of_day = datetime.combine(check_date, datetime.min.time(), tzinfo=timezone.utc)
-        end_of_day = datetime.combine(check_date, datetime.max.time(), tzinfo=timezone.utc)
-        
+
+    def find_by_employee_and_date(self, employee_id: ObjectId, attendance_date: datetime) -> Attendance | None:
         doc = self.collection.find_one({
             "employee_id": employee_id,
-            "check_in_time": {"$gte": start_of_day, "$lte": end_of_day},
+            "attendance_date": attendance_date,
             "lifecycle.deleted_at": None,
         })
-        
+
         return self.mapper.to_domain(doc) if doc else None
 
     def list_attendances(

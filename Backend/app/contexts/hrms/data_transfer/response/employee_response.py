@@ -23,7 +23,7 @@ class EmployeeDTO(BaseModel):
     employment_type: str
     basic_salary: float
     contract: Optional[Dict[str, Any]] = None
-
+    work_location_id: str | None = None
     manager_user_id: Optional[str] = None
     schedule_id: Optional[str] = None
     status: str
