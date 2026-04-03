@@ -35,7 +35,27 @@ class ReviewStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class AttendanceDayType(str, Enum):
+    WORKING_DAY = "working_day"
+    WEEKEND = "weekend"
+    PUBLIC_HOLIDAY = "public_holiday"
+    MISSING_CHECK_OUT = "missing_check_out"
+
 class Attendance:
+    @staticmethod
+    def _enum_value(value, enum_cls, default=None):
+        if value is None:
+            return default
+
+        if isinstance(value, enum_cls):
+            return value
+
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            return enum_cls(normalized)
+
+        return enum_cls(value)
+
     def __init__(
         self,
         *,
@@ -50,6 +70,8 @@ class Attendance:
         check_out_latitude: float | None = None,
         check_out_longitude: float | None = None,
         status: AttendanceStatus | str = AttendanceStatus.CHECKED_IN,
+        day_type: AttendanceDayType | str = AttendanceDayType.WORKING_DAY,
+        is_ot_eligible: bool = False,
         notes: str | None = None,
         late_minutes: int = 0,
         early_leave_minutes: int = 0,
@@ -74,18 +96,36 @@ class Attendance:
         self.check_in_longitude = check_in_longitude
         self.check_out_latitude = check_out_latitude
         self.check_out_longitude = check_out_longitude
-        self.status = AttendanceStatus(str(status).strip().lower())
+        self.status = self._enum_value(status, AttendanceStatus, AttendanceStatus.CHECKED_IN)
+        self.day_type = self._enum_value(day_type, AttendanceDayType, AttendanceDayType.WORKING_DAY)
+        self.is_ot_eligible = bool(is_ot_eligible)
         self.notes = notes
         self.late_minutes = int(late_minutes)
         self.early_leave_minutes = int(early_leave_minutes)
         self.wrong_location_reason = (wrong_location_reason or "").strip() or None
         self.late_reason = (late_reason or "").strip() or None
         self.early_leave_reason = (early_leave_reason or "").strip() or None
-        self.early_leave_review_status = ReviewStatus(str(early_leave_review_status).strip().lower())
+        self.early_leave_review_status = self._enum_value(
+            early_leave_review_status,
+            ReviewStatus,
+            ReviewStatus.NOT_REQUIRED,
+        )
         self.admin_comment = (admin_comment or "").strip() or None
         self.location_reviewed_by = location_reviewed_by
         self.early_leave_reviewed_by = early_leave_reviewed_by
         self.lifecycle = lifecycle or Lifecycle()
+
+    def set_day_type(self, day_type: AttendanceDayType | str) -> None:
+        self.day_type = self._enum_value(day_type, AttendanceDayType, AttendanceDayType.WORKING_DAY)
+        self.lifecycle.touch(now_utc())
+
+    def mark_ot_eligible(self) -> None:
+        self.is_ot_eligible = True
+        self.lifecycle.touch(now_utc())
+
+    def clear_ot_eligible(self) -> None:
+        self.is_ot_eligible = False
+        self.lifecycle.touch(now_utc())
 
     def check_in(
         self,
@@ -182,6 +222,14 @@ class Attendance:
         self.admin_comment = (comment or "").strip() or None
         self.lifecycle.touch(now_utc())
 
+    def mark_missing_check_out(self) -> None:
+        if self.check_in_time is None:
+            raise ValueError("Cannot mark missing check-out without check-in")
+        if self.check_out_time is not None:
+            raise ValueError("Cannot mark missing check-out when check-out already exists")
+        self.status = AttendanceStatus.MISSING_CHECK_OUT
+        self.lifecycle.touch(now_utc())
+        
     def approve_early_leave(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
         self.early_leave_review_status = ReviewStatus.APPROVED
         self.early_leave_reviewed_by = admin_id
@@ -200,10 +248,14 @@ class Attendance:
 
     def mark_holiday_off(self) -> None:
         self.status = AttendanceStatus.HOLIDAY_OFF
+        self.day_type = AttendanceDayType.PUBLIC_HOLIDAY
+        self.is_ot_eligible = False
         self.lifecycle.touch(now_utc())
 
     def mark_weekend_off(self) -> None:
         self.status = AttendanceStatus.WEEKEND_OFF
+        self.day_type = AttendanceDayType.WEEKEND
+        self.is_ot_eligible = False
         self.lifecycle.touch(now_utc())
 
     def total_working_hours(self) -> float:

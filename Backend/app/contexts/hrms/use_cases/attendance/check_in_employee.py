@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from app.contexts.hrms.domain.attendance import Attendance
+from app.contexts.hrms.domain.attendance import (
+    Attendance,
+    AttendanceDayType,
+)
 from app.contexts.hrms.domain.audit_log import AuditLog
 from app.contexts.hrms.domain.work_location import WorkLocation
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
@@ -39,12 +42,14 @@ class CheckInEmployeeUseCase:
         employee_repository,
         working_schedule_repository,
         work_location_repository,
+        public_holiday_repository,
         attendance_repository,
         audit_log_repository=None,
     ) -> None:
         self.employee_repository = employee_repository
         self.working_schedule_repository = working_schedule_repository
         self.work_location_repository = work_location_repository
+        self.public_holiday_repository = public_holiday_repository
         self.attendance_repository = attendance_repository
         self.audit_log_repository = audit_log_repository
 
@@ -66,7 +71,7 @@ class CheckInEmployeeUseCase:
         check_in_time_local = to_cambodia(check_in_time_utc)
         attendance_date_utc = cambodia_start_of_day_as_utc(check_in_time_utc)
 
-        self._ensure_working_day(
+        day_type = self._resolve_day_type(
             schedule=schedule,
             check_in_time_local=check_in_time_local,
             employee_id=employee["_id"],
@@ -82,7 +87,7 @@ class CheckInEmployeeUseCase:
             latitude=latitude,
             longitude=longitude,
         )
-
+        
         if not is_valid_location and not wrong_location_reason:
             raise LocationValidationException(
                 message="wrong_location_reason is required when check-in location is invalid",
@@ -90,17 +95,19 @@ class CheckInEmployeeUseCase:
                     "employee_id": str(employee["_id"]),
                     "latitude": latitude,
                     "longitude": longitude,
-                    "reason": wrong_location_reason,
                 },
             )
 
-        late_minutes = self._calculate_late_minutes(
-            schedule=schedule,
-            check_in_time=check_in_time_utc,
-        )
+        late_minutes = 0
+        if day_type == AttendanceDayType.WORKING_DAY:
+            late_minutes = self._calculate_late_minutes(
+                schedule=schedule,
+                check_in_time=check_in_time_utc,
+            )
 
         if (
-            late_minutes >= self.LATE_REASON_THRESHOLD_MINUTES
+            day_type == AttendanceDayType.WORKING_DAY
+            and late_minutes >= self.LATE_REASON_THRESHOLD_MINUTES
             and not (late_reason or "").strip()
         ):
             raise ValueError("late_reason is required when employee checks in late")
@@ -112,13 +119,18 @@ class CheckInEmployeeUseCase:
             attendance_date=attendance_date_utc,
             check_in_time=None,
             check_out_time=None,
-            schedule_id=schedule.id if schedule else None,
+            schedule_id=schedule.id,
             location_id=location.id if location else None,
             check_in_latitude=None,
             check_in_longitude=None,
             check_out_latitude=None,
             check_out_longitude=None,
             status="checked_in",
+            day_type=day_type,
+            is_ot_eligible=day_type in {
+                AttendanceDayType.WEEKEND,
+                AttendanceDayType.PUBLIC_HOLIDAY,
+            },
             notes=None,
             late_minutes=0,
             early_leave_minutes=0,
@@ -157,12 +169,12 @@ class CheckInEmployeeUseCase:
             entity_id=attendance.id,
             details={
                 "status": attendance.status.value if hasattr(attendance.status, "value") else str(attendance.status),
+                "day_type": attendance.day_type.value if hasattr(attendance.day_type, "value") else str(attendance.day_type),
+                "is_ot_eligible": attendance.is_ot_eligible,
                 "late_minutes": attendance.late_minutes,
                 "late_reason": attendance.late_reason,
                 "attendance_date": attendance.attendance_date.isoformat() if attendance.attendance_date else None,
                 "check_in_time": attendance.check_in_time.isoformat() if attendance.check_in_time else None,
-                "check_in_latitude": attendance.check_in_latitude,
-                "check_in_longitude": attendance.check_in_longitude,
             },
         )
 
@@ -199,33 +211,43 @@ class CheckInEmployeeUseCase:
             if not location.is_active:
                 raise WorkLocationInactiveException(str(location_id))
             return location
-
         return self._get_default_location()
 
     def _get_default_location(self) -> WorkLocation | None:
         if hasattr(self.work_location_repository, "find_active_default"):
             return self.work_location_repository.find_active_default()
-
         if hasattr(self.work_location_repository, "find_default"):
             return self.work_location_repository.find_default()
-
         if hasattr(self.work_location_repository, "list_locations"):
             items = self.work_location_repository.list_locations(is_active=True)
             return items[0] if items else None
-
         return None
 
-    def _ensure_working_day(
+    def _resolve_day_type(
         self,
         *,
         schedule: WorkingSchedule,
         check_in_time_local: datetime,
         employee_id,
-    ) -> None:
-        weekday_value = check_in_time_local.weekday()
-        if not schedule.is_working_day(weekday_value):
-            raise NotScheduledWorkingDayException(employee_id=employee_id, weekday_value=weekday_value)
+    ) -> AttendanceDayType:
+        holiday = self.public_holiday_repository.find_by_date(check_in_time_local.date())
+        if holiday:
+            if not holiday.is_paid:
+                raise ValueError("Check-in is not allowed on an unpaid public holiday")
+            return AttendanceDayType.PUBLIC_HOLIDAY
 
+        weekday_value = check_in_time_local.weekday()
+
+        if schedule.is_weekend(weekday_value):
+            return AttendanceDayType.WEEKEND
+
+        if schedule.is_working_day(weekday_value):
+            return AttendanceDayType.WORKING_DAY
+
+        raise NotScheduledWorkingDayException(
+            employee_id=employee_id,
+            weekday_value=weekday_value,
+        )
     def _ensure_not_checked_in(self, *, employee_id, attendance_date) -> None:
         existing = self.attendance_repository.find_by_employee_and_date(
             employee_id,
@@ -234,6 +256,16 @@ class CheckInEmployeeUseCase:
         if existing:
             raise AlreadyCheckedInTodayException(employee_id)
 
+    def _ensure_working_day(
+        self,
+        *,
+        schedule: WorkingSchedule,
+        check_out_time_local: datetime,
+        employee_id,
+    ) -> None:
+        weekday_value = check_out_time_local.weekday()
+        if not schedule.is_working_day(weekday_value):
+            raise NotScheduledWorkingDayException(employee_id=employee_id, weekday_value=weekday_value)
     def _is_valid_location(
         self,
         *,
@@ -248,9 +280,6 @@ class CheckInEmployeeUseCase:
     def _calculate_late_minutes(self, *, schedule: WorkingSchedule, check_in_time: datetime) -> int:
         check_in_time_local = to_cambodia(check_in_time)
         start_time = schedule.start_time
-
-        if not start_time:
-            return 0
 
         if hasattr(start_time, "hour"):
             schedule_start = check_in_time_local.replace(
@@ -287,5 +316,4 @@ class CheckInEmployeeUseCase:
             action_at=utc_now(),
             details=details,
         )
-
         self.audit_log_repository.save(audit_log)

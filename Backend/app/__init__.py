@@ -176,8 +176,8 @@ def create_app():
         elif _is_reset_path(path):
             limiter.limit(reset_limit, override_defaults=False)(lambda: None)()
         if not hasattr(g, "hrms"):
-            from app.contexts.hrms.composition import build_hrms_facade
-            g.hrms = build_hrms_facade(get_db())
+            from app.contexts.hrms.composition.build_hrms import build_hrms
+            g.hrms = build_hrms(get_db())
 
 
     @app.after_request

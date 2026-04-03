@@ -142,6 +142,12 @@ class MongoAttendanceRepository:
             "total_early_leave_minutes": stats["total_early_leave_minutes"],
             "attendance_rate": (total_days / expected_days * 100) if expected_days > 0 else 0.0,
         }
-
+    def list_open_attendances(self) -> list[Attendance]:
+        docs = self.collection.find({
+            "check_in_time": {"$ne": None},
+            "check_out_time": None,
+            "lifecycle.deleted_at": None,
+        })
+        return [self.mapper.to_domain(doc) for doc in docs]
     def delete(self, attendance_id: ObjectId) -> None:
         self.collection.delete_one({"_id": attendance_id})

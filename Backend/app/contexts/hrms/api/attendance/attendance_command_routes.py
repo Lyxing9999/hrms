@@ -23,7 +23,7 @@ mapper = AttendanceMapper()
 
 
 @attendance_command_bp.route("/attendance/check-in", methods=["POST"], strict_slashes=False)
-@login_required(allowed_roles=["employee"])
+@login_required(allowed_roles=["employee", "hr_admin", "manager", "payroll_manager"])
 @wrap_response
 def check_in():
     employee_id = get_current_employee_id()
@@ -42,7 +42,7 @@ def check_in():
 
 
 @attendance_command_bp.route("/attendance/check-out", methods=["POST"], strict_slashes=False)
-@login_required(allowed_roles=["employee"])
+@login_required(allowed_roles=["employee", "hr_admin", "manager", "payroll_manager"])
 @wrap_response
 def check_out():
     employee_id = get_current_employee_id()
@@ -64,7 +64,10 @@ def check_out():
 @wrap_response
 def review_wrong_location(attendance_id: str):
     admin_id = get_current_staff_id()
-    payload = pydantic_converter.convert_to_model(request.json, AttendanceApproveWrongLocationSchema)
+    payload = pydantic_converter.convert_to_model(
+        request.json,
+        AttendanceApproveWrongLocationSchema,
+    )
 
     attendance = g.hrms.attendance.approve_wrong_location(
         attendance_id=attendance_id,

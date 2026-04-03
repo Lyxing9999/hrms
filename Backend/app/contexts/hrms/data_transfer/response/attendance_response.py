@@ -4,7 +4,7 @@ from datetime import datetime, date
 from pydantic import BaseModel
 
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
-
+from app.contexts.hrms.domain.attendance import Attendance
 
 class AttendanceDTO(BaseModel):
     id: str
@@ -21,6 +21,10 @@ class AttendanceDTO(BaseModel):
     check_in_longitude: float | None = None
     check_out_latitude: float | None = None
     check_out_longitude: float | None = None
+
+    day_type: str
+    is_ot_eligible: bool = False
+
 
     status: str
     notes: str | None = None

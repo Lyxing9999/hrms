@@ -21,7 +21,7 @@ mapper = AttendanceMapper()
 
 
 @attendance_query_bp.route("/attendance/me", methods=["GET"], strict_slashes=False)
-@login_required(allowed_roles=["employee"])
+@login_required(allowed_roles=["employee", "hr_admin", "manager", "payroll_manager"])
 @wrap_response
 def get_my_attendance():
     employee_id = get_current_employee_id()
@@ -88,7 +88,7 @@ def list_attendance():
 
 
 @attendance_query_bp.route("/attendance/team", methods=["GET"], strict_slashes=False)
-@login_required(allowed_roles=["manager"])
+@login_required(allowed_roles=["manager", "hr_admin"])
 @wrap_response
 def get_team_attendance():
     manager_user_id = get_current_user_id()
@@ -120,7 +120,7 @@ def get_team_attendance():
 
 
 @attendance_query_bp.route("/attendance/reports/wrong-location", methods=["GET"], strict_slashes=False)
-@login_required(allowed_roles=["hr_admin"])
+@login_required(allowed_roles=["hr_admin", "manager"])
 @wrap_response
 def get_wrong_location_report():
     page = max(int(request.args.get("page") or 1), 1)

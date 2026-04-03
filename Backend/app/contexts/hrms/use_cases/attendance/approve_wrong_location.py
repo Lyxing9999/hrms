@@ -12,7 +12,7 @@ class ApproveWrongLocationUseCase:
     def __init__(
         self,
         *,
-        attendance_repository,
+        attendance_repository, 
         audit_log_repository=None,
     ) -> None:
         self.attendance_repository = attendance_repository

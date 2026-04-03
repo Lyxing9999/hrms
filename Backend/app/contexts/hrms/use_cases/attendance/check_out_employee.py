@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from app.contexts.hrms.domain.attendance import AttendanceDayType
 from app.contexts.hrms.domain.audit_log import AuditLog
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
 from app.contexts.hrms.errors.attendance_exceptions import (
     AttendanceAlreadyCheckedOutException,
     AttendanceCheckInRequiredException,
     InvalidCheckOutTimeException,
-    NotScheduledWorkingDayException,
 )
 from app.contexts.hrms.errors.employee_exceptions import (
     EmployeeInactiveException,
@@ -19,7 +19,6 @@ from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFound
 from app.contexts.shared.time_utils import (
     ensure_utc,
     utc_now,
-    to_cambodia,
     cambodia_start_of_day_as_utc,
 )
 
@@ -53,7 +52,6 @@ class CheckOutEmployeeUseCase:
         employee = self._get_employee(employee_id)
 
         check_out_time_utc = ensure_utc(check_out_time)
-        check_out_time_local = to_cambodia(check_out_time_utc)
         attendance_date_utc = cambodia_start_of_day_as_utc(check_out_time_utc)
 
         attendance = self._get_today_attendance(
@@ -72,19 +70,16 @@ class CheckOutEmployeeUseCase:
         if check_out_time_utc < attendance.check_in_time:
             raise InvalidCheckOutTimeException(attendance.id)
 
-        self._ensure_working_day(
-            schedule=schedule,
-            check_out_time_local=check_out_time_local,
-            employee_id=employee["_id"],
-        )
-
-        early_leave_minutes = self._calculate_early_leave_minutes(
-            schedule=schedule,
-            check_out_time=check_out_time_utc,
-        )
+        early_leave_minutes = 0
+        if attendance.day_type == AttendanceDayType.WORKING_DAY:
+            early_leave_minutes = self._calculate_early_leave_minutes(
+                schedule=schedule,
+                check_out_time=check_out_time_utc,
+            )
 
         if (
-            early_leave_minutes >= self.EARLY_LEAVE_REASON_THRESHOLD_MINUTES
+            attendance.day_type == AttendanceDayType.WORKING_DAY
+            and early_leave_minutes >= self.EARLY_LEAVE_REASON_THRESHOLD_MINUTES
             and not (early_leave_reason or "").strip()
         ):
             raise ValueError("early_leave_reason is required when checking out early")
@@ -95,7 +90,9 @@ class CheckOutEmployeeUseCase:
             longitude=longitude,
             early_leave_minutes=early_leave_minutes,
             early_leave_reason=early_leave_reason,
-            require_early_leave_review=self.REQUIRE_EARLY_LEAVE_APPROVAL and early_leave_minutes > 0,
+            require_early_leave_review=(
+                self.REQUIRE_EARLY_LEAVE_APPROVAL and early_leave_minutes > 0
+            ),
         )
 
         attendance = self.attendance_repository.save(attendance)
@@ -106,6 +103,8 @@ class CheckOutEmployeeUseCase:
             entity_id=attendance.id,
             details={
                 "status": attendance.status.value if hasattr(attendance.status, "value") else str(attendance.status),
+                "day_type": attendance.day_type.value if hasattr(attendance.day_type, "value") else str(attendance.day_type),
+                "is_ot_eligible": attendance.is_ot_eligible,
                 "early_leave_minutes": attendance.early_leave_minutes,
                 "early_leave_reason": attendance.early_leave_reason,
                 "early_leave_review_status": (
@@ -153,23 +152,14 @@ class CheckOutEmployeeUseCase:
 
         return schedule
 
-    def _ensure_working_day(
-        self,
-        *,
-        schedule: WorkingSchedule,
-        check_out_time_local: datetime,
-        employee_id,
-    ) -> None:
-        weekday_value = check_out_time_local.weekday()
-        if not schedule.is_working_day(weekday_value):
-            raise NotScheduledWorkingDayException(employee_id=employee_id, weekday_value=weekday_value)
-
     def _calculate_early_leave_minutes(
         self,
         *,
         schedule: WorkingSchedule,
         check_out_time: datetime,
     ) -> int:
+        from app.contexts.shared.time_utils import to_cambodia
+
         check_out_time_local = to_cambodia(check_out_time)
         end_time = schedule.end_time
 
