@@ -14,6 +14,7 @@ const routeRoles: Record<string, Role[]> = {
   "/hr": [Role.HR_ADMIN],
   "/manager": [Role.MANAGER],
   "/employee": [Role.EMPLOYEE],
+  "/payroll": [Role.PAYROLL_MANAGER],
 };
 
 const isProtectedPath = (path: string) =>

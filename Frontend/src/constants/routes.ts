@@ -84,11 +84,11 @@ export const ROUTES = {
   },
 
   EMPLOYEE: {
-    DASHBOARD: "/employee",
+    DASHBOARD: "/employee/dashboard",
     PROFILE: "/employee/profile",
 
-    ATTENDANCE_CHECK: "/employee/attendance/check",
-    ATTENDANCE_HISTORY: "/employee/attendance/history",
+    ATTENDANCE_CHECK: "/employee/check-in",
+    ATTENDANCE_HISTORY: "/employee/attendance-history",
 
     OVERTIME_REQUEST: "/employee/overtime/request",
     OVERTIME_HISTORY: "/employee/overtime/history",
@@ -101,7 +101,7 @@ export const ROUTES = {
   },
 
   MANAGER: {
-    DASHBOARD: "/manager",
+    DASHBOARD: "/manager/dashboard",
 
     ATTENDANCE_TEAM: "/manager/attendance/team",
     ATTENDANCE_REPORTS: "/manager/attendance/reports",
@@ -116,7 +116,7 @@ export const ROUTES = {
   },
 
   PAYROLL_MANAGER: {
-    DASHBOARD: "/payroll",
+    DASHBOARD: "/payroll/dashboard",
 
     PAYROLL_PROCESS: "/payroll/runs/generate",
     PAYROLL_RUNS: "/payroll/runs",

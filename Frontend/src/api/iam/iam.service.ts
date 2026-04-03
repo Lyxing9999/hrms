@@ -303,6 +303,12 @@ export class AuthService {
       await this.router.push("/manager/dashboard");
       return;
     }
+
+    // Payroll manager
+    if (roles.includes(Role.PAYROLL_MANAGER)) {
+      await this.router.push("/payroll/dashboard");
+      return;
+    }
     //    this.clearAuth();
     this.message.showError("Unknown role. Please login again.");
     await this.router.push("/auth/login");
