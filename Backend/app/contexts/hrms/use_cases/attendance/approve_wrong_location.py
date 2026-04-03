@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from app.contexts.hrms.errors.attendance_exceptions import (
+    AttendanceNotFoundException,
+    AttendanceWrongLocationReviewStateException,
+)
+
 
 class ApproveWrongLocationUseCase:
     def __init__(
@@ -23,10 +28,14 @@ class ApproveWrongLocationUseCase:
     ) -> dict:
         attendance = self.attendance_repository.find_by_id(attendance_id)
         if not attendance:
-            raise ValueError("Attendance not found")
+            raise AttendanceNotFoundException(attendance_id)
 
-        if attendance.get("status") != "wrong_location_pending":
-            raise ValueError("Attendance is not pending wrong-location review")
+        current_status = str(attendance.get("status") or "unknown")
+        if current_status != "wrong_location_pending":
+            raise AttendanceWrongLocationReviewStateException(
+                attendance_id=attendance_id,
+                current_status=current_status,
+            )
 
         if approved:
             new_status = "late" if attendance.get("late_minutes", 0) > 0 else "checked_in"

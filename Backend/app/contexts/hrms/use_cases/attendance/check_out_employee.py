@@ -4,6 +4,18 @@ from datetime import datetime
 
 from app.contexts.hrms.domain.audit_log import AuditLog
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
+from app.contexts.hrms.errors.attendance_exceptions import (
+    AttendanceAlreadyCheckedOutException,
+    AttendanceCheckInRequiredException,
+    InvalidCheckOutTimeException,
+    NotScheduledWorkingDayException,
+)
+from app.contexts.hrms.errors.employee_exceptions import (
+    EmployeeInactiveException,
+    EmployeeNotFoundException,
+    EmployeeScheduleNotAssignedException,
+)
+from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFoundException
 from app.contexts.shared.time_utils import (
     ensure_utc,
     utc_now,
@@ -13,6 +25,9 @@ from app.contexts.shared.time_utils import (
 
 
 class CheckOutEmployeeUseCase:
+    EARLY_LEAVE_REASON_THRESHOLD_MINUTES = 1
+    REQUIRE_EARLY_LEAVE_APPROVAL = True
+
     def __init__(
         self,
         *,
@@ -33,6 +48,7 @@ class CheckOutEmployeeUseCase:
         check_out_time: datetime,
         latitude: float | None = None,
         longitude: float | None = None,
+        early_leave_reason: str | None = None,
     ):
         employee = self._get_employee(employee_id)
 
@@ -48,17 +64,18 @@ class CheckOutEmployeeUseCase:
         schedule = self._get_schedule(employee)
 
         if attendance.check_out_time is not None:
-            raise ValueError("Employee already checked out")
+            raise AttendanceAlreadyCheckedOutException(attendance.id)
 
         if attendance.check_in_time is None:
-            raise ValueError("Attendance check-in not found for today")
+            raise AttendanceCheckInRequiredException(employee["_id"])
 
         if check_out_time_utc < attendance.check_in_time:
-            raise ValueError("Check-out time cannot be before check-in time")
+            raise InvalidCheckOutTimeException(attendance.id)
 
         self._ensure_working_day(
             schedule=schedule,
             check_out_time_local=check_out_time_local,
+            employee_id=employee["_id"],
         )
 
         early_leave_minutes = self._calculate_early_leave_minutes(
@@ -66,33 +83,20 @@ class CheckOutEmployeeUseCase:
             check_out_time=check_out_time_utc,
         )
 
+        if (
+            early_leave_minutes >= self.EARLY_LEAVE_REASON_THRESHOLD_MINUTES
+            and not (early_leave_reason or "").strip()
+        ):
+            raise ValueError("early_leave_reason is required when checking out early")
+
         attendance.check_out(
             check_out_time=check_out_time_utc,
             latitude=latitude,
             longitude=longitude,
+            early_leave_minutes=early_leave_minutes,
+            early_leave_reason=early_leave_reason,
+            require_early_leave_review=self.REQUIRE_EARLY_LEAVE_APPROVAL and early_leave_minutes > 0,
         )
-
-        attendance.early_leave_minutes = early_leave_minutes
-
-        current_status = (
-            attendance.status.value
-            if hasattr(attendance.status, "value")
-            else str(attendance.status)
-        )
-
-        if current_status == "wrong_location_pending":
-            pass
-        elif early_leave_minutes > 0:
-            attendance.status = "early_leave"
-        elif attendance.late_minutes > 0:
-            attendance.status = "late"
-        else:
-            attendance.status = "checked_out"
-
-        if hasattr(attendance.lifecycle, "touch"):
-            attendance.lifecycle.touch(utc_now())
-        else:
-            attendance.lifecycle.updated_at = utc_now()
 
         attendance = self.attendance_repository.save(attendance)
 
@@ -103,6 +107,12 @@ class CheckOutEmployeeUseCase:
             details={
                 "status": attendance.status.value if hasattr(attendance.status, "value") else str(attendance.status),
                 "early_leave_minutes": attendance.early_leave_minutes,
+                "early_leave_reason": attendance.early_leave_reason,
+                "early_leave_review_status": (
+                    attendance.early_leave_review_status.value
+                    if hasattr(attendance.early_leave_review_status, "value")
+                    else str(attendance.early_leave_review_status)
+                ),
                 "attendance_date": attendance.attendance_date.isoformat() if attendance.attendance_date else None,
                 "check_out_time": attendance.check_out_time.isoformat() if attendance.check_out_time else None,
                 "check_out_latitude": attendance.check_out_latitude,
@@ -115,9 +125,12 @@ class CheckOutEmployeeUseCase:
     def _get_employee(self, employee_id):
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
-            raise ValueError("Employee not found")
-        if employee.get("status") != "active":
-            raise ValueError("Employee is not active")
+            raise EmployeeNotFoundException(str(employee_id))
+
+        status = str(employee.get("status") or "inactive")
+        if status != "active":
+            raise EmployeeInactiveException(str(employee.get("_id") or employee_id), status)
+
         return employee
 
     def _get_today_attendance(self, *, employee_id, attendance_date):
@@ -126,17 +139,17 @@ class CheckOutEmployeeUseCase:
             attendance_date,
         )
         if not attendance:
-            raise ValueError("Attendance check-in not found for today")
+            raise AttendanceCheckInRequiredException(employee_id)
         return attendance
 
     def _get_schedule(self, employee: dict) -> WorkingSchedule:
         schedule_id = employee.get("schedule_id")
         if not schedule_id:
-            raise ValueError("Employee has no assigned schedule")
+            raise EmployeeScheduleNotAssignedException(str(employee.get("_id")))
 
         schedule = self.working_schedule_repository.find_by_id(schedule_id)
         if not schedule:
-            raise ValueError("Working schedule not found")
+            raise WorkingScheduleNotFoundException(schedule_id)
 
         return schedule
 
@@ -145,10 +158,11 @@ class CheckOutEmployeeUseCase:
         *,
         schedule: WorkingSchedule,
         check_out_time_local: datetime,
+        employee_id,
     ) -> None:
         weekday_value = check_out_time_local.weekday()
         if not schedule.is_working_day(weekday_value):
-            raise ValueError("Today is not a scheduled working day")
+            raise NotScheduledWorkingDayException(employee_id=employee_id, weekday_value=weekday_value)
 
     def _calculate_early_leave_minutes(
         self,

@@ -53,12 +53,14 @@ export interface AttendanceCheckInDTO {
   latitude: number;
   longitude: number;
   wrong_location_reason?: string | null;
+  late_reason?: string | null;
 }
 
 export interface AttendanceCheckOutDTO {
   check_out_time: string;
   latitude?: number | null;
   longitude?: number | null;
+  early_leave_reason?: string | null;
 }
 
 export interface AttendanceApproveWrongLocationDTO {

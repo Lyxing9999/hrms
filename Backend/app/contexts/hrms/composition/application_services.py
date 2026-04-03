@@ -38,6 +38,7 @@ from app.contexts.hrms.queries.employee.list_employee_accounts import ListEmploy
 from app.contexts.hrms.queries.employee.find_employee_by_user_id import FindEmployeeByUserIdQuery
 
 # working schedule use cases/queries
+from app.contexts.hrms.use_cases.overtime.create_overtime_request import CreateOvertimeRequestUseCase
 from app.contexts.hrms.use_cases.working_schedule.create_working_schedule import CreateWorkingScheduleUseCase
 from app.contexts.hrms.use_cases.working_schedule.update_working_schedule import UpdateWorkingScheduleUseCase
 from app.contexts.hrms.use_cases.working_schedule.set_default_working_schedule import SetDefaultWorkingScheduleUseCase
@@ -47,11 +48,14 @@ from app.contexts.hrms.queries.working_schedule.list_working_schedules import Li
 from app.contexts.hrms.queries.working_schedule.get_working_schedule import GetWorkingScheduleQuery
 from app.contexts.hrms.queries.working_schedule.get_default_working_schedule import GetDefaultWorkingScheduleQuery
 
-# overtime
-from app.contexts.hrms.use_cases.overtime.submit_ot_request import SubmitOtRequestUseCase
-from app.contexts.hrms.use_cases.overtime.approve_ot_request import ApproveOtRequestUseCase
-from app.contexts.hrms.use_cases.overtime.reject_ot_request import RejectOtRequestUseCase
-
+# overtime (commands and queries)
+from app.contexts.hrms.queries.overtime.list_my_overtime_requests import ListMyOvertimeRequestsQuery
+from app.contexts.hrms.queries.overtime.list_overtime_requests import ListOvertimeRequestsQuery
+from app.contexts.hrms.queries.overtime.get_overtime_request import GetOvertimeRequestQuery
+from app.contexts.hrms.queries.overtime.list_approved_overtime_for_payroll import ListApprovedOvertimeForPayrollQuery
+from app.contexts.hrms.use_cases.overtime.approve_overtime_request import ApproveOvertimeRequestUseCase
+from app.contexts.hrms.use_cases.overtime.reject_overtime_request import RejectOvertimeRequestUseCase
+from app.contexts.hrms.use_cases.overtime.cancel_overtime_request import CancelOvertimeRequestUseCase
 # leave
 from app.contexts.hrms.use_cases.leave.submit_leave_request import SubmitLeaveRequestUseCase
 from app.contexts.hrms.use_cases.leave.approve_leave_request import ApproveLeaveRequestUseCase
@@ -69,6 +73,19 @@ from app.contexts.hrms.use_cases.work_location.restore_work_location import Rest
 from app.contexts.hrms.queries.work_location.list_work_locations import ListWorkLocationsQuery
 from app.contexts.hrms.queries.work_location.get_work_location import GetWorkLocationQuery
 from app.contexts.hrms.queries.work_location.get_active_work_location import GetActiveWorkLocationQuery
+
+
+
+# public holiday
+from app.contexts.hrms.use_cases.public_holiday.create_public_holiday import CreatePublicHolidayUseCase
+from app.contexts.hrms.use_cases.public_holiday.update_public_holiday import UpdatePublicHolidayUseCase
+from app.contexts.hrms.use_cases.public_holiday.soft_delete_public_holiday import SoftDeletePublicHolidayUseCase
+from app.contexts.hrms.use_cases.public_holiday.restore_public_holiday import RestorePublicHolidayUseCase
+from app.contexts.hrms.queries.public_holiday.list_public_holidays import ListPublicHolidaysQuery
+from app.contexts.hrms.queries.public_holiday.get_public_holiday import GetPublicHolidayQuery
+from app.contexts.hrms.queries.public_holiday.check_public_holiday_by_date import CheckPublicHolidayByDateQuery
+from app.contexts.hrms.use_cases.public_holiday.import_default_public_holidays import ImportDefaultPublicHolidaysUseCase
+
 
 class HrmsApplicationServices:
     def __init__(self, *, repositories: HrmsRepositories) -> None:
@@ -195,22 +212,35 @@ class HrmsApplicationServices:
         )
 
         # overtime
-        self.submit_ot_request = SubmitOtRequestUseCase(
+
+        self.create_overtime_request = CreateOvertimeRequestUseCase(
             employee_repository=repositories.employee_repository,
             working_schedule_repository=repositories.working_schedule_repository,
             public_holiday_repository=repositories.public_holiday_repository,
             overtime_repository=repositories.overtime_repository,
-            audit_log_repository=repositories.audit_log_repository,
         )
-        self.approve_ot_request = ApproveOtRequestUseCase(
+        self.approve_overtime_request = ApproveOvertimeRequestUseCase(
             overtime_repository=repositories.overtime_repository,
-            audit_log_repository=repositories.audit_log_repository,
         )
-        self.reject_ot_request = RejectOtRequestUseCase(
+        self.reject_overtime_request = RejectOvertimeRequestUseCase(
             overtime_repository=repositories.overtime_repository,
-            audit_log_repository=repositories.audit_log_repository,
         )
-
+        self.cancel_overtime_request = CancelOvertimeRequestUseCase(
+            overtime_repository=repositories.overtime_repository,
+        )
+        self.list_overtime_requests = ListOvertimeRequestsQuery(
+            overtime_repository=repositories.overtime_repository,
+        )
+        self.get_overtime_request = GetOvertimeRequestQuery(
+            overtime_repository=repositories.overtime_repository,
+        )
+        self.list_my_overtime_requests = ListMyOvertimeRequestsQuery(
+            employee_repository=repositories.employee_repository,
+            overtime_repository=repositories.overtime_repository,
+        )
+        self.list_approved_overtime_for_payroll = ListApprovedOvertimeForPayrollQuery(
+            overtime_repository=repositories.overtime_repository,
+        )
         # leave
         self.submit_leave_request = SubmitLeaveRequestUseCase(
             employee_repository=repositories.employee_repository,
@@ -261,4 +291,31 @@ class HrmsApplicationServices:
         )
         self.get_active_work_location = GetActiveWorkLocationQuery(
             work_location_repository=repositories.work_location_repository,
+        )
+        # holiday
+        self.create_public_holiday = CreatePublicHolidayUseCase(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+        self.update_public_holiday = UpdatePublicHolidayUseCase(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+        self.soft_delete_public_holiday = SoftDeletePublicHolidayUseCase(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+        self.restore_public_holiday = RestorePublicHolidayUseCase(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+        self.list_public_holidays = ListPublicHolidaysQuery(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+        self.get_public_holiday = GetPublicHolidayQuery(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+        self.check_public_holiday_by_date = CheckPublicHolidayByDateQuery(
+            public_holiday_repository=repositories.public_holiday_repository,
+        )
+
+        self.import_default_public_holidays = ImportDefaultPublicHolidaysUseCase(
+            public_holiday_repository=repositories.public_holiday_repository,
+            cambodia_public_holiday_provider=repositories.cambodia_public_holiday_provider,
         )

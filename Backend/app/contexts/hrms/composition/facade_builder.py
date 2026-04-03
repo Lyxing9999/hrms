@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pymongo.database import Database
 
-from app.contexts.hrms.api.work_location.work_location_command import create_work_location
 from app.contexts.hrms.composition.repositories import HrmsRepositories
 from app.contexts.hrms.composition.application_services import HrmsApplicationServices
 from app.contexts.hrms.facade import (
@@ -13,7 +12,8 @@ from app.contexts.hrms.facade import (
     LeaveFacade,
     PayrollFacade,
     HrmsFacade,
-    WorkLocationFacade
+    WorkLocationFacade,
+    PublicHolidayFacade,
 )
 
 def build_hrms_repositories(db: Database) -> HrmsRepositories:
@@ -70,11 +70,16 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
     )
 
     overtime = OvertimeFacade(
-        submit_ot_request=services.submit_ot_request,
-        approve_ot_request=services.approve_ot_request,
-        reject_ot_request=services.reject_ot_request,
+        create_overtime_request=services.create_overtime_request,
+        approve_overtime_request=services.approve_overtime_request,
+        reject_overtime_request=services.reject_overtime_request,
+        cancel_overtime_request=services.cancel_overtime_request,
+        list_overtime_requests=services.list_overtime_requests,
+        get_overtime_request=services.get_overtime_request,
+        list_my_overtime_requests=services.list_my_overtime_requests,
+        list_approved_overtime_for_payroll=services.list_approved_overtime_for_payroll,
     )
-
+    
     leave = LeaveFacade(
         submit_leave_request=services.submit_leave_request,
         approve_leave_request=services.approve_leave_request,
@@ -96,6 +101,18 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
         get_active_work_location=services.get_active_work_location,
     )
 
+
+    public_holiday = PublicHolidayFacade(
+        create_public_holiday=services.create_public_holiday,
+        update_public_holiday=services.update_public_holiday,
+        soft_delete_public_holiday=services.soft_delete_public_holiday,
+        restore_public_holiday=services.restore_public_holiday,
+        list_public_holidays=services.list_public_holidays,
+        get_public_holiday=services.get_public_holiday,
+        check_public_holiday_by_date=services.check_public_holiday_by_date,
+        import_default_public_holidays=services.import_default_public_holidays,
+    )
+
     return HrmsFacade(
         employee=employee,
         attendance=attendance,
@@ -104,4 +121,5 @@ def build_hrms_facade(db: Database) -> HrmsFacade:
         leave=leave,
         payroll=payroll,
         work_location=work_location,
+        public_holiday=public_holiday,
     )

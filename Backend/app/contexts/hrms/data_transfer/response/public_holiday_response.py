@@ -24,3 +24,13 @@ class PublicHolidayDTO(BaseModel):
 
 class PublicHolidayPaginatedDTO(PaginatedDTO[PublicHolidayDTO]):
     pass
+
+
+
+
+class PublicHolidayImportResultDTO(BaseModel):
+    year: int
+    imported_count: int
+    skipped_count: int
+    imported: list[PublicHolidayDTO]
+    skipped_dates: list[str]

@@ -6,6 +6,21 @@ from app.contexts.hrms.domain.attendance import Attendance
 from app.contexts.hrms.domain.audit_log import AuditLog
 from app.contexts.hrms.domain.work_location import WorkLocation
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
+from app.contexts.hrms.errors.attendance_exceptions import (
+    AlreadyCheckedInTodayException,
+    LocationValidationException,
+    NotScheduledWorkingDayException,
+)
+from app.contexts.hrms.errors.employee_exceptions import (
+    EmployeeInactiveException,
+    EmployeeNotFoundException,
+    EmployeeScheduleNotAssignedException,
+)
+from app.contexts.hrms.errors.location_exceptions import (
+    WorkLocationInactiveException,
+    WorkLocationNotFoundException,
+)
+from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFoundException
 from app.contexts.shared.lifecycle.domain import Lifecycle
 from app.contexts.shared.time_utils import (
     ensure_utc,
@@ -16,6 +31,8 @@ from app.contexts.shared.time_utils import (
 
 
 class CheckInEmployeeUseCase:
+    LATE_REASON_THRESHOLD_MINUTES = 1
+
     def __init__(
         self,
         *,
@@ -39,6 +56,7 @@ class CheckInEmployeeUseCase:
         latitude: float,
         longitude: float,
         wrong_location_reason: str | None = None,
+        late_reason: str | None = None,
     ) -> Attendance:
         employee = self._get_employee(employee_id)
         schedule = self._get_schedule(employee)
@@ -51,6 +69,7 @@ class CheckInEmployeeUseCase:
         self._ensure_working_day(
             schedule=schedule,
             check_in_time_local=check_in_time_local,
+            employee_id=employee["_id"],
         )
 
         self._ensure_not_checked_in(
@@ -65,12 +84,26 @@ class CheckInEmployeeUseCase:
         )
 
         if not is_valid_location and not wrong_location_reason:
-            raise ValueError("wrong_location_reason is required when check-in location is invalid")
+            raise LocationValidationException(
+                message="wrong_location_reason is required when check-in location is invalid",
+                details={
+                    "employee_id": str(employee["_id"]),
+                    "latitude": latitude,
+                    "longitude": longitude,
+                    "reason": wrong_location_reason,
+                },
+            )
 
         late_minutes = self._calculate_late_minutes(
             schedule=schedule,
             check_in_time=check_in_time_utc,
         )
+
+        if (
+            late_minutes >= self.LATE_REASON_THRESHOLD_MINUTES
+            and not (late_reason or "").strip()
+        ):
+            raise ValueError("late_reason is required when employee checks in late")
 
         now = utc_now()
 
@@ -90,8 +123,12 @@ class CheckInEmployeeUseCase:
             late_minutes=0,
             early_leave_minutes=0,
             wrong_location_reason=None,
+            late_reason=None,
+            early_leave_reason=None,
+            early_leave_review_status="not_required",
             admin_comment=None,
             location_reviewed_by=None,
+            early_leave_reviewed_by=None,
             lifecycle=Lifecycle(
                 created_at=now,
                 updated_at=now,
@@ -110,6 +147,7 @@ class CheckInEmployeeUseCase:
 
         if late_minutes > 0:
             attendance.mark_late(late_minutes)
+            attendance.late_reason = (late_reason or "").strip() or None
 
         attendance = self.attendance_repository.save(attendance)
 
@@ -120,6 +158,7 @@ class CheckInEmployeeUseCase:
             details={
                 "status": attendance.status.value if hasattr(attendance.status, "value") else str(attendance.status),
                 "late_minutes": attendance.late_minutes,
+                "late_reason": attendance.late_reason,
                 "attendance_date": attendance.attendance_date.isoformat() if attendance.attendance_date else None,
                 "check_in_time": attendance.check_in_time.isoformat() if attendance.check_in_time else None,
                 "check_in_latitude": attendance.check_in_latitude,
@@ -132,36 +171,60 @@ class CheckInEmployeeUseCase:
     def _get_employee(self, employee_id):
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
-            raise ValueError("Employee not found")
-        if employee.get("status") != "active":
-            raise ValueError("Employee is not active")
+            raise EmployeeNotFoundException(str(employee_id))
+
+        status = str(employee.get("status") or "inactive")
+        if status != "active":
+            raise EmployeeInactiveException(str(employee.get("_id") or employee_id), status)
+
         return employee
 
     def _get_schedule(self, employee: dict) -> WorkingSchedule:
         schedule_id = employee.get("schedule_id")
         if not schedule_id:
-            raise ValueError("Employee has no assigned schedule")
+            raise EmployeeScheduleNotAssignedException(str(employee.get("_id")))
 
         schedule = self.working_schedule_repository.find_by_id(schedule_id)
         if not schedule:
-            raise ValueError("Working schedule not found")
+            raise WorkingScheduleNotFoundException(schedule_id)
 
         return schedule
+
     def _get_work_location(self, employee: dict) -> WorkLocation | None:
         location_id = employee.get("work_location_id")
         if location_id:
             location = self.work_location_repository.find_by_id(location_id)
             if not location:
-                raise ValueError("Assigned work location not found")
+                raise WorkLocationNotFoundException(str(location_id))
             if not location.is_active:
-                raise ValueError("Assigned work location is inactive")
+                raise WorkLocationInactiveException(str(location_id))
             return location
 
         return self._get_default_location()
-    def _ensure_working_day(self, *, schedule: WorkingSchedule, check_in_time_local: datetime) -> None:
+
+    def _get_default_location(self) -> WorkLocation | None:
+        if hasattr(self.work_location_repository, "find_active_default"):
+            return self.work_location_repository.find_active_default()
+
+        if hasattr(self.work_location_repository, "find_default"):
+            return self.work_location_repository.find_default()
+
+        if hasattr(self.work_location_repository, "list_locations"):
+            items = self.work_location_repository.list_locations(is_active=True)
+            return items[0] if items else None
+
+        return None
+
+    def _ensure_working_day(
+        self,
+        *,
+        schedule: WorkingSchedule,
+        check_in_time_local: datetime,
+        employee_id,
+    ) -> None:
         weekday_value = check_in_time_local.weekday()
         if not schedule.is_working_day(weekday_value):
-            raise ValueError("Today is not a scheduled working day")
+            raise NotScheduledWorkingDayException(employee_id=employee_id, weekday_value=weekday_value)
 
     def _ensure_not_checked_in(self, *, employee_id, attendance_date) -> None:
         existing = self.attendance_repository.find_by_employee_and_date(
@@ -169,7 +232,7 @@ class CheckInEmployeeUseCase:
             attendance_date,
         )
         if existing:
-            raise ValueError("Attendance already exists for this date")
+            raise AlreadyCheckedInTodayException(employee_id)
 
     def _is_valid_location(
         self,

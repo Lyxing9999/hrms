@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
+import { ElDialog } from "element-plus";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
+import BaseButton from "~/components/base/BaseButton.vue";
 import { hrmsAdminService } from "~/api/hr_admin";
 import type {
   AttendanceDTO,
@@ -13,6 +15,12 @@ interface GeoCoordinates {
 }
 
 const attendanceService = hrmsAdminService().attendance;
+const BACKEND_EARLY_LEAVE_REQUIRED_MESSAGE =
+  "early_leave_reason is required when checking out early";
+const BACKEND_LATE_REQUIRED_MESSAGE =
+  "late_reason is required when employee checks in late";
+const BACKEND_WRONG_LOCATION_REQUIRED_MESSAGE =
+  "wrong_location_reason is required";
 
 const attendance = ref<AttendanceDTO | null>(null);
 const currentLocalTime = ref(new Date());
@@ -25,6 +33,22 @@ const pageError = ref("");
 const actionError = ref("");
 const geolocationError = ref("");
 const wrongLocationReason = ref("");
+const lateReason = ref("");
+const checkInReasonDialogVisible = ref(false);
+const checkInReasonDialogError = ref("");
+const requireWrongLocationReason = ref(false);
+const requireLateReason = ref(false);
+const pendingCheckIn = ref<{
+  checkInTime: string;
+  location: GeoCoordinates;
+} | null>(null);
+const earlyLeaveReason = ref("");
+const earlyLeaveDialogVisible = ref(false);
+const earlyLeaveDialogError = ref("");
+const pendingEarlyLeaveCheckOut = ref<{
+  checkOutTime: string;
+  location: GeoCoordinates;
+} | null>(null);
 
 let clockInterval: ReturnType<typeof setInterval> | null = null;
 
@@ -36,7 +60,8 @@ const canCheckIn = computed(
     !hasCheckedIn.value &&
     !isLoadingAttendance.value &&
     !isCheckingIn.value &&
-    !isCheckingOut.value,
+    !isCheckingOut.value &&
+    !checkInReasonDialogVisible.value,
 );
 
 const canCheckOut = computed(
@@ -45,7 +70,8 @@ const canCheckOut = computed(
     !hasCheckedOut.value &&
     !isLoadingAttendance.value &&
     !isCheckingIn.value &&
-    !isCheckingOut.value,
+    !isCheckingOut.value &&
+    !earlyLeaveDialogVisible.value,
 );
 
 const showWrongLocationPending = computed(
@@ -120,14 +146,160 @@ const resolveErrorMessage = (error: unknown) => {
     message?: string;
     response?: {
       status?: number;
-      data?: { message?: string };
+      data?: {
+        message?: string;
+        user_message?: string;
+        hint?: string;
+      };
     };
   };
 
   return (
     e.response?.data?.message ||
+    e.response?.data?.user_message ||
+    e.response?.data?.hint ||
     e.message ||
     "Something went wrong. Please try again."
+  );
+};
+
+const isEarlyLeaveReasonRequiredError = (error: unknown) => {
+  const message = resolveErrorMessage(error).toLowerCase();
+  const e = error as {
+    response?: {
+      status?: number;
+      data?: {
+        code?: string;
+        error?: string;
+        message?: string;
+        user_message?: string;
+        recoverable?: boolean;
+        details?: {
+          code?: string;
+          reason?: string;
+        };
+      };
+    };
+  };
+
+  const data = e.response?.data;
+  const backendMessage = (data?.message ?? "").toLowerCase();
+  const hasExactBackendMessage = backendMessage.includes(
+    BACKEND_EARLY_LEAVE_REQUIRED_MESSAGE,
+  );
+  const isBackendAppBaseException =
+    data?.code === "APPBASEEXCEPTION_ERROR" ||
+    data?.error === "APPBASEEXCEPTION_ERROR";
+
+  return (
+    (isBackendAppBaseException && hasExactBackendMessage) ||
+    backendMessage.includes("early_leave_reason") ||
+    backendMessage.includes("checking out early") ||
+    message.includes("early leave") ||
+    message.includes("checkout reason") ||
+    message.includes("check out reason") ||
+    message.includes("early_leave_reason") ||
+    (data?.recoverable === true &&
+      isBackendAppBaseException &&
+      backendMessage.includes("early_leave_reason")) ||
+    data?.code === "EARLY_LEAVE_REASON_REQUIRED" ||
+    data?.error === "EARLY_LEAVE_REASON_REQUIRED" ||
+    data?.details?.code === "EARLY_LEAVE_REASON_REQUIRED" ||
+    data?.details?.reason === "early_leave_reason_required" ||
+    (e.response?.status === 422 && message.includes("reason"))
+  );
+};
+
+const isWrongLocationReasonRequiredError = (error: unknown) => {
+  const message = resolveErrorMessage(error).toLowerCase();
+  const e = error as {
+    response?: {
+      data?: {
+        code?: string;
+        error?: string;
+        message?: string;
+      };
+    };
+  };
+
+  const data = e.response?.data;
+  const backendMessage = (data?.message ?? "").toLowerCase();
+  const isAppBase =
+    data?.code === "APPBASEEXCEPTION_ERROR" ||
+    data?.error === "APPBASEEXCEPTION_ERROR";
+
+  return (
+    backendMessage.includes(BACKEND_WRONG_LOCATION_REQUIRED_MESSAGE) ||
+    backendMessage.includes("wrong location") ||
+    message.includes("wrong location") ||
+    message.includes("location mismatch") ||
+    (isAppBase && backendMessage.includes("wrong_location_reason"))
+  );
+};
+
+const isLateReasonRequiredError = (error: unknown) => {
+  const message = resolveErrorMessage(error).toLowerCase();
+  const e = error as {
+    response?: {
+      data?: {
+        code?: string;
+        error?: string;
+        message?: string;
+      };
+    };
+  };
+
+  const data = e.response?.data;
+  const backendMessage = (data?.message ?? "").toLowerCase();
+  const isAppBase =
+    data?.code === "APPBASEEXCEPTION_ERROR" ||
+    data?.error === "APPBASEEXCEPTION_ERROR";
+
+  return (
+    backendMessage.includes(BACKEND_LATE_REQUIRED_MESSAGE) ||
+    backendMessage.includes("late_reason") ||
+    message.includes("late_reason") ||
+    message.includes("checks in late") ||
+    (isAppBase && backendMessage.includes("late_reason"))
+  );
+};
+
+const getCheckInReasonDialogMessage = (
+  needWrongLoc: boolean,
+  needLate: boolean,
+) => {
+  if (needWrongLoc && needLate) {
+    return "Please provide both wrong location and late check-in reasons.";
+  }
+
+  if (needWrongLoc) {
+    return "Please provide the wrong location reason.";
+  }
+
+  if (needLate) {
+    return "Please provide the late check-in reason.";
+  }
+
+  return "Please provide the required reason to continue check-in.";
+};
+
+const syncCheckInReasonRequirements = (
+  needWrongLoc: boolean,
+  needLate: boolean,
+) => {
+  const nextWrongLocationRequired =
+    needWrongLoc ||
+    requireWrongLocationReason.value ||
+    Boolean(wrongLocationReason.value.trim());
+
+  const nextLateRequired = needLate || requireLateReason.value;
+
+  requireWrongLocationReason.value = nextWrongLocationRequired;
+  requireLateReason.value = nextLateRequired;
+
+  checkInReasonDialogError.value = getCheckInReasonDialogMessage(
+    nextWrongLocationRequired,
+    nextLateRequired,
   );
 };
 
@@ -217,28 +389,175 @@ const handleRefresh = async () => {
   await loadMyAttendance();
 };
 
+const closeCheckInReasonDialog = () => {
+  checkInReasonDialogVisible.value = false;
+  checkInReasonDialogError.value = "";
+  requireWrongLocationReason.value = false;
+  requireLateReason.value = false;
+  wrongLocationReason.value = "";
+  lateReason.value = "";
+  pendingCheckIn.value = null;
+};
+
+const submitCheckInReasons = async () => {
+  const pending = pendingCheckIn.value;
+  if (!pending) return;
+
+  const wrongLoc = wrongLocationReason.value.trim();
+  const late = lateReason.value.trim();
+
+  if (requireWrongLocationReason.value && !wrongLoc) {
+    checkInReasonDialogError.value = "Please add the wrong location reason.";
+    return;
+  }
+
+  if (requireLateReason.value && !late) {
+    checkInReasonDialogError.value = "Please add the late check-in reason.";
+    return;
+  }
+
+  checkInReasonDialogError.value = "";
+  isCheckingIn.value = true;
+  actionError.value = "";
+  geolocationError.value = "";
+
+  try {
+    await attendanceService.checkIn(
+      {
+        check_in_time: pending.checkInTime,
+        latitude: pending.location.latitude,
+        longitude: pending.location.longitude,
+        wrong_location_reason: wrongLoc || null,
+        late_reason: late || null,
+      },
+      {
+        showError: false,
+      },
+    );
+
+    closeCheckInReasonDialog();
+    await loadMyAttendance();
+  } catch (error) {
+    const needWrongLoc = isWrongLocationReasonRequiredError(error);
+    const needLate = isLateReasonRequiredError(error);
+    const message = resolveErrorMessage(error);
+
+    if (needWrongLoc || needLate) {
+      syncCheckInReasonRequirements(needWrongLoc, needLate);
+      return;
+    }
+
+    closeCheckInReasonDialog();
+    actionError.value = message;
+  } finally {
+    isCheckingIn.value = false;
+  }
+};
+
+const closeEarlyLeaveDialog = () => {
+  earlyLeaveDialogVisible.value = false;
+  earlyLeaveDialogError.value = "";
+  earlyLeaveReason.value = "";
+  pendingEarlyLeaveCheckOut.value = null;
+};
+
+const submitEarlyLeaveReason = async () => {
+  const pending = pendingEarlyLeaveCheckOut.value;
+  if (!pending) return;
+
+  const reason = earlyLeaveReason.value.trim();
+  if (!reason) {
+    earlyLeaveDialogError.value =
+      "Please add a reason before continuing with check-out.";
+    return;
+  }
+
+  if (reason.length > 300) {
+    earlyLeaveDialogError.value = "Reason must be at most 300 characters.";
+    return;
+  }
+
+  earlyLeaveDialogError.value = "";
+  isCheckingOut.value = true;
+  actionError.value = "";
+  geolocationError.value = "";
+
+  try {
+    await attendanceService.checkOut(
+      {
+        check_out_time: pending.checkOutTime,
+        latitude: pending.location.latitude,
+        longitude: pending.location.longitude,
+        early_leave_reason: reason,
+      },
+      {
+        showError: false,
+      },
+    );
+
+    closeEarlyLeaveDialog();
+    await loadMyAttendance();
+  } catch (error) {
+    const message = resolveErrorMessage(error);
+
+    if (isEarlyLeaveReasonRequiredError(error)) {
+      earlyLeaveDialogError.value = message;
+      return;
+    }
+
+    closeEarlyLeaveDialog();
+    actionError.value = message;
+  } finally {
+    isCheckingOut.value = false;
+  }
+};
+
 const handleCheckIn = async () => {
   if (!canCheckIn.value) return;
 
   isCheckingIn.value = true;
   actionError.value = "";
   geolocationError.value = "";
+  checkInReasonDialogError.value = "";
+  pendingCheckIn.value = null;
+
+  let location: GeoCoordinates | null = null;
+  let checkInTime = "";
 
   try {
-    const location = await getGeolocation();
-    const checkInTime = new Date().toISOString();
+    location = await getGeolocation();
+    checkInTime = new Date().toISOString();
 
-    await attendanceService.checkIn({
-      check_in_time: checkInTime,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      wrong_location_reason: wrongLocationReason.value.trim() || null,
-    });
-
-    wrongLocationReason.value = "";
+    await attendanceService.checkIn(
+      {
+        check_in_time: checkInTime,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        wrong_location_reason: null,
+        late_reason: null,
+      },
+      {
+        showError: false,
+      },
+    );
 
     await loadMyAttendance();
   } catch (error) {
+    const needWrongLoc = isWrongLocationReasonRequiredError(error);
+    const needLate = isLateReasonRequiredError(error);
+
+    if ((needWrongLoc || needLate) && location && checkInTime) {
+      pendingCheckIn.value = {
+        checkInTime,
+        location,
+      };
+      wrongLocationReason.value = "";
+      lateReason.value = "";
+      syncCheckInReasonRequirements(needWrongLoc, needLate);
+      checkInReasonDialogVisible.value = true;
+      return;
+    }
+
     const message = resolveErrorMessage(error);
     actionError.value = message;
 
@@ -259,19 +578,40 @@ const handleCheckOut = async () => {
   isCheckingOut.value = true;
   actionError.value = "";
   geolocationError.value = "";
+  earlyLeaveDialogError.value = "";
+  pendingEarlyLeaveCheckOut.value = null;
+
+  let location: GeoCoordinates | null = null;
+  let checkOutTime = "";
 
   try {
-    const location = await getGeolocation();
-    const checkOutTime = new Date().toISOString();
+    location = await getGeolocation();
+    checkOutTime = new Date().toISOString();
 
-    await attendanceService.checkOut({
-      check_out_time: checkOutTime,
-      latitude: location.latitude,
-      longitude: location.longitude,
-    });
+    await attendanceService.checkOut(
+      {
+        check_out_time: checkOutTime,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        early_leave_reason: null,
+      },
+      {
+        showError: false,
+      },
+    );
 
     await loadMyAttendance();
   } catch (error) {
+    if (isEarlyLeaveReasonRequiredError(error) && location && checkOutTime) {
+      pendingEarlyLeaveCheckOut.value = {
+        checkOutTime,
+        location,
+      };
+      earlyLeaveReason.value = "";
+      earlyLeaveDialogVisible.value = true;
+      return;
+    }
+
     const message = resolveErrorMessage(error);
     actionError.value = message;
 
@@ -585,20 +925,10 @@ const formatDate = (iso?: string | null) => {
               </span>
             </div>
 
-            <label
-              for="wrong-location-reason"
-              class="mt-4 block text-sm font-medium text-slate-700"
-            >
-              Wrong Location Reason (Optional)
-            </label>
-            <textarea
-              id="wrong-location-reason"
-              v-model="wrongLocationReason"
-              rows="3"
-              class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100"
-              :disabled="!canCheckIn"
-              placeholder="If you are checking in from a different location, add a reason for admin review..."
-            />
+            <p class="mt-4 text-sm text-slate-500">
+              Additional reasons are requested only when backend validation
+              requires them.
+            </p>
 
             <button
               type="button"
@@ -654,5 +984,189 @@ const formatDate = (iso?: string | null) => {
         </div>
       </section>
     </div>
+
+    <ElDialog
+      v-model="checkInReasonDialogVisible"
+      title="Check-In Reasons"
+      width="560px"
+      class="check-in-reason-dialog"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      @close="closeCheckInReasonDialog"
+    >
+      <div class="space-y-4">
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p class="text-sm font-semibold text-amber-900">
+            Additional reason is required before check-in can continue.
+          </p>
+          <p class="mt-1 text-sm text-amber-800">
+            <span v-if="requireWrongLocationReason && requireLateReason">
+              Please provide both wrong location and late check-in reasons.
+            </span>
+            <span v-else-if="requireWrongLocationReason">
+              Please provide the wrong location reason.
+            </span>
+            <span v-else-if="requireLateReason">
+              Please provide the late check-in reason.
+            </span>
+            <span v-else>Please provide the required reason fields below.</span>
+          </p>
+        </div>
+
+        <div v-if="requireWrongLocationReason">
+          <label
+            for="check-in-wrong-location-reason"
+            class="block text-sm font-medium text-slate-700"
+          >
+            Wrong Location Reason *
+          </label>
+          <textarea
+            id="check-in-wrong-location-reason"
+            v-model="wrongLocationReason"
+            rows="3"
+            class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+            placeholder="Explain why you checked in from a different location..."
+          />
+        </div>
+
+        <div v-if="requireLateReason">
+          <label
+            for="check-in-late-reason"
+            class="block text-sm font-medium text-slate-700"
+          >
+            Late Check-In Reason *
+          </label>
+          <textarea
+            id="check-in-late-reason"
+            v-model="lateReason"
+            rows="3"
+            maxlength="300"
+            class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+            placeholder="Explain why you checked in late..."
+          />
+          <p class="mt-1 text-xs text-slate-500">{{ lateReason.length }}/300</p>
+        </div>
+
+        <div
+          v-if="checkInReasonDialogError"
+          class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+        >
+          {{ checkInReasonDialogError }}
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <BaseButton type="default" @click="closeCheckInReasonDialog">
+            Cancel
+          </BaseButton>
+          <BaseButton
+            type="primary"
+            :loading="isCheckingIn"
+            @click="submitCheckInReasons"
+          >
+            Submit Reasons
+          </BaseButton>
+        </div>
+      </template>
+    </ElDialog>
+
+    <ElDialog
+      v-model="earlyLeaveDialogVisible"
+      title="Early Check-Out Reason"
+      width="560px"
+      class="early-leave-dialog"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      @close="closeEarlyLeaveDialog"
+    >
+      <div class="space-y-4">
+        <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <p class="text-sm font-semibold text-amber-900">
+            Your check-out needs an early leave reason.
+          </p>
+          <p class="mt-1 text-sm text-amber-800">
+            Please explain why you are checking out early.
+          </p>
+        </div>
+
+        <div>
+          <label
+            for="early-leave-reason"
+            class="block text-sm font-medium text-slate-700"
+          >
+            Reason
+          </label>
+          <textarea
+            id="early-leave-reason"
+            v-model="earlyLeaveReason"
+            rows="4"
+            maxlength="300"
+            class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-700 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--color-primary)_18%,transparent)]"
+            placeholder="Write your early check-out reason..."
+          />
+          <p class="mt-1 text-xs text-slate-500">
+            {{ earlyLeaveReason.length }}/300
+          </p>
+        </div>
+
+        <div
+          v-if="earlyLeaveDialogError"
+          class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+        >
+          {{ earlyLeaveDialogError }}
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <BaseButton type="default" @click="closeEarlyLeaveDialog">
+            Cancel
+          </BaseButton>
+          <BaseButton
+            type="primary"
+            :loading="isCheckingOut"
+            @click="submitEarlyLeaveReason"
+          >
+            Submit Reason
+          </BaseButton>
+        </div>
+      </template>
+    </ElDialog>
   </div>
 </template>
+
+<style scoped>
+:deep(.check-in-reason-dialog .el-dialog),
+:deep(.early-leave-dialog .el-dialog) {
+  border: 1px solid
+    color-mix(in srgb, var(--el-color-warning) 22%, var(--border-color) 78%);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-card) 96%, var(--color-bg) 4%);
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--text-color) 14%, transparent);
+}
+
+:deep(.check-in-reason-dialog .el-dialog__header),
+:deep(.early-leave-dialog .el-dialog__header) {
+  padding: 18px 20px 8px;
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--el-color-warning) 14%, var(--border-color) 86%);
+}
+
+:deep(.check-in-reason-dialog .el-dialog__title),
+:deep(.early-leave-dialog .el-dialog__title) {
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+:deep(.check-in-reason-dialog .el-dialog__body),
+:deep(.early-leave-dialog .el-dialog__body) {
+  padding: 18px 20px 16px;
+}
+
+:deep(.check-in-reason-dialog .el-dialog__footer),
+:deep(.early-leave-dialog .el-dialog__footer) {
+  padding: 0 20px 20px;
+  border-top: 1px solid transparent;
+}
+</style>

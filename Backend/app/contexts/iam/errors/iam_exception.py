@@ -147,19 +147,6 @@ class InvalidUserDataException(AppBaseException):
 
         )
 
-class UserDeletedException(AppBaseException):
-    def __init__(self, email: str):
-        super().__init__(
-            message=f"User with email '{email}' is deleted",
-            severity=ErrorSeverity.HIGH,
-            category=ErrorCategory.BUSINESS_LOGIC,
-            user_message="The requested user is deleted.",
-            details={"email": email},
-            hint="Verify the user ID or create the user if missing",
-            recoverable=True
-        )
-    
-
 class UnknownRoleException(AppBaseException):
     def __init__(self, role: str):
         super().__init__(
@@ -171,20 +158,6 @@ class UnknownRoleException(AppBaseException):
             hint="Verify the role or create the role if missing",
             recoverable=True
         )
-
-class RoleNotAllowedException(AppBaseException):
-    def __init__(self, role: str):
-        super().__init__(
-            message=f"Role '{role}' is not allowed",
-            severity=ErrorSeverity.HIGH,
-            category=ErrorCategory.BUSINESS_LOGIC,
-            user_message=f"The role '{role}' cannot be assigned.",
-            details={"field": "role", "value": role},
-            hint="Assign a valid role from the allowed list",
-            recoverable=True
-        )
-    
-
 
 class UserNotSavedException(AppBaseException):
     def __init__(self, user_id: str):

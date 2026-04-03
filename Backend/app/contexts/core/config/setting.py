@@ -32,7 +32,6 @@ def _is_valid_origin(origin: str) -> bool:
 
 class Settings:
     def __init__(self):
-        # Loads .env locally; in production you should set real env vars
         load_dotenv()
 
         self.DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
@@ -49,8 +48,8 @@ class Settings:
         # Frontend
         self.FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000").strip().rstrip("/")
 
-        # Cookie config (IMPORTANT for prod)
-        self.COOKIE_SECURE: str = os.getenv("COOKIE_SECURE", "false")  # string; cookies.py converts to bool
+        # Cookie config
+        self.COOKIE_SECURE: str = os.getenv("COOKIE_SECURE", "false")
         self.COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "Lax")
         self.COOKIE_DOMAIN: Optional[str] = os.getenv("COOKIE_DOMAIN") or None
         self.COOKIE_PATH: str = os.getenv("COOKIE_PATH", "/api/iam")
@@ -63,6 +62,9 @@ class Settings:
         # Telegram
         self.TELEGRAM_BOT_TOKEN: Optional[str] = os.getenv("TELEGRAM_BOT_TOKEN")
 
+        # Calendarific
+        self.CALENDARIFIC_API_KEY: Optional[str] = os.getenv("CALENDARIFIC_API_KEY")
+
         # CORS
         raw_origins = os.getenv(
             "CORS_ALLOWED_ORIGINS",
@@ -73,7 +75,6 @@ class Settings:
         if self.FRONTEND_URL:
             origins.append(_normalize_origin(self.FRONTEND_URL))
 
-        # de-dupe
         seen = set()
         clean: List[str] = []
         for o in origins:

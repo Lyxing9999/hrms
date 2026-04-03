@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.contexts.core.config.setting import settings
 
 from pymongo.database import Database
 
@@ -13,6 +14,7 @@ from app.contexts.hrms.repositories.deduction_rule_repository import MongoDeduct
 from app.contexts.hrms.repositories.payroll_repository import MongoPayrollRunRepository, MongoPayslipRepository
 from app.contexts.hrms.repositories.audit_log_repository import MongoAuditLogRepository
 from app.contexts.hrms.integrations.iam_gateway import HRMSIamGateway
+from app.contexts.hrms.services.cambodia_public_holiday_provider import CambodiaPublicHolidayProvider
 
 
 class HrmsRepositories:
@@ -29,3 +31,6 @@ class HrmsRepositories:
         self.payslip_repository = MongoPayslipRepository(db)
         self.audit_log_repository = MongoAuditLogRepository(db)
         self.iam_gateway = HRMSIamGateway(db)
+        self.cambodia_public_holiday_provider = CambodiaPublicHolidayProvider(
+        api_key=settings.CALENDARIFIC_API_KEY or "",
+        )

@@ -6,7 +6,7 @@ from .leave_facade import LeaveFacade
 from .payroll_facade import PayrollFacade
 from .hrms_facade import HrmsFacade
 from .work_location_facade import WorkLocationFacade
-
+from .public_holiday_facade import PublicHolidayFacade
 
 __all__ = [
     "EmployeeFacade",
@@ -17,4 +17,5 @@ __all__ = [
     "PayrollFacade",
     "HrmsFacade",
     "WorkLocationFacade",
+    "PublicHolidayFacade",
 ]

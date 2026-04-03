@@ -62,3 +62,33 @@ class ContractDateInvalidException(AppBaseException):
             hint="contract.end_date must be >= contract.start_date",
             recoverable=True,
         )
+
+
+class EmployeeInactiveException(AppBaseException):
+    def __init__(self, employee_id: str, status: str):
+        super().__init__(
+            message=f"Employee '{employee_id}' is not active (status={status})",
+            error_code="EMPLOYEE_INACTIVE",
+            status_code=403,
+            severity=ErrorSeverity.MEDIUM,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="Employee account is not active.",
+            details={"employee_id": employee_id, "status": status},
+            hint="Activate employee status before attendance operations.",
+            recoverable=True,
+        )
+
+
+class EmployeeScheduleNotAssignedException(AppBaseException):
+    def __init__(self, employee_id: str):
+        super().__init__(
+            message=f"Employee '{employee_id}' has no assigned working schedule",
+            error_code="EMPLOYEE_SCHEDULE_NOT_ASSIGNED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="Working schedule is required before attendance operations.",
+            details={"employee_id": employee_id},
+            hint="Assign a working schedule to the employee.",
+            recoverable=True,
+        )

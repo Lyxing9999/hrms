@@ -4,6 +4,9 @@ import { WorkingScheduleApi } from "./schedule";
 import { WorkingScheduleService } from "./schedule";
 import { WorkLocationApi, WorkLocationService } from "./workLocations";
 import { AttendanceApi, AttendanceService } from "./attendance";
+import { PublicHolidayApi, PublicHolidayService } from "./publicHoliday";
+import { OvertimeRequestApi } from "./overtimeRequest/api";
+import { OvertimeRequestService } from "./overtimeRequest/service";
 
 let _hrmsAdminService: ReturnType<typeof createHrmsAdminService> | null = null;
 
@@ -16,6 +19,8 @@ function createHrmsAdminService() {
     workingSchedule: new WorkingScheduleApi($api),
     workLocation: new WorkLocationApi($api),
     attendance: new AttendanceApi($api),
+    publicHoliday: new PublicHolidayApi($api),
+    overtimeRequest: new OvertimeRequestApi($api),
   };
 
   return {
@@ -23,6 +28,8 @@ function createHrmsAdminService() {
     workingSchedule: new WorkingScheduleService(hrmsApi.workingSchedule),
     workLocation: new WorkLocationService(hrmsApi.workLocation),
     attendance: new AttendanceService(hrmsApi.attendance),
+    publicHoliday: new PublicHolidayService(hrmsApi.publicHoliday),
+    overtimeRequest: new OvertimeRequestService(hrmsApi.overtimeRequest),
   };
 }
 

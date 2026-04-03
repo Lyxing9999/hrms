@@ -45,3 +45,16 @@ class WorkLocationDeletedException(AppBaseException):
             error_code="WORK_LOCATION_DELETED",
             status_code=410,
         )
+
+
+class WorkLocationInactiveException(AppBaseException):
+    def __init__(self, location_id: str):
+        super().__init__(
+            message=f"Work location '{location_id}' is inactive",
+            error_code="WORK_LOCATION_INACTIVE",
+            status_code=400,
+            user_message="Assigned work location is inactive.",
+            details={"location_id": location_id},
+            hint="Activate the location or assign another active location.",
+            recoverable=True,
+        )

@@ -4,6 +4,14 @@ from enum import Enum
 from datetime import datetime
 from bson import ObjectId
 
+from app.contexts.hrms.errors.attendance_exceptions import (
+    AlreadyCheckedInTodayException,
+    AttendanceAlreadyCheckedOutException,
+    AttendanceCheckInRequiredException,
+    AttendanceWrongLocationReviewStateException,
+    InvalidCheckOutTimeException,
+    InvalidLateMinutesException,
+)
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -18,6 +26,13 @@ class AttendanceStatus(str, Enum):
     WRONG_LOCATION_PENDING = "wrong_location_pending"
     WRONG_LOCATION_APPROVED = "wrong_location_approved"
     WRONG_LOCATION_REJECTED = "wrong_location_rejected"
+
+
+class ReviewStatus(str, Enum):
+    NOT_REQUIRED = "not_required"
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
 
 
 class Attendance:
@@ -39,8 +54,12 @@ class Attendance:
         late_minutes: int = 0,
         early_leave_minutes: int = 0,
         wrong_location_reason: str | None = None,
+        late_reason: str | None = None,
+        early_leave_reason: str | None = None,
+        early_leave_review_status: ReviewStatus | str = ReviewStatus.NOT_REQUIRED,
         admin_comment: str | None = None,
         location_reviewed_by: ObjectId | None = None,
+        early_leave_reviewed_by: ObjectId | None = None,
         id: ObjectId | None = None,
         lifecycle: Lifecycle | None = None,
     ) -> None:
@@ -60,8 +79,12 @@ class Attendance:
         self.late_minutes = int(late_minutes)
         self.early_leave_minutes = int(early_leave_minutes)
         self.wrong_location_reason = (wrong_location_reason or "").strip() or None
+        self.late_reason = (late_reason or "").strip() or None
+        self.early_leave_reason = (early_leave_reason or "").strip() or None
+        self.early_leave_review_status = ReviewStatus(str(early_leave_review_status).strip().lower())
         self.admin_comment = (admin_comment or "").strip() or None
         self.location_reviewed_by = location_reviewed_by
+        self.early_leave_reviewed_by = early_leave_reviewed_by
         self.lifecycle = lifecycle or Lifecycle()
 
     def check_in(
@@ -74,7 +97,7 @@ class Attendance:
         reason: str | None = None,
     ) -> None:
         if self.check_in_time is not None:
-            raise ValueError("Attendance already checked in")
+            raise AlreadyCheckedInTodayException(self.employee_id)
 
         self.check_in_time = check_in_time
         self.check_in_latitude = latitude
@@ -95,24 +118,29 @@ class Attendance:
         latitude: float | None = None,
         longitude: float | None = None,
         early_leave_minutes: int = 0,
+        early_leave_reason: str | None = None,
+        require_early_leave_review: bool = False,
     ) -> None:
         if self.check_in_time is None:
-            raise ValueError("Cannot check out before check in")
+            raise AttendanceCheckInRequiredException(self.employee_id)
         if self.check_out_time is not None:
-            raise ValueError("Attendance already checked out")
+            raise AttendanceAlreadyCheckedOutException(self.id)
         if check_out_time < self.check_in_time:
-            raise ValueError("Check-out time cannot be before check-in time")
+            raise InvalidCheckOutTimeException(self.id)
 
         self.check_out_time = check_out_time
         self.check_out_latitude = latitude
         self.check_out_longitude = longitude
         self.early_leave_minutes = int(early_leave_minutes)
+        self.early_leave_reason = (early_leave_reason or "").strip() or None
 
         if self.status == AttendanceStatus.WRONG_LOCATION_PENDING:
-            # Keep pending until admin reviews.
             pass
         elif early_leave_minutes > 0:
             self.status = AttendanceStatus.EARLY_LEAVE
+            self.early_leave_review_status = (
+                ReviewStatus.PENDING if require_early_leave_review else ReviewStatus.NOT_REQUIRED
+            )
         elif self.late_minutes > 0:
             self.status = AttendanceStatus.LATE
         else:
@@ -122,7 +150,7 @@ class Attendance:
 
     def mark_late(self, late_minutes: int) -> None:
         if late_minutes < 0:
-            raise ValueError("late_minutes cannot be negative")
+            raise InvalidLateMinutesException(late_minutes)
         self.late_minutes = int(late_minutes)
         if self.status not in {
             AttendanceStatus.WRONG_LOCATION_PENDING,
@@ -134,7 +162,10 @@ class Attendance:
 
     def approve_wrong_location(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
         if self.status != AttendanceStatus.WRONG_LOCATION_PENDING:
-            raise ValueError("Attendance is not waiting for wrong-location approval")
+            raise AttendanceWrongLocationReviewStateException(
+                attendance_id=self.id,
+                current_status=str(self.status),
+            )
         self.status = AttendanceStatus.WRONG_LOCATION_APPROVED
         self.location_reviewed_by = admin_id
         self.admin_comment = (comment or "").strip() or None
@@ -142,9 +173,24 @@ class Attendance:
 
     def reject_wrong_location(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
         if self.status != AttendanceStatus.WRONG_LOCATION_PENDING:
-            raise ValueError("Attendance is not waiting for wrong-location approval")
+            raise AttendanceWrongLocationReviewStateException(
+                attendance_id=self.id,
+                current_status=str(self.status),
+            )
         self.status = AttendanceStatus.WRONG_LOCATION_REJECTED
         self.location_reviewed_by = admin_id
+        self.admin_comment = (comment or "").strip() or None
+        self.lifecycle.touch(now_utc())
+
+    def approve_early_leave(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
+        self.early_leave_review_status = ReviewStatus.APPROVED
+        self.early_leave_reviewed_by = admin_id
+        self.admin_comment = (comment or "").strip() or None
+        self.lifecycle.touch(now_utc())
+
+    def reject_early_leave(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
+        self.early_leave_review_status = ReviewStatus.REJECTED
+        self.early_leave_reviewed_by = admin_id
         self.admin_comment = (comment or "").strip() or None
         self.lifecycle.touch(now_utc())
 

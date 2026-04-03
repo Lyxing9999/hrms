@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Optional
-
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
 from app.contexts.admin.data_transfer.responses.common import PaginatedDTO
 
 
-class OvertimeRequestDTO(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra="ignore", populate_by_name=True)
-
+class OvertimeDTO(BaseModel):
     id: str
     employee_id: str
     request_date: date
@@ -23,12 +19,11 @@ class OvertimeRequestDTO(BaseModel):
     basic_salary: float
     submitted_at: datetime
     status: str
-    manager_id: Optional[str] = None
-    manager_comment: Optional[str] = None
-    approved_hours: float = 0
-    calculated_payment: float = 0
+    manager_id: str | None = None
+    manager_comment: str | None = None
+    approved_hours: float = 0.0
+    calculated_payment: float = 0.0
     lifecycle: LifecycleDTO
 
-
-class OvertimeRequestPaginatedDTO(PaginatedDTO[OvertimeRequestDTO]):
+class OvertimeRequestPaginatedDTO(PaginatedDTO[OvertimeDTO]):
     pass

@@ -35,6 +35,7 @@ def check_in():
         latitude=payload.latitude,
         longitude=payload.longitude,
         wrong_location_reason=payload.wrong_location_reason,
+        late_reason=payload.late_reason,
     )
 
     return mapper.to_dto(attendance)
@@ -52,6 +53,7 @@ def check_out():
         check_out_time=payload.check_out_time,
         latitude=payload.latitude,
         longitude=payload.longitude,
+        early_leave_reason=payload.early_leave_reason,
     )
 
     return mapper.to_dto(attendance)

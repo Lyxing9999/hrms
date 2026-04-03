@@ -49,3 +49,4 @@ eventlet
 redis==5.0.8
 flask-limiter==3.7.0
 rich==13.9.4
+requests

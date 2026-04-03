@@ -1,11 +1,12 @@
-# app/contexts/hrms/mapper/public_holiday_mapper.py
+from __future__ import annotations
+
+from datetime import date as date_type, datetime
 from bson import ObjectId
-from datetime import date as date_type
 
 from app.contexts.hrms.domain.public_holiday import PublicHoliday
+from app.contexts.hrms.data_transfer.response.public_holiday_response import PublicHolidayDTO
 from app.contexts.shared.lifecycle.domain import Lifecycle
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
-from app.contexts.hrms.data_transfer.response.public_holiday_response import PublicHolidayDTO
 from app.contexts.shared.model_converter import mongo_converter
 
 
@@ -21,10 +22,22 @@ class PublicHolidayMapper:
         return str(v)
 
     @staticmethod
+    def _parse_date(v):
+        if v is None:
+            return None
+        if isinstance(v, date_type):
+            return v
+        if isinstance(v, datetime):
+            return v.date()
+        if isinstance(v, str):
+            return date_type.fromisoformat(v)
+        return v
+
+    @staticmethod
     def to_domain(data: dict) -> PublicHoliday:
         if not isinstance(data, dict):
             raise TypeError(f"to_domain expected dict, got {type(data)}")
-        
+
         lc_src = data.get("lifecycle") or {}
         lifecycle = Lifecycle(
             created_at=lc_src.get("created_at") or data.get("created_at"),
@@ -33,20 +46,11 @@ class PublicHolidayMapper:
             deleted_by=lc_src.get("deleted_by") or data.get("deleted_by"),
         )
 
-        # Parse date
-        date_val = data.get("date")
-        if isinstance(date_val, str):
-            date_val = date_type.fromisoformat(date_val)
-        elif isinstance(date_val, date_type):
-            pass
-        else:
-            raise ValueError(f"Invalid date format: {date_val}")
-
         return PublicHoliday(
             id=PublicHolidayMapper._oid(data.get("_id") or data.get("id")),
-            name=data.get("name") or "",
+            name=data.get("name", ""),
             name_kh=data.get("name_kh"),
-            date=date_val,
+            date=PublicHolidayMapper._parse_date(data.get("date")),
             is_paid=bool(data.get("is_paid", True)),
             description=data.get("description"),
             created_by=PublicHolidayMapper._oid(data.get("created_by")),
@@ -57,12 +61,12 @@ class PublicHolidayMapper:
     def to_persistence(holiday: PublicHoliday) -> dict:
         if not isinstance(holiday, PublicHoliday):
             raise TypeError(f"to_persistence expected PublicHoliday, got {type(holiday)}")
-        
+
         lc = holiday.lifecycle
         doc = {
             "name": holiday.name,
             "name_kh": holiday.name_kh,
-            "date": holiday.date.isoformat(),
+            "date": holiday.date.isoformat() if holiday.date else None,
             "is_paid": holiday.is_paid,
             "description": holiday.description,
             "created_by": PublicHolidayMapper._oid(holiday.created_by),
@@ -94,6 +98,6 @@ class PublicHolidayMapper:
                 created_at=lc.created_at,
                 updated_at=lc.updated_at,
                 deleted_at=lc.deleted_at,
-                deleted_by=lc.deleted_by,
+                deleted_by=PublicHolidayMapper._sid(lc.deleted_by),
             ),
         )

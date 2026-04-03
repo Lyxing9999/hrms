@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from bson import ObjectId
-from datetime import datetime
 
-from app.contexts.hrms.domain.attendance import Attendance, AttendanceStatus
+from app.contexts.hrms.domain.attendance import Attendance, AttendanceStatus, ReviewStatus
 from app.contexts.shared.lifecycle.domain import Lifecycle
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
 from app.contexts.hrms.data_transfer.response.attendance_response import AttendanceDTO
@@ -51,8 +50,15 @@ class AttendanceMapper:
             late_minutes=int(data.get("late_minutes", 0)),
             early_leave_minutes=int(data.get("early_leave_minutes", 0)),
             wrong_location_reason=data.get("wrong_location_reason"),
+            late_reason=data.get("late_reason"),
+            early_leave_reason=data.get("early_leave_reason"),
+            early_leave_review_status=data.get(
+                "early_leave_review_status",
+                ReviewStatus.NOT_REQUIRED.value,
+            ),
             admin_comment=data.get("admin_comment"),
             location_reviewed_by=AttendanceMapper._oid(data.get("location_reviewed_by")),
+            early_leave_reviewed_by=AttendanceMapper._oid(data.get("early_leave_reviewed_by")),
             lifecycle=lifecycle,
         )
 
@@ -78,8 +84,16 @@ class AttendanceMapper:
             "late_minutes": attendance.late_minutes,
             "early_leave_minutes": attendance.early_leave_minutes,
             "wrong_location_reason": attendance.wrong_location_reason,
+            "late_reason": attendance.late_reason,
+            "early_leave_reason": attendance.early_leave_reason,
+            "early_leave_review_status": (
+                attendance.early_leave_review_status.value
+                if hasattr(attendance.early_leave_review_status, "value")
+                else str(attendance.early_leave_review_status)
+            ),
             "admin_comment": attendance.admin_comment,
             "location_reviewed_by": AttendanceMapper._oid(attendance.location_reviewed_by),
+            "early_leave_reviewed_by": AttendanceMapper._oid(attendance.early_leave_reviewed_by),
             "lifecycle": {
                 "created_at": lc.created_at,
                 "updated_at": lc.updated_at,
@@ -113,12 +127,20 @@ class AttendanceMapper:
             late_minutes=attendance.late_minutes,
             early_leave_minutes=attendance.early_leave_minutes,
             wrong_location_reason=attendance.wrong_location_reason,
+            late_reason=attendance.late_reason,
+            early_leave_reason=attendance.early_leave_reason,
+            early_leave_review_status=(
+                attendance.early_leave_review_status.value
+                if hasattr(attendance.early_leave_review_status, "value")
+                else str(attendance.early_leave_review_status)
+            ),
             admin_comment=attendance.admin_comment,
             location_reviewed_by=AttendanceMapper._sid(attendance.location_reviewed_by),
+            early_leave_reviewed_by=AttendanceMapper._sid(attendance.early_leave_reviewed_by),
             lifecycle=LifecycleDTO(
                 created_at=lc.created_at,
                 updated_at=lc.updated_at,
                 deleted_at=lc.deleted_at,
-                deleted_by=lc.deleted_by,
+                deleted_by=AttendanceMapper._sid(lc.deleted_by),
             ),
         )
