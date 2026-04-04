@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+from app.contexts.hrms.composition import repositories
 from app.contexts.hrms.composition.repositories import HrmsRepositories
 from app.contexts.hrms.domain.payroll import PayrollCalculator
 
@@ -13,7 +14,7 @@ from app.contexts.hrms.queries.attendance.get_my_attendance import GetMyAttendan
 from app.contexts.hrms.queries.attendance.list_attendance import ListAttendanceQuery
 from app.contexts.hrms.queries.attendance.get_team_attendance import GetTeamAttendanceQuery
 from app.contexts.hrms.queries.attendance.get_wrong_location_report import GetWrongLocationReportQuery
-
+from app.contexts.hrms.use_cases.employee.onboard_employee_with_account import OnboardEmployeeWithAccountUseCase
 from app.contexts.hrms.use_cases.employee.create_employee import CreateEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.update_employee import UpdateEmployeeUseCase
 from app.contexts.hrms.use_cases.employee.create_employee_account import CreateEmployeeAccountUseCase
@@ -26,7 +27,9 @@ from app.contexts.hrms.use_cases.employee.request_employee_account_password_rese
 )
 from app.contexts.hrms.use_cases.employee.set_account_status import SetAccountStatusUseCase
 from app.contexts.hrms.use_cases.employee.link_employee_account import LinkEmployeeAccountUseCase
-
+from app.contexts.hrms.use_cases.employee.change_employee_account_password import ChangeEmployeeAccountPasswordUseCase
+from app.contexts.hrms.use_cases.employee.request_employee_account_password_reset import RequestEmployeeAccountPasswordResetUseCase
+from app.contexts.hrms.use_cases.employee.change_my_employee_password import ChangeMyEmployeePasswordUseCase
 from app.contexts.hrms.queries.employee.list_employees import ListEmployeesQuery
 from app.contexts.hrms.queries.employee.get_employee import GetEmployeeQuery
 from app.contexts.hrms.queries.employee.get_my_employee_profile import GetMyEmployeeProfileQuery
@@ -109,6 +112,10 @@ class HrmsApplicationServices:
             iam_gateway=repositories.iam_gateway,
         )
 
+        self.change_employee_account_password = ChangeEmployeeAccountPasswordUseCase(
+            employee_repository=repositories.employee_repository,
+            user_management_service=repositories.iam_gateway,
+        )
         self.create_employee = CreateEmployeeUseCase(
             employee_repository=repositories.employee_repository,
         )
@@ -175,7 +182,11 @@ class HrmsApplicationServices:
         self.get_wrong_location_report = GetWrongLocationReportQuery(
             attendance_repository=repositories.attendance_repository,
         )
-
+        self.onboard_employee_with_account = OnboardEmployeeWithAccountUseCase(
+            db=repositories.db,
+            employee_repository=repositories.employee_repository,
+            iam_gateway=repositories.iam_gateway,
+        )
         # working schedule
         self.create_working_schedule = CreateWorkingScheduleUseCase(
             working_schedule_repository=repositories.working_schedule_repository,
@@ -318,6 +329,7 @@ class HrmsApplicationServices:
             update=self.update_employee.execute,
             create_account=self.create_employee_account.execute,
             update_account=self.update_employee_account.execute,
+            change_account_password=self.change_employee_account_password.execute,
             request_account_password_reset=self.request_employee_account_password_reset.execute,
             set_account_status=self.set_account_status.execute,
             soft_delete=self.soft_delete_employee.execute,
@@ -330,6 +342,7 @@ class HrmsApplicationServices:
             list_accounts=self.list_employee_accounts.execute,
             find_by_user_id=self.find_employee_by_user_id.execute,
             assign_schedule=self.assign_employee_schedule.execute,
+            onboard_with_account=self.onboard_employee_with_account.execute,    
         )
 
         self.attendance = SimpleNamespace(

@@ -4,10 +4,14 @@ from app.contexts.hrms.data_transfer.response.employee_response import EmployeeD
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
 
 
+from app.contexts.shared.lifecycle.domain import now_utc
+
 class EmployeeMapper:
     @staticmethod
     def to_dto(data: dict) -> EmployeeDTO:
         lifecycle = data.get("lifecycle") or {}
+        created_at = lifecycle.get("created_at") or data.get("created_at") or now_utc()
+        updated_at = lifecycle.get("updated_at") or data.get("updated_at") or created_at
 
         return EmployeeDTO(
             id=str(data["_id"]),
@@ -26,9 +30,9 @@ class EmployeeMapper:
             created_by=str(data["created_by"]) if data.get("created_by") else None,
             photo_url=data.get("photo_url"),
             lifecycle=LifecycleDTO(
-                created_at=lifecycle.get("created_at"),
-                updated_at=lifecycle.get("updated_at"),
+                created_at=created_at,
+                updated_at=updated_at,
                 deleted_at=lifecycle.get("deleted_at"),
-                deleted_by=lifecycle.get("deleted_by"),
+                deleted_by=str(lifecycle.get("deleted_by")) if lifecycle.get("deleted_by") else None,
             ),
         )

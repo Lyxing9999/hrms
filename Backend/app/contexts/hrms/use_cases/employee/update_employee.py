@@ -15,7 +15,8 @@ class UpdateEmployeeUseCase:
         update_data = payload.model_dump(exclude_unset=True)
 
         if "contract" in update_data and update_data["contract"] is not None:
-            update_data["contract"] = payload.contract.model_dump()
+            # Use JSON mode so date fields are serialized to ISO strings.
+            update_data["contract"] = payload.contract.model_dump(mode="json")
 
         if "schedule_id" in update_data:
             update_data["schedule_id"] = mongo_converter.convert_to_object_id(

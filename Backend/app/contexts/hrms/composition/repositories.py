@@ -19,6 +19,7 @@ from app.contexts.hrms.services.cambodia_public_holiday_provider import Cambodia
 
 class HrmsRepositories:
     def __init__(self, *, db: Database) -> None:
+        self.db = db
         self.employee_repository = MongoEmployeeRepository(db)
         self.attendance_repository = MongoAttendanceRepository(db)
         self.working_schedule_repository = MongoWorkingScheduleRepository(db)

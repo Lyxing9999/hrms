@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.employee_exceptions import (
+    EmployeeAccountAlreadyLinkedException,
+    EmployeeLinkedAccountNotFoundException,
+    EmployeeLinkedAccountRoleNotAllowedException,
+    EmployeeNotFoundException,
+)
 from app.contexts.shared.model_converter import mongo_converter
 from app.contexts.shared.lifecycle.domain import now_utc
 
@@ -18,20 +24,26 @@ class LinkEmployeeAccountUseCase:
     ):
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
-            raise ValueError("Employee not found")
+            raise EmployeeNotFoundException(employee_id)
 
         account = self.iam_gateway.get_account_summary_by_user_id(user_id)
         if not account:
-            raise ValueError("Account not found")
+            raise EmployeeLinkedAccountNotFoundException(user_id)
 
         allowed_roles = {"employee", "manager", "payroll_manager"}
         role = str(account.get("role") or "").strip().lower()
         if role not in allowed_roles:
-            raise ValueError("Account role is not allowed for HRMS employee link")
+            raise EmployeeLinkedAccountRoleNotAllowedException(
+                role=role,
+                allowed_roles=sorted(allowed_roles),
+            )
 
         existing = self.employee_repository.find_by_user_id(user_id)
         if existing and str(existing["_id"]) != str(employee["_id"]):
-            raise ValueError("Account is already linked to another employee")
+            raise EmployeeAccountAlreadyLinkedException(
+                user_id=user_id,
+                linked_employee_id=str(existing["_id"]),
+            )
 
         updated = self.employee_repository.update_fields(
             employee_id,

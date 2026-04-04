@@ -149,6 +149,13 @@ class UserManagementService:
             self._oid(actor_id),
         )
 
+
+    def change_password(self, *, user_id: str | ObjectId, new_password: str) -> None:
+        user_oid, iam = self._require_user(user_id)
+        hashed_password = self._auth_service.hash_password(new_password)
+        iam.update_info(password=hashed_password)
+        self._iam_repository.update(user_oid, self._iam_mapper.to_persistence(iam))
+
     def set_user_status(self, *, user_id: str | ObjectId, status) -> dict:
         user_oid, iam = self._require_user(user_id)
         iam.set_status(status)

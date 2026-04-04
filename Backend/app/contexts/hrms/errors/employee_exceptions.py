@@ -92,3 +92,68 @@ class EmployeeScheduleNotAssignedException(AppBaseException):
             hint="Assign a working schedule to the employee.",
             recoverable=True,
         )
+
+
+class EmployeeLinkedAccountNotFoundException(AppBaseException):
+    def __init__(self, user_id: str):
+        super().__init__(
+            message=f"Linked IAM account '{user_id}' not found",
+            error_code="EMPLOYEE_LINKED_ACCOUNT_NOT_FOUND",
+            status_code=404,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="The selected account was not found.",
+            details={"user_id": user_id},
+            hint="Verify the account id exists in IAM before linking.",
+            recoverable=True,
+        )
+
+
+class EmployeeLinkedAccountRoleNotAllowedException(AppBaseException):
+    def __init__(self, role: str, allowed_roles: list[str]):
+        super().__init__(
+            message=(
+                f"Account role '{role}' is not allowed for employee link. "
+                f"Allowed roles: {allowed_roles}"
+            ),
+            error_code="EMPLOYEE_LINKED_ACCOUNT_ROLE_NOT_ALLOWED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="The selected account role is not allowed for employee linking.",
+            details={"role": role, "allowed_roles": allowed_roles},
+            hint="Use one of the allowed HRMS roles for the linked account.",
+            recoverable=True,
+        )
+
+
+class EmployeeAccountAlreadyLinkedException(AppBaseException):
+    def __init__(self, user_id: str, linked_employee_id: str):
+        super().__init__(
+            message=(
+                f"Account '{user_id}' is already linked to employee '{linked_employee_id}'"
+            ),
+            error_code="EMPLOYEE_ACCOUNT_ALREADY_LINKED",
+            status_code=409,
+            severity=ErrorSeverity.MEDIUM,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="This account is already linked to another employee.",
+            details={"user_id": user_id, "linked_employee_id": linked_employee_id},
+            hint="Unlink the account from the current employee before linking it again.",
+            recoverable=True,
+        )
+
+
+class EmployeeLinkedAccountRequiredException(AppBaseException):
+    def __init__(self, employee_id: str):
+        super().__init__(
+            message=f"Employee '{employee_id}' has no linked IAM account",
+            error_code="EMPLOYEE_LINKED_ACCOUNT_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="Employee has no linked account.",
+            details={"employee_id": employee_id},
+            hint="Link an IAM account to the employee before changing password.",
+            recoverable=True,
+        )

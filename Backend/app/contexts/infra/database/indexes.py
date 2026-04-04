@@ -303,3 +303,16 @@ def ensure_indexes(db: Database) -> None:
     #     unique=True,
     #     partialFilterExpression={"lifecycle.deleted_at": None},
     # )
+
+
+
+    # =========================
+    # EMPLOYEES HRMS
+    # =========================
+    recreate_index(
+        db.employees,
+        [("employee_code", ASCENDING)],
+        name="uq_employee_code_active_only",
+        unique=True,
+        partialFilterExpression={"lifecycle.deleted_at": None},
+    )

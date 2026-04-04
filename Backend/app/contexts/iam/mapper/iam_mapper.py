@@ -74,7 +74,6 @@ class IAMMapper:
                 "deleted_by": lc.deleted_by,
             },
         }
-
     @staticmethod
     def to_safe_dict(iam: IAM) -> dict:
         lc = iam.lifecycle
@@ -89,7 +88,7 @@ class IAMMapper:
                 "created_at": lc.created_at,
                 "updated_at": lc.updated_at,
                 "deleted_at": lc.deleted_at,
-                "deleted_by": lc.deleted_by,
+                "deleted_by": str(lc.deleted_by) if lc.deleted_by else None,
             },
         }
 
@@ -107,6 +106,6 @@ class IAMMapper:
                 created_at=lc.created_at,
                 updated_at=lc.updated_at,
                 deleted_at=lc.deleted_at,
-                deleted_by=lc.deleted_by,
+                deleted_by=str(lc.deleted_by) if lc.deleted_by else None,
             ),
         )

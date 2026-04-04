@@ -4,7 +4,7 @@ from bson import ObjectId
 from pymongo.database import Database
 
 from app.contexts.shared.model_converter import mongo_converter
-
+from pymongo import ReturnDocument
 
 
 
@@ -98,3 +98,28 @@ class MongoEmployeeRepository:
         )
 
         return items, total
+    
+
+    def create_with_session(self, doc: dict, session=None) -> dict:
+        result = self.collection.insert_one(doc, session=session)
+        return self.collection.find_one({"_id": result.inserted_id}, session=session)
+
+
+    def link_user_if_empty_with_session(self, *, employee_id, user_id, session=None) -> dict | None:
+        employee_oid = self._oid(employee_id)
+        user_oid = self._oid(user_id)
+
+        return self.collection.find_one_and_update(
+            {
+                "_id": employee_oid,
+                "user_id": None,
+                "lifecycle.deleted_at": None,
+            },
+            {
+                "$set": {
+                    "user_id": user_oid,
+                }
+            },
+            session=session,
+            return_document=ReturnDocument.AFTER,
+        )

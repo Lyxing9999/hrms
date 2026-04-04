@@ -39,3 +39,13 @@ class DefaultScheduleRequiredException(AppBaseException):
             message="At least one default working schedule must exist",
             status_code=400
         )
+
+
+class WorkingScheduleDeletedException(AppBaseException):
+    def __init__(self, schedule_id):
+        super().__init__(
+            error_code="SCHEDULE_DELETED",
+            message=f"Working schedule is deleted: {schedule_id}",
+            status_code=400,
+            details={"schedule_id": str(schedule_id)},
+        )

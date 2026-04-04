@@ -7,7 +7,7 @@ from pymongo.database import Database
 from app.contexts.shared.model_converter import mongo_converter
 from app.contexts.iam.read_models.iam_read_model import IAMReadModel
 from app.contexts.iam.services.user_management_service import UserManagementService
-
+from app.contexts.iam.mapper.iam_mapper import IAMMapper
 
 class HRMSIamGateway:
     """
@@ -26,9 +26,11 @@ class HRMSIamGateway:
         *,
         user_management_service: UserManagementService | None = None,
         iam_read_model: IAMReadModel | None = None,
+        iam_mapper: IAMMapper | None = None
     ) -> None:
         self._user_management = user_management_service or UserManagementService(db)
         self._iam_read_model = iam_read_model or IAMReadModel(db)
+        self._iam_mapper = iam_mapper or IAMMapper()
 
     def _oid(self, value: str | ObjectId | None) -> ObjectId | None:
         if value is None:
@@ -96,6 +98,12 @@ class HRMSIamGateway:
             actor_id=actor_id,
         )
 
+    def change_password(self, *, user_id: str | ObjectId, new_password: str) -> None:
+        self._user_management.change_password(
+            user_id=user_id,
+            new_password=new_password,
+        )
+
     # query side
     def get_account_summary_by_user_id(self, user_id: str | ObjectId | None) -> Optional[dict]:
         oid = self._oid(user_id)
@@ -149,3 +157,8 @@ class HRMSIamGateway:
             status=status,
         )
         return [self._summary_from_raw_user(row) for row in rows], total
+        
+
+
+    def to_account_dto(self, iam):
+        return self._iam_mapper.to_dto(iam)

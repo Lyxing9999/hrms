@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.employee_exceptions import EmployeeAccountAlreadyLinkedException
 
 
 
@@ -12,7 +13,10 @@ class CreateEmployeeAccountUseCase:
         employee = self.employee_repository.find_by_id(employee_id)
 
         if employee.get("user_id"):
-            raise ValueError("Employee already linked to account")
+            raise EmployeeAccountAlreadyLinkedException(
+                user_id=str(employee.get("user_id")),
+                linked_employee_id=str(employee.get("_id")),
+            )
 
         iam_user = self.iam_gateway.create_user_for_employee(
             email=payload.email,
@@ -26,5 +30,4 @@ class CreateEmployeeAccountUseCase:
             employee["_id"],
             {"user_id": iam_user.id},
         )
-
         return iam_user, employee

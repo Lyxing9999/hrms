@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.employee_exceptions import (
+    EmployeeLinkedAccountRequiredException,
+    EmployeeNotFoundException,
+)
+
 
 class UpdateEmployeeAccountUseCase:
     def __init__(self, *, employee_repository, iam_gateway) -> None:
@@ -16,11 +21,11 @@ class UpdateEmployeeAccountUseCase:
     ):
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
-            raise ValueError("Employee not found")
+            raise EmployeeNotFoundException(employee_id)
 
         user_id = employee.get("user_id")
         if not user_id:
-            raise ValueError("Employee has no linked account")
+            raise EmployeeLinkedAccountRequiredException(str(employee["_id"]))
 
         return self.iam_gateway.update_user_for_employee(
             user_id=user_id,

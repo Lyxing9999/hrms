@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from app.contexts.hrms.errors.employee_exceptions import EmployeeCodeAlreadyExistsException
+
 
 class CreateEmployeeUseCase:
     def __init__(self, *, employee_repository) -> None:
@@ -10,7 +12,7 @@ class CreateEmployeeUseCase:
     def execute(self, *, payload, created_by_user_id):
         existing = self.employee_repository.find_by_employee_code(payload.employee_code)
         if existing:
-            raise ValueError("Employee code already exists")
+            raise EmployeeCodeAlreadyExistsException(payload.employee_code)
         doc = {
             "employee_code": payload.employee_code,
             "full_name": payload.full_name,
@@ -18,7 +20,8 @@ class CreateEmployeeUseCase:
             "position": payload.position,
             "employment_type": payload.employment_type,
             "basic_salary": payload.basic_salary,
-            "contract": payload.contract.model_dump() if payload.contract else None,
+            # Use JSON mode so date fields are serialized to ISO strings.
+            "contract": payload.contract.model_dump(mode="json") if payload.contract else None,
             "manager_user_id": payload.manager_user_id,
             "schedule_id": payload.schedule_id,
             "work_location_id": payload.work_location_id,          
@@ -34,6 +37,6 @@ class CreateEmployeeUseCase:
             },
         }
 
-        print("this is doc to be created:", doc)
+
 
         return self.employee_repository.create(doc)

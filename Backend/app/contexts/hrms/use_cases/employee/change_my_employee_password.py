@@ -6,20 +6,23 @@ from app.contexts.hrms.errors.employee_exceptions import (
 )
 
 
-class RequestEmployeeAccountPasswordResetUseCase:
-    def __init__(self, *, employee_repository, iam_gateway) -> None:
+class ChangeMyEmployeePasswordUseCase:
+    def __init__(self, *, employee_repository, user_management_service) -> None:
         self.employee_repository = employee_repository
-        self.iam_gateway = iam_gateway
+        self.user_management_service = user_management_service
 
-    def execute(self, *, employee_id: str, actor_id: str):
+    def execute(self, *, employee_id: str, new_password: str) -> dict:
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
             raise EmployeeNotFoundException(employee_id)
+
         user_id = employee.get("user_id")
         if not user_id:
             raise EmployeeLinkedAccountRequiredException(str(employee["_id"]))
 
-        return self.iam_gateway.request_password_reset(
+        self.user_management_service.change_password(
             user_id=user_id,
-            actor_id=actor_id,
+            new_password=new_password,
         )
+
+        return {"message": "Password changed successfully"}

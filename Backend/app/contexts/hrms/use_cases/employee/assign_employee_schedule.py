@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.schedule_exceptions import (
+    WorkingScheduleDeletedException,
+    WorkingScheduleNotFoundException,
+)
 from app.contexts.shared.lifecycle.domain import now_utc
 
 
@@ -23,8 +27,11 @@ class AssignEmployeeScheduleUseCase:
         employee = self.employee_repository.find_by_id(employee_id)
         schedule = self.working_schedule_repository.find_by_id(schedule_id)
 
+        if not schedule:
+            raise WorkingScheduleNotFoundException(schedule_id)
+
         if schedule.is_deleted():
-            raise ValueError("Working schedule is deleted")
+            raise WorkingScheduleDeletedException(schedule_id)
 
         updated_employee = self.employee_repository.update_fields(
             employee_id,
