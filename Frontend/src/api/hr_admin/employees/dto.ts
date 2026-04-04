@@ -66,6 +66,10 @@ export interface HrEmployeeAccountDTO {
   username?: string | null;
   role?: string | null;
   status?: string | null;
+  account_name?: string | null;
+  full_name?: string | null;
+  display_name?: string | null;
+  name?: string | null;
 }
 
 export interface HrCreateEmployeeAccountDTO {
@@ -73,6 +77,14 @@ export interface HrCreateEmployeeAccountDTO {
   email: string;
   password: string;
   role: Role;
+}
+
+export interface HrEmployeeOnboardDTO {
+  employee: HrCreateEmployeeDTO;
+  email: string;
+  password: string;
+  username?: string;
+  role?: string;
 }
 
 export interface HrEmployeeWithAccountDTO {
@@ -83,6 +95,7 @@ export interface HrEmployeeWithAccountDTO {
 export interface HrEmployeeWithAccountSummaryDTO {
   employee: HrEmployeeDTO;
   account?: HrEmployeeAccountDTO | null;
+  user?: HrEmployeeAccountDTO | null;
 }
 
 export interface HrEmployeeWithAccountSummaryPaginatedDTO {
@@ -102,6 +115,7 @@ export type HrGetEmployeeAccountResponse =
   ApiResponse<HrEmployeeAccountDTO | null>;
 export type HrCreateEmployeeAccountResponse =
   ApiResponse<HrEmployeeWithAccountDTO>;
+export type HrEmployeeOnboardResponse = ApiResponse<HrEmployeeWithAccountDTO>;
 export type HrSoftDeleteEmployeeAccountResponse =
   ApiResponse<HrEmployeeAccountDTO>;
 export type HrRestoreEmployeeAccountResponse =

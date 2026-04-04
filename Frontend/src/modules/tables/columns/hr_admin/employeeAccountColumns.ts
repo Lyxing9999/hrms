@@ -4,6 +4,9 @@ import { h } from "vue";
 
 export type HrEmployeeAccountRow = {
   id: string;
+  user_id?: string | null;
+  is_linked?: boolean;
+  account_name?: string | null;
   email?: string | null;
   username?: string | null;
   role?: string | null;
@@ -15,6 +18,12 @@ export const employeeAccountColumns: ColumnConfig<HrEmployeeAccountRow>[] = [
     field: "username",
     label: "Username",
     minWidth: "180px",
+  },
+  {
+    field: "account_name",
+    label: "Account Name",
+    minWidth: "220px",
+    render: (row) => String(row.account_name ?? "—"),
   },
   {
     field: "email",

@@ -10,6 +10,8 @@ import type {
   HrGetEmployeeAccountResponse,
   HrCreateEmployeeAccountDTO,
   HrCreateEmployeeAccountResponse,
+  HrEmployeeOnboardDTO,
+  HrEmployeeOnboardResponse,
   HrSoftDeleteEmployeeAccountResponse,
   HrRestoreEmployeeAccountResponse,
   ListEmployeesParams,
@@ -88,6 +90,14 @@ export class EmployeeApi {
   async createAccount(id: string, payload: HrCreateEmployeeAccountDTO) {
     const res = await this.$api.post<HrCreateEmployeeAccountResponse>(
       `${this.baseURL}/${id}/create-account`,
+      payload,
+    );
+    return res.data;
+  }
+
+  async onboardEmployee(payload: HrEmployeeOnboardDTO) {
+    const res = await this.$api.post<HrEmployeeOnboardResponse>(
+      `${this.baseURL}/onboard`,
       payload,
     );
     return res.data;

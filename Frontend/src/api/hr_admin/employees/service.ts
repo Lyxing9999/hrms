@@ -11,6 +11,7 @@ import type {
   HrCreateEmployeeDTO,
   HrUpdateEmployeeDTO,
   HrCreateEmployeeAccountDTO,
+  HrEmployeeOnboardDTO,
   ListEmployeesParams,
   ListEmployeeAccountsParams,
   HrLinkEmployeeAccountDTO,
@@ -95,6 +96,17 @@ export class EmployeeService {
   ) {
     const data = await this.callApi<HrEmployeeWithAccountDTO>(
       () => this.employeeApi.createAccount(employeeId, payload),
+      { showSuccess: true, ...(options ?? {}) },
+    );
+    return data!;
+  }
+
+  async onboardEmployee(
+    payload: HrEmployeeOnboardDTO,
+    options?: ApiCallOptions,
+  ) {
+    const data = await this.callApi<HrEmployeeWithAccountDTO>(
+      () => this.employeeApi.onboardEmployee(payload),
       { showSuccess: true, ...(options ?? {}) },
     );
     return data!;

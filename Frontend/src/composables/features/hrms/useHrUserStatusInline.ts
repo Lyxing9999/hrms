@@ -1,13 +1,13 @@
-import { hrmsAdminService } from "~/api/hr_admin";
 import { Status } from "~/api/types/enums/status.enum";
 import { useInlineStatus } from "~/composables/table-edit/useInlineStatus";
 import type { HrEmployeeAccountRow } from "~/modules/tables/columns/hr_admin/employeeAccountColumns";
+import { useHrEmployeeState } from "~/composables/features/hrms/useHrEmployeeState";
 
 export function useEmployeeAccountStatusInline() {
-  const api = hrmsAdminService();
+  const employeeState = useHrEmployeeState();
 
   return useInlineStatus<HrEmployeeAccountRow, Status>(
-    (id, next) => api.employee.setEmployeeAccountStatus(id, { status: next }),
+    (id, next) => employeeState.setEmployeeAccountStatus(id, { status: next }),
     {
       defaultStatus: Status.ACTIVE,
       isLocked: () => false,

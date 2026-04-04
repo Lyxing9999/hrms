@@ -1,1115 +1,1102 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useNuxtApp } from "nuxt/app";
-import { ElMessage } from "element-plus";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
-import BaseButton from "~/components/base/BaseButton.vue";
+import { hrmsAdminService } from "~/api/hr_admin";
 import type {
   AttendanceDTO,
-  AttendanceStatsDTO,
-} from "~/api/hr_admin/attendance/dto";
-import {
-  Clock,
-  Check,
-  InfoFilled,
-  Timer,
-  Warning,
-  Location,
-  Calendar,
-  TrendCharts,
-} from "@element-plus/icons-vue";
+  AttendanceStatus,
+} from "~/api/hr_admin/attendance";
+import type { WorkingScheduleDTO } from "~/api/hr_admin/schedule";
 
-const { $hrAttendanceService } = useNuxtApp();
-
-// State
-const loading = ref(false);
-const todayAttendance = ref<AttendanceDTO | null>(null);
-const currentPosition = ref<{ latitude: number; longitude: number } | null>(
-  null,
-);
-const notes = ref("");
-const locationDenied = ref(false);
-const isCheckingPermission = ref(false);
-const checkInProgress = ref(0);
-const checkOutProgress = ref(0);
-const currentTime = ref(new Date());
-const activeTab = ref("check-in");
-
-// Attendance history
-const attendanceHistory = ref<AttendanceDTO[]>([]);
-const historyLoading = ref(false);
-const historyPage = ref(1);
-const historyTotal = ref(0);
-const historyPageSize = ref(10);
-
-// Statistics
-const stats = ref<AttendanceStatsDTO | null>(null);
-const statsLoading = ref(false);
-
-// Date range for history
-const dateRange = ref<[Date, Date]>([
-  new Date(new Date().getFullYear(), new Date().getMonth(), 1), // First day of current month
-  new Date(), // Today
-]);
-
-// Computed
-const isCheckedIn = computed(() => todayAttendance.value !== null);
-const isCheckedOut = computed(
-  () => todayAttendance.value?.check_out_time !== null,
-);
-
-const statusColor = computed(() => {
-  if (!todayAttendance.value) return "info";
-  if (todayAttendance.value.status === "late") return "warning";
-  if (todayAttendance.value.status === "early_leave") return "warning";
-  if (todayAttendance.value.status === "checked_out") return "success";
-  return "primary";
-});
-
-const statusText = computed(() => {
-  if (!todayAttendance.value) return "Not Checked In";
-  if (todayAttendance.value.status === "late") return "Late";
-  if (todayAttendance.value.status === "early_leave") return "Early Leave";
-  if (todayAttendance.value.status === "checked_out") return "Checked Out";
-  return "Checked In";
-});
-
-const statusIcon = computed(() => {
-  if (!todayAttendance.value) return Clock;
-  if (todayAttendance.value.status === "late") return Warning;
-  if (todayAttendance.value.status === "checked_out") return Check;
-  return Clock;
-});
-
-const canCheckIn = computed(
-  () => !isCheckedIn.value && !loading.value && !locationDenied.value,
-);
-const canCheckOut = computed(
-  () =>
-    isCheckedIn.value &&
-    !isCheckedOut.value &&
-    !loading.value &&
-    !locationDenied.value,
-);
-
-const formattedDateRange = computed(() => {
-  if (!dateRange.value || dateRange.value.length !== 2) return "";
-  const [start, end] = dateRange.value;
-  return `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
-});
-
-// Methods
-const checkLocationPermission = async (): Promise<boolean> => {
-  if (!navigator.geolocation) {
-    ElMessage.error("Geolocation is not supported by your browser");
-    locationDenied.value = true;
-    return false;
-  }
-
-  try {
-    const permissionStatus = await navigator.permissions.query({
-      name: "geolocation" as PermissionName,
-    });
-
-    if (permissionStatus.state === "denied") {
-      ElMessage.error(
-        "Location permission is blocked. Please enable it in your browser settings.",
-      );
-      locationDenied.value = true;
-      return false;
-    }
-
-    locationDenied.value = false;
-    return true;
-  } catch (e) {
-    console.error("Permission query failed:", e);
-    return true;
-  }
-};
-
-const getCurrentLocation = (): Promise<{
+interface GeoCoordinates {
   latitude: number;
   longitude: number;
-}> => {
-  return new Promise((resolve, reject) => {
+}
+
+const attendanceService = hrmsAdminService().attendance;
+const workingScheduleService = hrmsAdminService().workingSchedule;
+
+const attendance = ref<AttendanceDTO | null>(null);
+const currentLocalTime = ref(new Date());
+
+const isLoadingAttendance = ref(false);
+const isCheckingIn = ref(false);
+const isCheckingOut = ref(false);
+
+const pageError = ref("");
+const actionError = ref("");
+const geolocationError = ref("");
+const scheduleError = ref("");
+const wrongLocationReason = ref("");
+const lateReasonDialogVisible = ref(false);
+const lateReason = ref("");
+const lateReasonError = ref("");
+const earlyLeaveReasonDialogVisible = ref(false);
+const earlyLeaveReason = ref("");
+const earlyLeaveReasonError = ref("");
+const pendingCheckInPayload = ref<{
+  check_in_time: string;
+  latitude: number;
+  longitude: number;
+  wrong_location_reason?: string | null;
+} | null>(null);
+const pendingCheckOutPayload = ref<{
+  check_out_time: string;
+  latitude: number;
+  longitude: number;
+} | null>(null);
+const employeeSchedule = ref<WorkingScheduleDTO | null>(null);
+const isLoadingSchedule = ref(false);
+
+let clockInterval: ReturnType<typeof setInterval> | null = null;
+
+const hasCheckedIn = computed(() => Boolean(attendance.value?.check_in_time));
+const hasCheckedOut = computed(() => Boolean(attendance.value?.check_out_time));
+
+const canCheckIn = computed(
+  () =>
+    !hasCheckedIn.value &&
+    !isLoadingAttendance.value &&
+    !isCheckingIn.value &&
+    !isCheckingOut.value,
+);
+
+const canCheckOut = computed(
+  () =>
+    hasCheckedIn.value &&
+    !hasCheckedOut.value &&
+    !isLoadingAttendance.value &&
+    !isCheckingIn.value &&
+    !isCheckingOut.value,
+);
+
+const showWrongLocationPending = computed(
+  () => attendance.value?.status === "wrong_location_pending",
+);
+
+const dayNameMap = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+const scheduleShiftLabel = computed(() => {
+  if (!employeeSchedule.value) return "-";
+  const start = employeeSchedule.value.start_time?.slice(0, 5) || "-";
+  const end = employeeSchedule.value.end_time?.slice(0, 5) || "-";
+  return `${start} - ${end}`;
+});
+
+const scheduleWorkingDaysLabel = computed(() => {
+  if (!employeeSchedule.value?.working_days?.length) return "-";
+  return employeeSchedule.value.working_days
+    .slice()
+    .sort((a, b) => a - b)
+    .map((day) => dayNameMap[day] ?? String(day))
+    .join(", ");
+});
+
+const statusBadgeClasses = computed(() => {
+  const map: Record<string, string> = {
+    checked_in: "bg-blue-100 text-blue-700 ring-blue-200",
+    checked_out: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+    late: "bg-amber-100 text-amber-700 ring-amber-200",
+    early_leave: "bg-orange-100 text-orange-700 ring-orange-200",
+    absent: "bg-rose-100 text-rose-700 ring-rose-200",
+    holiday_off: "bg-sky-100 text-sky-700 ring-sky-200",
+    weekend_off: "bg-slate-100 text-slate-700 ring-slate-200",
+    wrong_location_pending: "bg-yellow-100 text-yellow-700 ring-yellow-200",
+    wrong_location_approved: "bg-emerald-100 text-emerald-700 ring-emerald-200",
+    wrong_location_rejected: "bg-rose-100 text-rose-700 ring-rose-200",
+  };
+
+  return (
+    map[attendance.value?.status ?? ""] ??
+    "bg-gray-100 text-gray-700 ring-gray-200"
+  );
+});
+
+const clockLabel = computed(() =>
+  currentLocalTime.value.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }),
+);
+
+const formatDateTime = (iso?: string | null) => {
+  if (!iso) return "-";
+
+  return new Date(iso).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatDateOnly = (iso?: string | null) => {
+  if (!iso) return "-";
+
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatCoordinate = (value?: number | null) => {
+  if (typeof value !== "number") return "-";
+  return value.toFixed(6);
+};
+
+const checkInLat = computed(() => attendance.value?.check_in_latitude ?? null);
+const checkInLng = computed(() => attendance.value?.check_in_longitude ?? null);
+const checkOutLat = computed(
+  () => attendance.value?.check_out_latitude ?? null,
+);
+const checkOutLng = computed(
+  () => attendance.value?.check_out_longitude ?? null,
+);
+
+const hasCheckInCoordinates = computed(
+  () =>
+    typeof checkInLat.value === "number" &&
+    typeof checkInLng.value === "number",
+);
+
+const hasCheckOutCoordinates = computed(
+  () =>
+    typeof checkOutLat.value === "number" &&
+    typeof checkOutLng.value === "number",
+);
+
+const primaryMapUrl = computed(() => {
+  if (hasCheckOutCoordinates.value) {
+    return `https://maps.google.com/maps?q=${checkOutLat.value},${checkOutLng.value}&z=16&output=embed`;
+  }
+
+  if (hasCheckInCoordinates.value) {
+    return `https://maps.google.com/maps?q=${checkInLat.value},${checkInLng.value}&z=16&output=embed`;
+  }
+
+  return "";
+});
+
+const checkInGoogleMapsUrl = computed(() => {
+  if (!hasCheckInCoordinates.value) return "";
+  return `https://www.google.com/maps?q=${checkInLat.value},${checkInLng.value}`;
+});
+
+const checkOutGoogleMapsUrl = computed(() => {
+  if (!hasCheckOutCoordinates.value) return "";
+  return `https://www.google.com/maps?q=${checkOutLat.value},${checkOutLng.value}`;
+});
+
+const formatStatusLabel = (status?: string | null) => {
+  if (!status) return "Not Checked In";
+
+  const map: Record<AttendanceStatus, string> = {
+    checked_in: "Checked In",
+    checked_out: "Checked Out",
+    late: "Late",
+    early_leave: "Early Leave",
+    absent: "Absent",
+    holiday_off: "Holiday Off",
+    weekend_off: "Weekend Off",
+    wrong_location_pending: "Wrong Location Pending",
+    wrong_location_approved: "Wrong Location Approved",
+    wrong_location_rejected: "Wrong Location Rejected",
+  };
+
+  return map[status as AttendanceStatus] ?? status;
+};
+
+const resolveErrorMessage = (error: unknown) => {
+  const e = error as {
+    message?: string;
+    response?: {
+      status?: number;
+      data?: { message?: string };
+    };
+  };
+
+  return (
+    e.response?.data?.message ||
+    e.message ||
+    "Something went wrong. Please try again."
+  );
+};
+
+const isLateReasonRequiredError = (error: unknown) => {
+  const e = error as {
+    message?: string;
+    response?: {
+      data?: { message?: string; code?: string };
+    };
+  };
+
+  const code = e.response?.data?.code?.toLowerCase() ?? "";
+  const message =
+    e.response?.data?.message?.toLowerCase() ?? e.message?.toLowerCase() ?? "";
+
+  return (
+    message.includes("late_reason is required") ||
+    message.includes("late check-in reason") ||
+    (code.includes("appbaseexception_error") && message.includes("late"))
+  );
+};
+
+const isEarlyLeaveReasonRequiredError = (error: unknown) => {
+  const e = error as {
+    message?: string;
+    response?: {
+      data?: { message?: string; code?: string };
+    };
+  };
+
+  const code = e.response?.data?.code?.toLowerCase() ?? "";
+  const message =
+    e.response?.data?.message?.toLowerCase() ?? e.message?.toLowerCase() ?? "";
+
+  return (
+    message.includes("early_leave_reason is required") ||
+    message.includes("checking out early") ||
+    (code.includes("appbaseexception_error") &&
+      message.includes("early_leave_reason"))
+  );
+};
+
+const getGeolocation = (): Promise<GeoCoordinates> =>
+  new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported by your browser"));
+      reject(new Error("Geolocation is not supported by your browser."));
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        locationDenied.value = false;
         resolve({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         });
       },
       (error) => {
-        let errorMessage = "Unable to get your location";
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            errorMessage =
-              "You denied the location request. Please allow location access to check in.";
-            locationDenied.value = true;
-            break;
-          case error.POSITION_UNAVAILABLE:
-            errorMessage =
-              "Location information is unavailable. Please try again.";
-            break;
-          case error.TIMEOUT:
-            errorMessage = "Location request timed out. Please try again.";
-            break;
-          default:
-            errorMessage =
-              "An unknown error occurred while getting your location.";
+        if (error.code === error.PERMISSION_DENIED) {
+          reject(
+            new Error(
+              "Location permission was denied. Please allow location access and try again.",
+            ),
+          );
+          return;
         }
-        reject(new Error(errorMessage));
+
+        if (error.code === error.POSITION_UNAVAILABLE) {
+          reject(
+            new Error(
+              "Unable to determine your location right now. Please try again.",
+            ),
+          );
+          return;
+        }
+
+        if (error.code === error.TIMEOUT) {
+          reject(new Error("Location request timed out. Please try again."));
+          return;
+        }
+
+        reject(new Error("Failed to capture your location. Please try again."));
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0,
       },
     );
   });
-};
 
-const loadTodayAttendance = async () => {
+const loadMyAttendance = async () => {
+  isLoadingAttendance.value = true;
+  pageError.value = "";
+  scheduleError.value = "";
+
   try {
-    loading.value = true;
-    todayAttendance.value = await $hrAttendanceService.getTodayAttendance();
-  } catch (error: any) {
-    console.error("Failed to load attendance:", error);
+    attendance.value = await attendanceService.getMyAttendance({
+      showError: false,
+    });
+
+    const scheduleId = attendance.value?.schedule_id;
+    if (!scheduleId) {
+      employeeSchedule.value = null;
+      return;
+    }
+
+    isLoadingSchedule.value = true;
+    try {
+      employeeSchedule.value = await workingScheduleService.getSchedule(
+        scheduleId,
+        { showError: false },
+      );
+    } catch (scheduleLoadError) {
+      employeeSchedule.value = null;
+      scheduleError.value = resolveErrorMessage(scheduleLoadError);
+    } finally {
+      isLoadingSchedule.value = false;
+    }
+  } catch (error) {
+    const message = resolveErrorMessage(error).toLowerCase();
+    const status = (error as { response?: { status?: number } })?.response
+      ?.status;
+
+    if (
+      status === 404 ||
+      message.includes("not found") ||
+      message.includes("no attendance")
+    ) {
+      attendance.value = null;
+      return;
+    }
+
+    pageError.value = resolveErrorMessage(error);
   } finally {
-    loading.value = false;
+    isLoadingAttendance.value = false;
   }
 };
 
+const handleRefresh = async () => {
+  await loadMyAttendance();
+};
+
 const handleCheckIn = async () => {
+  if (!canCheckIn.value) return;
+
+  isCheckingIn.value = true;
+  actionError.value = "";
+  geolocationError.value = "";
+
   try {
-    loading.value = true;
-    checkInProgress.value = 0;
-
-    // Step 1: Check permission (20%)
-    checkInProgress.value = 20;
-    const hasPermission = await checkLocationPermission();
-    if (!hasPermission) {
-      ElMessage.error(
-        "Location access is required to check in. Please enable location permissions.",
-      );
-      checkInProgress.value = 0;
-      return;
-    }
-
-    // Step 2: Get location (50%)
-    checkInProgress.value = 50;
-    try {
-      currentPosition.value = await getCurrentLocation();
-    } catch (error: any) {
-      ElMessage.error(
-        error.message ||
-          "Location access is required to check in. Please enable location permissions.",
-      );
-      locationDenied.value = true;
-      checkInProgress.value = 0;
-      return;
-    }
-
-    // Validate location data
-    if (!currentPosition.value?.latitude || !currentPosition.value?.longitude) {
-      ElMessage.error(
-        "Unable to get your location. Location is required to check in.",
-      );
-      checkInProgress.value = 0;
-      return;
-    }
-
-    // Step 3: Send to backend (80%)
-    checkInProgress.value = 80;
-    const data = {
-      latitude: currentPosition.value.latitude,
-      longitude: currentPosition.value.longitude,
-      notes: notes.value || undefined,
+    const location = await getGeolocation();
+    const checkInTime = new Date().toISOString();
+    const payload = {
+      check_in_time: checkInTime,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      wrong_location_reason: wrongLocationReason.value.trim() || null,
     };
 
-    todayAttendance.value = await $hrAttendanceService.checkIn(data);
+    pendingCheckInPayload.value = payload;
 
-    // Step 4: Complete (100%)
-    checkInProgress.value = 100;
-    ElMessage.success("Checked in successfully!");
+    await attendanceService.checkIn(payload);
 
-    if (todayAttendance.value.late_minutes > 0) {
-      ElMessage.warning(
-        `You are ${todayAttendance.value.late_minutes} minutes late`,
-      );
+    wrongLocationReason.value = "";
+    lateReason.value = "";
+    pendingCheckInPayload.value = null;
+    await loadMyAttendance();
+  } catch (error) {
+    if (isLateReasonRequiredError(error)) {
+      lateReasonError.value = "Please provide a reason for late check-in.";
+      lateReasonDialogVisible.value = true;
+      return;
     }
 
-    notes.value = "";
+    const message = resolveErrorMessage(error);
+    actionError.value = message;
 
-    // Reload history and stats
-    loadAttendanceHistory();
-    loadStats();
-
-    // Reset progress after 1 second
-    setTimeout(() => {
-      checkInProgress.value = 0;
-    }, 1000);
-  } catch (error: any) {
-    ElMessage.error(error.message || "Failed to check in");
-    checkInProgress.value = 0;
+    if (
+      message.toLowerCase().includes("location") ||
+      message.toLowerCase().includes("geolocation")
+    ) {
+      geolocationError.value = message;
+    }
   } finally {
-    loading.value = false;
+    isCheckingIn.value = false;
+  }
+};
+
+const closeLateReasonDialog = () => {
+  lateReasonDialogVisible.value = false;
+  lateReasonError.value = "";
+};
+
+const submitLateReason = async () => {
+  const reason = lateReason.value.trim();
+
+  if (!reason) {
+    lateReasonError.value = "Late reason is required.";
+    return;
+  }
+
+  if (reason.length > 300) {
+    lateReasonError.value = "Late reason must be 300 characters or less.";
+    return;
+  }
+
+  if (!pendingCheckInPayload.value) {
+    lateReasonError.value = "Check-in session expired. Please try again.";
+    return;
+  }
+
+  isCheckingIn.value = true;
+  lateReasonError.value = "";
+
+  try {
+    await attendanceService.checkIn({
+      ...pendingCheckInPayload.value,
+      late_reason: reason,
+    });
+
+    wrongLocationReason.value = "";
+    lateReason.value = "";
+    pendingCheckInPayload.value = null;
+    closeLateReasonDialog();
+    await loadMyAttendance();
+  } catch (error) {
+    const message = resolveErrorMessage(error);
+    lateReasonError.value = message;
+  } finally {
+    isCheckingIn.value = false;
   }
 };
 
 const handleCheckOut = async () => {
-  if (!todayAttendance.value) return;
+  if (!canCheckOut.value) return;
+
+  isCheckingOut.value = true;
+  actionError.value = "";
+  geolocationError.value = "";
 
   try {
-    loading.value = true;
-    checkOutProgress.value = 0;
-
-    // Step 1: Check permission (20%)
-    checkOutProgress.value = 20;
-    const hasPermission = await checkLocationPermission();
-    if (!hasPermission) {
-      ElMessage.error(
-        "Location access is required to check out. Please enable location permissions.",
-      );
-      checkOutProgress.value = 0;
-      return;
-    }
-
-    // Step 2: Get location (50%)
-    checkOutProgress.value = 50;
-    try {
-      currentPosition.value = await getCurrentLocation();
-    } catch (error: any) {
-      ElMessage.error(
-        error.message ||
-          "Location access is required to check out. Please enable location permissions.",
-      );
-      locationDenied.value = true;
-      checkOutProgress.value = 0;
-      return;
-    }
-
-    // Validate location data
-    if (!currentPosition.value?.latitude || !currentPosition.value?.longitude) {
-      ElMessage.error(
-        "Unable to get your location. Location is required to check out.",
-      );
-      checkOutProgress.value = 0;
-      return;
-    }
-
-    // Step 3: Send to backend (80%)
-    checkOutProgress.value = 80;
-    const data = {
-      latitude: currentPosition.value.latitude,
-      longitude: currentPosition.value.longitude,
-      notes: notes.value || undefined,
+    const location = await getGeolocation();
+    const checkOutTime = new Date().toISOString();
+    const payload = {
+      check_out_time: checkOutTime,
+      latitude: location.latitude,
+      longitude: location.longitude,
     };
 
-    todayAttendance.value = await $hrAttendanceService.checkOut(
-      todayAttendance.value.id,
-      data,
-    );
+    pendingCheckOutPayload.value = payload;
 
-    // Step 4: Complete (100%)
-    checkOutProgress.value = 100;
-    ElMessage.success("Checked out successfully!");
+    await attendanceService.checkOut(payload);
 
-    if (todayAttendance.value.early_leave_minutes > 0) {
-      ElMessage.warning(
-        `You left ${todayAttendance.value.early_leave_minutes} minutes early`,
-      );
+    earlyLeaveReason.value = "";
+    pendingCheckOutPayload.value = null;
+    await loadMyAttendance();
+  } catch (error) {
+    if (isEarlyLeaveReasonRequiredError(error)) {
+      earlyLeaveReasonError.value =
+        "Please provide a reason for early check-out.";
+      earlyLeaveReasonDialogVisible.value = true;
+      return;
     }
 
-    notes.value = "";
+    const message = resolveErrorMessage(error);
+    actionError.value = message;
 
-    // Reload history and stats
-    loadAttendanceHistory();
-    loadStats();
-
-    // Reset progress after 1 second
-    setTimeout(() => {
-      checkOutProgress.value = 0;
-    }, 1000);
-  } catch (error: any) {
-    ElMessage.error(error.message || "Failed to check out");
-    checkOutProgress.value = 0;
-  } finally {
-    loading.value = false;
-  }
-};
-
-const formatTime = (dateStr: string | null) => {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleTimeString();
-};
-
-const formatDate = (dateStr: string | null) => {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-};
-
-const getWorkDuration = () => {
-  if (!todayAttendance.value?.check_in_time) return "-";
-  if (!todayAttendance.value?.check_out_time) {
-    const start = new Date(todayAttendance.value.check_in_time);
-    const now = new Date();
-    const diff = now.getTime() - start.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m (ongoing)`;
-  }
-
-  const start = new Date(todayAttendance.value.check_in_time);
-  const end = new Date(todayAttendance.value.check_out_time);
-  const diff = end.getTime() - start.getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h ${minutes}m`;
-};
-
-const calculateDuration = (attendance: AttendanceDTO) => {
-  if (!attendance.check_out_time) return "-";
-
-  const start = new Date(attendance.check_in_time);
-  const end = new Date(attendance.check_out_time);
-  const diff = end.getTime() - start.getTime();
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return `${hours}h ${minutes}m`;
-};
-
-const getStatusType = (status: string) => {
-  switch (status) {
-    case "checked_out":
-      return "success";
-    case "late":
-      return "warning";
-    case "early_leave":
-      return "danger";
-    case "checked_in":
-      return "primary";
-    default:
-      return "info";
-  }
-};
-
-const requestLocationPermission = async () => {
-  isCheckingPermission.value = true;
-  await checkLocationPermission();
-  isCheckingPermission.value = false;
-};
-
-const retryLocationPermission = async () => {
-  isCheckingPermission.value = true;
-
-  try {
-    currentPosition.value = await getCurrentLocation();
-    locationDenied.value = false;
-    ElMessage.success("Location access granted!");
-  } catch (error: any) {
-    await checkLocationPermission();
-    if (locationDenied.value) {
-      ElMessage.error(
-        "Location access is still denied. Please enable it in your browser settings.",
-      );
+    if (
+      message.toLowerCase().includes("location") ||
+      message.toLowerCase().includes("geolocation")
+    ) {
+      geolocationError.value = message;
     }
   } finally {
-    isCheckingPermission.value = false;
+    isCheckingOut.value = false;
   }
 };
 
-// Load attendance history
-const loadAttendanceHistory = async () => {
-  try {
-    historyLoading.value = true;
-    const [startDate, endDate] = dateRange.value;
+const closeEarlyLeaveReasonDialog = () => {
+  earlyLeaveReasonDialogVisible.value = false;
+  earlyLeaveReasonError.value = "";
+};
 
-    const response = await $hrAttendanceService.getMyAttendanceHistory({
-      start_date: startDate.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
-      page: historyPage.value,
-      limit: historyPageSize.value,
+const submitEarlyLeaveReason = async () => {
+  const reason = earlyLeaveReason.value.trim();
+
+  if (!reason) {
+    earlyLeaveReasonError.value = "Early leave reason is required.";
+    return;
+  }
+
+  if (reason.length > 300) {
+    earlyLeaveReasonError.value =
+      "Early leave reason must be 300 characters or less.";
+    return;
+  }
+
+  if (!pendingCheckOutPayload.value) {
+    earlyLeaveReasonError.value =
+      "Check-out session expired. Please try again.";
+    return;
+  }
+
+  isCheckingOut.value = true;
+  earlyLeaveReasonError.value = "";
+
+  try {
+    await attendanceService.checkOut({
+      ...pendingCheckOutPayload.value,
+      early_leave_reason: reason,
     });
 
-    attendanceHistory.value = response.items;
-    historyTotal.value = response.total;
-  } catch (error: any) {
-    console.error("Failed to load attendance history:", error);
-    ElMessage.error("Failed to load attendance history");
+    earlyLeaveReason.value = "";
+    pendingCheckOutPayload.value = null;
+    closeEarlyLeaveReasonDialog();
+    await loadMyAttendance();
+  } catch (error) {
+    const message = resolveErrorMessage(error);
+    earlyLeaveReasonError.value = message;
   } finally {
-    historyLoading.value = false;
+    isCheckingOut.value = false;
   }
 };
 
-// Load statistics
-const loadStats = async () => {
-  try {
-    statsLoading.value = true;
-    const [startDate, endDate] = dateRange.value;
+onMounted(async () => {
+  await loadMyAttendance();
 
-    stats.value = await $hrAttendanceService.getMyAttendanceStats({
-      start_date: startDate.toISOString().split("T")[0],
-      end_date: endDate.toISOString().split("T")[0],
-    });
-  } catch (error: any) {
-    console.error("Failed to load statistics:", error);
-  } finally {
-    statsLoading.value = false;
-  }
-};
-
-// Handle date range change
-const handleDateRangeChange = () => {
-  historyPage.value = 1;
-  loadAttendanceHistory();
-  loadStats();
-};
-
-// Handle page change
-const handlePageChange = (page: number) => {
-  historyPage.value = page;
-  loadAttendanceHistory();
-};
-
-// Update current time every second
-let timeInterval: NodeJS.Timeout | null = null;
-const updateCurrentTime = () => {
-  currentTime.value = new Date();
-};
-
-// Lifecycle
-onMounted(() => {
-  loadTodayAttendance();
-  requestLocationPermission();
-  loadAttendanceHistory();
-
-  // Update time every second
-  timeInterval = setInterval(updateCurrentTime, 1000);
+  clockInterval = setInterval(() => {
+    currentLocalTime.value = new Date();
+  }, 1000);
 });
 
 onUnmounted(() => {
-  if (timeInterval) {
-    clearInterval(timeInterval);
-  }
+  if (clockInterval) clearInterval(clockInterval);
 });
 </script>
 
 <template>
-  <div>
+  <div class="space-y-6 pb-10">
     <OverviewHeader
-      title="Attendance Management"
-      :description="`${formatDate(
-        new Date().toISOString(),
-      )} - ${currentTime.toLocaleTimeString()}`"
+      :title="'My Attendance'"
+      :description="'Check in and check out with GPS verification for accurate attendance records.'"
+      :backPath="'/hr/attendance'"
     >
       <template #actions>
-        <BaseButton plain :loading="loading" @click="loadTodayAttendance">
+        <button
+          type="button"
+          class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          :disabled="isLoadingAttendance || isCheckingIn || isCheckingOut"
+          @click="handleRefresh"
+        >
           Refresh
-        </BaseButton>
+        </button>
       </template>
     </OverviewHeader>
 
-    <div class="content-wrapper">
-      <!-- Tabs -->
-      <el-tabs v-model="activeTab" class="mb-4">
-        <el-tab-pane label="Check In/Out" name="check-in">
-          <el-row :gutter="16">
-            <!-- Status Card -->
-            <el-col :xs="24" :sm="24" :md="12">
-              <el-card shadow="hover">
-                <template #header>
-                  <div class="flex items-center justify-between">
-                    <span class="font-semibold">Today's Status</span>
-                    <el-tag :type="statusColor" size="large">
-                      <el-icon class="mr-1">
-                        <component :is="statusIcon" />
-                      </el-icon>
-                      {{ statusText }}
-                    </el-tag>
-                  </div>
-                </template>
+    <section
+      class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 to-slate-700 p-5 text-white shadow-sm sm:p-6"
+    >
+      <p class="text-xs uppercase tracking-[0.2em] text-slate-300">
+        Local Time
+      </p>
+      <p class="mt-2 text-2xl font-semibold sm:text-3xl">
+        {{ clockLabel }}
+      </p>
+    </section>
 
-                <div v-if="todayAttendance" class="space-y-4">
-                  <div>
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)]"
-                    >
-                      Check In Time
-                    </div>
-                    <div class="text-lg font-semibold">
-                      {{ formatTime(todayAttendance.check_in_time) }}
-                    </div>
-                    <div
-                      v-if="todayAttendance.late_minutes > 0"
-                      class="text-sm text-[color:var(--el-color-warning)]"
-                    >
-                      <el-icon><Warning /></el-icon>
-                      Late by {{ todayAttendance.late_minutes }} minutes
-                    </div>
-                  </div>
+    <div
+      v-if="pageError"
+      class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+    >
+      {{ pageError }}
+    </div>
 
-                  <div v-if="todayAttendance.check_out_time">
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)]"
-                    >
-                      Check Out Time
-                    </div>
-                    <div class="text-lg font-semibold">
-                      {{ formatTime(todayAttendance.check_out_time) }}
-                    </div>
-                    <div
-                      v-if="todayAttendance.early_leave_minutes > 0"
-                      class="text-sm text-[color:var(--el-color-warning)]"
-                    >
-                      <el-icon><Warning /></el-icon>
-                      Left {{ todayAttendance.early_leave_minutes }} minutes
-                      early
-                    </div>
-                  </div>
+    <div class="grid gap-5 lg:grid-cols-2">
+      <section
+        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="text-lg font-semibold text-slate-900">
+              Today&apos;s Attendance
+            </h2>
+            <p class="text-sm text-slate-500">
+              Self-service summary for your current attendance day.
+            </p>
+          </div>
+          <span
+            class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset"
+            :class="statusBadgeClasses"
+          >
+            {{ formatStatusLabel(attendance?.status) }}
+          </span>
+        </div>
 
-                  <div>
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)]"
-                    >
-                      Work Duration
-                    </div>
-                    <div
-                      class="text-lg font-semibold text-[color:var(--el-color-primary)]"
-                    >
-                      {{ getWorkDuration() }}
-                    </div>
-                  </div>
+        <div v-if="isLoadingAttendance" class="mt-5 animate-pulse space-y-3">
+          <div class="h-10 rounded-lg bg-slate-100" />
+          <div class="h-10 rounded-lg bg-slate-100" />
+          <div class="h-10 rounded-lg bg-slate-100" />
+        </div>
 
-                  <div v-if="todayAttendance.notes">
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)]"
-                    >
-                      Notes
-                    </div>
-                    <div class="text-sm">{{ todayAttendance.notes }}</div>
-                  </div>
-
-                  <!-- Location Info -->
-                  <div
-                    v-if="
-                      todayAttendance.check_in_latitude &&
-                      todayAttendance.check_in_longitude
-                    "
-                  >
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)]"
-                    >
-                      <el-icon><Location /></el-icon>
-                      Check-In Location
-                    </div>
-                    <div
-                      class="text-xs text-[color:var(--el-text-color-regular)]"
-                    >
-                      {{ todayAttendance.check_in_latitude.toFixed(6) }},
-                      {{ todayAttendance.check_in_longitude.toFixed(6) }}
-                    </div>
-                  </div>
-
-                  <div
-                    v-if="
-                      todayAttendance.check_out_latitude &&
-                      todayAttendance.check_out_longitude
-                    "
-                  >
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)]"
-                    >
-                      <el-icon><Location /></el-icon>
-                      Check-Out Location
-                    </div>
-                    <div
-                      class="text-xs text-[color:var(--el-text-color-regular)]"
-                    >
-                      {{ todayAttendance.check_out_latitude.toFixed(6) }},
-                      {{ todayAttendance.check_out_longitude.toFixed(6) }}
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  v-else
-                  class="text-center py-8 text-[color:var(--el-text-color-placeholder)]"
-                >
-                  <el-icon :size="48">
-                    <Clock />
-                  </el-icon>
-                  <p class="mt-2">You haven't checked in today</p>
-                </div>
-              </el-card>
-            </el-col>
-
-            <!-- Action Card -->
-            <el-col :xs="24" :sm="24" :md="12">
-              <el-card shadow="hover">
-                <template #header>
-                  <span class="font-semibold">
-                    {{
-                      isCheckedIn && !isCheckedOut ? "Check Out" : "Check In"
-                    }}
-                  </span>
-                </template>
-
-                <!-- Location Permission Alert -->
-                <el-alert
-                  v-if="locationDenied"
-                  type="error"
-                  :closable="false"
-                  show-icon
-                  class="mb-4"
-                >
-                  <template #title> Location Access Required </template>
-                  <div class="text-sm">
-                    <p class="mb-2">
-                      You must enable location access to check in/out. Please
-                      allow location permissions in your browser settings.
-                    </p>
-                    <BaseButton
-                      type="primary"
-                      size="small"
-                      :loading="isCheckingPermission"
-                      @click="retryLocationPermission"
-                    >
-                      Try Again
-                    </BaseButton>
-                  </div>
-                </el-alert>
-
-                <el-form label-position="top">
-                  <!-- Check-In Progress -->
-                  <div v-if="checkInProgress > 0 && !isCheckedIn" class="mb-4">
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)] mb-2"
-                    >
-                      Checking in...
-                    </div>
-                    <el-progress
-                      :percentage="checkInProgress"
-                      :status="checkInProgress === 100 ? 'success' : undefined"
-                      :stroke-width="8"
-                    />
-                  </div>
-
-                  <!-- Check-Out Progress -->
-                  <div
-                    v-if="checkOutProgress > 0 && isCheckedIn && !isCheckedOut"
-                    class="mb-4"
-                  >
-                    <div
-                      class="text-sm text-[color:var(--el-text-color-secondary)] mb-2"
-                    >
-                      Checking out...
-                    </div>
-                    <el-progress
-                      :percentage="checkOutProgress"
-                      :status="checkOutProgress === 100 ? 'success' : undefined"
-                      :stroke-width="8"
-                    />
-                  </div>
-
-                  <!-- Notes -->
-                  <el-form-item label="Notes (Optional)">
-                    <el-input
-                      v-model="notes"
-                      type="textarea"
-                      :rows="3"
-                      placeholder="Add any notes..."
-                      :disabled="isCheckedOut || locationDenied"
-                      maxlength="500"
-                      show-word-limit
-                    />
-                  </el-form-item>
-
-                  <!-- Action Buttons -->
-                  <el-form-item>
-                    <BaseButton
-                      v-if="canCheckIn"
-                      type="primary"
-                      :loading="loading"
-                      :disabled="locationDenied"
-                      class="w-full"
-                      @click="handleCheckIn"
-                    >
-                      <el-icon class="mr-2"><Clock /></el-icon>
-                      Check In Now
-                    </BaseButton>
-
-                    <BaseButton
-                      v-else-if="canCheckOut"
-                      type="success"
-                      :loading="loading"
-                      :disabled="locationDenied"
-                      class="w-full"
-                      @click="handleCheckOut"
-                    >
-                      <el-icon class="mr-2"><Check /></el-icon>
-                      Check Out Now
-                    </BaseButton>
-
-                    <el-alert
-                      v-else-if="isCheckedOut"
-                      type="success"
-                      :closable="false"
-                      show-icon
-                    >
-                      You have completed your attendance for today
-                    </el-alert>
-
-                    <el-alert
-                      v-else-if="locationDenied && !isCheckedOut"
-                      type="warning"
-                      :closable="false"
-                      show-icon
-                    >
-                      Enable location access to check in/out
-                    </el-alert>
-                  </el-form-item>
-                </el-form>
-
-                <el-divider />
-
-                <div
-                  class="text-xs text-[color:var(--el-text-color-secondary)] flex items-center gap-2"
-                >
-                  <el-icon><InfoFilled /></el-icon>
-                  <span
-                    >Your GPS location is required and will be recorded for
-                    attendance verification</span
-                  >
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
-        </el-tab-pane>
-
-        <el-tab-pane label="Attendance History" name="history">
-          <!-- Statistics Cards -->
-          <el-row :gutter="16" class="mb-4">
-            <el-col :xs="12" :sm="6">
-              <el-card shadow="hover">
-                <div class="stat-card">
-                  <div
-                    class="stat-icon"
-                    style="background: var(--el-color-primary-light-9)"
-                  >
-                    <el-icon :size="24" color="var(--el-color-primary)">
-                      <Calendar />
-                    </el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">{{ stats?.present_days || 0 }}</div>
-                    <div class="stat-label">Present Days</div>
-                  </div>
-                </div>
-              </el-card>
-            </el-col>
-            <el-col :xs="12" :sm="6">
-              <el-card shadow="hover">
-                <div class="stat-card">
-                  <div
-                    class="stat-icon"
-                    style="background: var(--el-color-warning-light-9)"
-                  >
-                    <el-icon :size="24" color="var(--el-color-warning)">
-                      <Warning />
-                    </el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">{{ stats?.late_days || 0 }}</div>
-                    <div class="stat-label">Late Days</div>
-                  </div>
-                </div>
-              </el-card>
-            </el-col>
-            <el-col :xs="12" :sm="6">
-              <el-card shadow="hover">
-                <div class="stat-card">
-                  <div
-                    class="stat-icon"
-                    style="background: var(--el-color-danger-light-9)"
-                  >
-                    <el-icon :size="24" color="var(--el-color-danger)">
-                      <Timer />
-                    </el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">
-                      {{ stats?.total_late_minutes || 0 }}
-                    </div>
-                    <div class="stat-label">Late Minutes</div>
-                  </div>
-                </div>
-              </el-card>
-            </el-col>
-            <el-col :xs="12" :sm="6">
-              <el-card shadow="hover">
-                <div class="stat-card">
-                  <div
-                    class="stat-icon"
-                    style="background: var(--el-color-success-light-9)"
-                  >
-                    <el-icon :size="24" color="var(--el-color-success)">
-                      <TrendCharts />
-                    </el-icon>
-                  </div>
-                  <div class="stat-content">
-                    <div class="stat-value">
-                      {{ stats?.attendance_rate.toFixed(1) || 0 }}%
-                    </div>
-                    <div class="stat-label">Attendance Rate</div>
-                  </div>
-                </div>
-              </el-card>
-            </el-col>
-          </el-row>
-
-          <!-- Filters -->
-          <el-card shadow="hover" class="mb-4">
-            <el-form inline>
-              <el-form-item label="Date Range">
-                <el-date-picker
-                  v-model="dateRange"
-                  type="daterange"
-                  range-separator="To"
-                  start-placeholder="Start date"
-                  end-placeholder="End date"
-                  @change="handleDateRangeChange"
-                />
-              </el-form-item>
-              <el-form-item>
-                <BaseButton @click="handleDateRangeChange">
-                  Apply Filter
-                </BaseButton>
-              </el-form-item>
-            </el-form>
-          </el-card>
-
-          <!-- Attendance Table -->
-          <el-card shadow="hover">
-            <el-table
-              :data="attendanceHistory"
-              v-loading="historyLoading"
-              stripe
-              style="width: 100%"
+        <div v-else-if="attendance" class="mt-5 space-y-4">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div
+              class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
             >
-              <el-table-column prop="check_in_time" label="Date" width="120">
-                <template #default="{ row }">
-                  {{ new Date(row.check_in_time).toLocaleDateString() }}
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="check_in_time"
-                label="Check In"
-                width="100"
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-slate-500"
               >
-                <template #default="{ row }">
-                  {{ formatTime(row.check_in_time) }}
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="check_out_time"
-                label="Check Out"
-                width="100"
-              >
-                <template #default="{ row }">
-                  {{
-                    row.check_out_time ? formatTime(row.check_out_time) : "-"
-                  }}
-                </template>
-              </el-table-column>
-              <el-table-column label="Duration" width="120">
-                <template #default="{ row }">
-                  {{ calculateDuration(row) }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="late_minutes" label="Late" width="80">
-                <template #default="{ row }">
-                  <el-tag
-                    v-if="row.late_minutes > 0"
-                    type="warning"
-                    size="small"
-                  >
-                    {{ row.late_minutes }}m
-                  </el-tag>
-                  <span v-else>-</span>
-                </template>
-              </el-table-column>
-              <el-table-column
-                prop="early_leave_minutes"
-                label="Early Leave"
-                width="100"
-              >
-                <template #default="{ row }">
-                  <el-tag
-                    v-if="row.early_leave_minutes > 0"
-                    type="danger"
-                    size="small"
-                  >
-                    {{ row.early_leave_minutes }}m
-                  </el-tag>
-                  <span v-else>-</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="status" label="Status" width="120">
-                <template #default="{ row }">
-                  <el-tag :type="getStatusType(row.status)" size="small">
-                    {{ row.status.replace("_", " ").toUpperCase() }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="notes" label="Notes" min-width="150">
-                <template #default="{ row }">
-                  {{ row.notes || "-" }}
-                </template>
-              </el-table-column>
-            </el-table>
+                Attendance Date
+              </p>
+              <p class="mt-1 text-sm font-semibold text-slate-800">
+                {{ formatDateOnly(attendance.attendance_date) }}
+              </p>
+            </div>
 
-            <!-- Pagination -->
-            <div class="mt-4 flex justify-end">
-              <el-pagination
-                v-model:current-page="historyPage"
-                :page-size="historyPageSize"
-                :total="historyTotal"
-                layout="total, prev, pager, next"
-                @current-change="handlePageChange"
+            <div
+              class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                Check-In Time
+              </p>
+              <p class="mt-1 text-sm font-semibold text-slate-800">
+                {{ formatDateTime(attendance.check_in_time) }}
+              </p>
+            </div>
+
+            <div
+              class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                Check-Out Time
+              </p>
+              <p class="mt-1 text-sm font-semibold text-slate-800">
+                {{ formatDateTime(attendance.check_out_time) }}
+              </p>
+            </div>
+
+            <div
+              class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                Status
+              </p>
+              <p class="mt-1 text-sm font-semibold text-slate-800">
+                {{ formatStatusLabel(attendance.status) }}
+              </p>
+            </div>
+
+            <div
+              class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                Late Minutes
+              </p>
+              <p class="mt-1 text-sm font-semibold text-slate-800">
+                {{ attendance.late_minutes ?? 0 }}
+              </p>
+            </div>
+
+            <div
+              class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3"
+            >
+              <p
+                class="text-xs font-medium uppercase tracking-wide text-slate-500"
+              >
+                Early Leave Minutes
+              </p>
+              <p class="mt-1 text-sm font-semibold text-slate-800">
+                {{ attendance.early_leave_minutes ?? 0 }}
+              </p>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <h3 class="text-sm font-semibold text-slate-800">
+                Today&apos;s Work Schedule
+              </h3>
+              <span
+                class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700"
+              >
+                {{ employeeSchedule?.name || "Not Assigned" }}
+              </span>
+            </div>
+
+            <div v-if="isLoadingSchedule" class="grid gap-3 sm:grid-cols-3">
+              <div class="h-14 animate-pulse rounded-lg bg-slate-200" />
+              <div class="h-14 animate-pulse rounded-lg bg-slate-200" />
+              <div class="h-14 animate-pulse rounded-lg bg-slate-200" />
+            </div>
+
+            <div
+              v-else-if="scheduleError"
+              class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+            >
+              {{ scheduleError }}
+            </div>
+
+            <div v-else-if="employeeSchedule" class="grid gap-3 sm:grid-cols-3">
+              <div class="rounded-lg border border-slate-200 bg-white p-3">
+                <p class="text-xs uppercase tracking-wide text-slate-500">
+                  Shift Time
+                </p>
+                <p class="mt-1 text-sm font-semibold text-slate-800">
+                  {{ scheduleShiftLabel }}
+                </p>
+              </div>
+
+              <div class="rounded-lg border border-slate-200 bg-white p-3">
+                <p class="text-xs uppercase tracking-wide text-slate-500">
+                  Working Days
+                </p>
+                <p class="mt-1 text-sm font-semibold text-slate-800">
+                  {{ scheduleWorkingDaysLabel }}
+                </p>
+              </div>
+
+              <div class="rounded-lg border border-slate-200 bg-white p-3">
+                <p class="text-xs uppercase tracking-wide text-slate-500">
+                  Hours / Day
+                </p>
+                <p class="mt-1 text-sm font-semibold text-slate-800">
+                  {{ employeeSchedule.total_hours_per_day }} hrs
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-else
+              class="rounded-lg border border-dashed border-slate-300 bg-white px-3 py-3 text-sm text-slate-500"
+            >
+              No schedule assigned for this attendance record.
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <h3 class="text-sm font-semibold text-slate-800">
+                Employee Location Map
+              </h3>
+              <span
+                class="rounded-full bg-slate-200 px-2 py-0.5 text-xs text-slate-700"
+              >
+                {{
+                  hasCheckOutCoordinates
+                    ? "Checkout point"
+                    : hasCheckInCoordinates
+                    ? "Checkin point"
+                    : "No point yet"
+                }}
+              </span>
+            </div>
+
+            <div
+              v-if="primaryMapUrl"
+              class="overflow-hidden rounded-xl border border-slate-200"
+            >
+              <iframe
+                title="Employee Attendance Location"
+                :src="primaryMapUrl"
+                class="h-[240px] w-full"
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
               />
             </div>
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+
+            <div
+              v-else
+              class="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500"
+            >
+              No recorded coordinates yet. After check-in/check-out, location
+              will appear here.
+            </div>
+
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <div class="rounded-lg border border-slate-200 bg-white p-3">
+                <p class="text-xs font-medium uppercase text-slate-500">
+                  Check-In Coordinates
+                </p>
+                <p class="mt-1 text-sm font-semibold text-slate-800">
+                  {{ formatCoordinate(checkInLat) }},
+                  {{ formatCoordinate(checkInLng) }}
+                </p>
+                <a
+                  v-if="checkInGoogleMapsUrl"
+                  :href="checkInGoogleMapsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="mt-2 inline-block text-xs font-medium text-sky-700 hover:underline"
+                >
+                  Open Check-In in Google Maps
+                </a>
+              </div>
+
+              <div class="rounded-lg border border-slate-200 bg-white p-3">
+                <p class="text-xs font-medium uppercase text-slate-500">
+                  Check-Out Coordinates
+                </p>
+                <p class="mt-1 text-sm font-semibold text-slate-800">
+                  {{ formatCoordinate(checkOutLat) }},
+                  {{ formatCoordinate(checkOutLng) }}
+                </p>
+                <a
+                  v-if="checkOutGoogleMapsUrl"
+                  :href="checkOutGoogleMapsUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="mt-2 inline-block text-xs font-medium text-sky-700 hover:underline"
+                >
+                  Open Check-Out in Google Maps
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-if="showWrongLocationPending"
+            class="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800"
+          >
+            Your check-in location is pending admin review. You can still
+            monitor your status here.
+          </div>
+        </div>
+
+        <div
+          v-else
+          class="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500"
+        >
+          No attendance record found for today yet. Use the action panel to
+          check in.
+        </div>
+      </section>
+
+      <section
+        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      >
+        <div>
+          <h2 class="text-lg font-semibold text-slate-900">
+            Attendance Actions
+          </h2>
+          <p class="text-sm text-slate-500">
+            Your current time is automatically sent as ISO datetime on each
+            action.
+          </p>
+        </div>
+
+        <div
+          v-if="geolocationError"
+          class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          {{ geolocationError }}
+        </div>
+
+        <div
+          v-else-if="actionError"
+          class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+        >
+          {{ actionError }}
+        </div>
+
+        <div class="mt-5 space-y-6">
+          <div class="rounded-xl border border-slate-200 p-4">
+            <div class="flex items-center justify-between">
+              <h3
+                class="text-sm font-semibold uppercase tracking-wide text-slate-700"
+              >
+                Check-In
+              </h3>
+              <span
+                class="text-xs font-medium"
+                :class="hasCheckedIn ? 'text-emerald-700' : 'text-slate-500'"
+              >
+                {{ hasCheckedIn ? "Completed" : "Pending" }}
+              </span>
+            </div>
+
+            <label
+              for="wrong-location-reason"
+              class="mt-4 block text-sm font-medium text-slate-700"
+            >
+              Wrong Location Reason (Optional)
+            </label>
+            <textarea
+              id="wrong-location-reason"
+              v-model="wrongLocationReason"
+              rows="3"
+              class="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100"
+              :disabled="!canCheckIn"
+              placeholder="If you are checking in from a different location, add a reason for admin review..."
+            />
+
+            <button
+              type="button"
+              class="mt-4 w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              :disabled="!canCheckIn"
+              @click="handleCheckIn"
+            >
+              {{
+                isCheckingIn
+                  ? "Checking In..."
+                  : hasCheckedIn
+                  ? "Already Checked In"
+                  : "Check In Now"
+              }}
+            </button>
+          </div>
+
+          <div class="rounded-xl border border-slate-200 p-4">
+            <div class="flex items-center justify-between">
+              <h3
+                class="text-sm font-semibold uppercase tracking-wide text-slate-700"
+              >
+                Check-Out
+              </h3>
+              <span
+                class="text-xs font-medium"
+                :class="hasCheckedOut ? 'text-emerald-700' : 'text-slate-500'"
+              >
+                {{ hasCheckedOut ? "Completed" : "Pending" }}
+              </span>
+            </div>
+
+            <p class="mt-4 text-sm text-slate-500">
+              Check-out also requires geolocation and sends the current datetime
+              as ISO string.
+            </p>
+
+            <button
+              type="button"
+              class="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+              :disabled="!canCheckOut"
+              @click="handleCheckOut"
+            >
+              {{
+                isCheckingOut
+                  ? "Checking Out..."
+                  : hasCheckedOut
+                  ? "Already Checked Out"
+                  : "Check Out Now"
+              }}
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
+
+    <el-dialog
+      v-model="lateReasonDialogVisible"
+      title="Late Check-In Reason"
+      width="520px"
+      @close="closeLateReasonDialog"
+    >
+      <div class="space-y-3">
+        <p class="text-sm text-slate-600">
+          Your check-in is marked as late. Please provide a reason to continue.
+        </p>
+
+        <label
+          for="late-reason"
+          class="block text-sm font-medium text-slate-700"
+        >
+          Late Reason
+        </label>
+        <textarea
+          id="late-reason"
+          v-model="lateReason"
+          rows="4"
+          maxlength="300"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+          placeholder="Tell us why you checked in late..."
+        />
+        <div class="text-right text-xs text-slate-500">
+          {{ lateReason.length }}/300
+        </div>
+
+        <div
+          v-if="lateReasonError"
+          class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+        >
+          {{ lateReasonError }}
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            :disabled="isCheckingIn"
+            @click="closeLateReasonDialog"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+            :disabled="isCheckingIn"
+            @click="submitLateReason"
+          >
+            {{ isCheckingIn ? "Submitting..." : "Submit Reason" }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="earlyLeaveReasonDialogVisible"
+      title="Early Check-Out Reason"
+      width="520px"
+      @close="closeEarlyLeaveReasonDialog"
+    >
+      <div class="space-y-3">
+        <p class="text-sm text-slate-600">
+          You are checking out early. Please provide a reason to continue.
+        </p>
+
+        <label
+          for="early-leave-reason"
+          class="block text-sm font-medium text-slate-700"
+        >
+          Early Leave Reason
+        </label>
+        <textarea
+          id="early-leave-reason"
+          v-model="earlyLeaveReason"
+          rows="4"
+          maxlength="300"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+          placeholder="Tell us why you need to check out early..."
+        />
+        <div class="text-right text-xs text-slate-500">
+          {{ earlyLeaveReason.length }}/300
+        </div>
+
+        <div
+          v-if="earlyLeaveReasonError"
+          class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+        >
+          {{ earlyLeaveReasonError }}
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            :disabled="isCheckingOut"
+            @click="closeEarlyLeaveReasonDialog"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-300"
+            :disabled="isCheckingOut"
+            @click="submitEarlyLeaveReason"
+          >
+            {{ isCheckingOut ? "Submitting..." : "Submit Reason" }}
+          </button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
-
-<style scoped>
-.content-wrapper {
-  margin-top: 16px;
-}
-
-.space-y-4 > * + * {
-  margin-top: 16px;
-}
-
-.flex {
-  display: flex;
-}
-
-.items-center {
-  align-items: center;
-}
-
-.justify-between {
-  justify-content: space-between;
-}
-
-.justify-end {
-  justify-content: flex-end;
-}
-
-.gap-2 {
-  gap: 8px;
-}
-
-.font-semibold {
-  font-weight: 600;
-}
-
-.text-sm {
-  font-size: 14px;
-}
-
-.text-xs {
-  font-size: 12px;
-}
-
-.text-lg {
-  font-size: 18px;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.py-8 {
-  padding-top: 32px;
-  padding-bottom: 32px;
-}
-
-.mt-2 {
-  margin-top: 8px;
-}
-
-.mt-4 {
-  margin-top: 16px;
-}
-
-.mr-1 {
-  margin-right: 4px;
-}
-
-.mr-2 {
-  margin-right: 8px;
-}
-
-.mb-2 {
-  margin-bottom: 8px;
-}
-
-.mb-4 {
-  margin-bottom: 16px;
-}
-
-.w-full {
-  width: 100%;
-}
-
-/* Statistics Card Styles */
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--el-text-color-primary);
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-</style>

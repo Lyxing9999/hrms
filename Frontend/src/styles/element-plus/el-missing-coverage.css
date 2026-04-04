@@ -1,0 +1,98 @@
+/* =========================================================
+   ELEMENT PLUS - MISSING COVERAGE
+   Covers common components used in pages but not grouped in
+   dedicated override files yet.
+========================================================= */
+
+/* -------------------------
+   BUTTON
+------------------------- */
+.el-button {
+  border-radius: var(--btn-radius, var(--border-radius-base)) !important;
+  font-weight: var(--btn-font-weight, 650) !important;
+  transition: all var(--transition-base) !important;
+}
+
+.el-button:not(.is-text):not(.is-link):not(.is-disabled) {
+  border-color: var(--btn-border, var(--border-color)) !important;
+}
+
+.el-button:not(.is-text):not(.is-link):not(.is-disabled):hover {
+  border-color: var(--btn-border-hover, var(--color-primary-light)) !important;
+  transform: translateY(var(--btn-lift-hover, -0.5px));
+}
+
+.el-button:not(.is-text):not(.is-link):not(.is-disabled):active {
+  border-color: var(--btn-border-active, var(--color-primary)) !important;
+  transform: translateY(var(--btn-lift-active, 0));
+}
+
+.el-button:focus-visible {
+  box-shadow: var(--btn-focus-ring, 0 0 0 3px rgba(255, 82, 161, 0.18)) !important;
+}
+
+.el-button.is-disabled,
+.el-button.is-disabled:hover,
+.el-button.is-disabled:active {
+  background: var(--btn-disabled-bg, var(--color-card)) !important;
+  border-color: var(--btn-disabled-border, var(--border-color)) !important;
+  color: var(--btn-disabled-text, var(--muted-color)) !important;
+  transform: none !important;
+}
+
+/* -------------------------
+   MENU
+------------------------- */
+.el-menu {
+  border-right: 0 !important;
+  background: transparent !important;
+}
+
+.el-menu-item,
+.el-sub-menu__title {
+  border-radius: calc(var(--border-radius-base) - 2px);
+  color: var(--text-color) !important;
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+.el-menu-item:hover,
+.el-sub-menu__title:hover {
+  background: var(--hover-bg) !important;
+}
+
+.el-menu-item.is-active,
+.el-sub-menu.is-active > .el-sub-menu__title {
+  background: var(--active-bg) !important;
+  color: var(--color-primary) !important;
+}
+
+/* -------------------------
+   ICON
+------------------------- */
+.el-icon {
+  vertical-align: middle;
+}
+
+/* -------------------------
+   DIVIDER
+------------------------- */
+.el-divider {
+  border-color: var(--border-color) !important;
+}
+
+.el-divider__text {
+  color: var(--muted-color) !important;
+  font-weight: 600;
+}
+
+/* -------------------------
+   PROGRESS
+------------------------- */
+.el-progress-bar__outer {
+  background: color-mix(in srgb, var(--color-card) 65%, var(--color-bg) 35%) !important;
+}
+
+.el-progress__text {
+  color: var(--muted-color) !important;
+  font-weight: 600;
+}
