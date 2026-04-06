@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from app.contexts.hrms.errors.employee_exceptions import EmployeeCodeAlreadyExistsException
+from app.contexts.shared.time_utils import utc_now
 
 
 class CreateEmployeeUseCase:
@@ -13,6 +12,7 @@ class CreateEmployeeUseCase:
         existing = self.employee_repository.find_by_employee_code(payload.employee_code)
         if existing:
             raise EmployeeCodeAlreadyExistsException(payload.employee_code)
+        now = utc_now()
         doc = {
             "employee_code": payload.employee_code,
             "full_name": payload.full_name,
@@ -30,8 +30,8 @@ class CreateEmployeeUseCase:
             "user_id": None,
             "created_by": created_by_user_id,
             "lifecycle": {
-                "created_at": datetime.now(timezone.utc),
-                "updated_at": datetime.now(timezone.utc),
+                "created_at": now,
+                "updated_at": now,
                 "deleted_at": None,
                 "deleted_by": None,
             },

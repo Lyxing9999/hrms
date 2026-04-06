@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from app.contexts.shared.time_utils import utc_now
 
 
 class RestoreEmployeeUseCase:
@@ -15,6 +15,6 @@ class RestoreEmployeeUseCase:
             {
                 "lifecycle.deleted_at": None,
                 "lifecycle.deleted_by": None,
-                "lifecycle.updated_at": datetime.now(timezone.utc),
+                "lifecycle.updated_at": utc_now(),
             },
         )

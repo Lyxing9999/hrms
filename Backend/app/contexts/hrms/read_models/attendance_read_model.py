@@ -1,7 +1,13 @@
 # app/contexts/hrms/read_models/attendance_read_model.py
 from pymongo.database import Database
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
+
+from app.contexts.shared.time_utils import (
+    cambodia_start_of_day_as_utc,
+    ensure_utc,
+    utc_now,
+)
 
 
 class AttendanceReadModel:
@@ -14,14 +20,12 @@ class AttendanceReadModel:
 
     def find_by_employee_today(self, employee_id: ObjectId) -> dict | None:
         """Find today's attendance for an employee"""
-        from datetime import date
-        today = date.today()
-        start_of_day = datetime.combine(today, datetime.min.time())
-        end_of_day = datetime.combine(today, datetime.max.time())
+        start_of_day = cambodia_start_of_day_as_utc(utc_now())
+        end_of_day = start_of_day + timedelta(days=1)
         
         return self.collection.find_one({
             "employee_id": employee_id,
-            "check_in_time": {"$gte": start_of_day, "$lte": end_of_day},
+            "check_in_time": {"$gte": start_of_day, "$lt": end_of_day},
             "lifecycle.deleted_at": None,
         })
 
@@ -47,9 +51,9 @@ class AttendanceReadModel:
         if start_date or end_date:
             query["check_in_time"] = {}
             if start_date:
-                query["check_in_time"]["$gte"] = start_date
+                query["check_in_time"]["$gte"] = ensure_utc(start_date)
             if end_date:
-                query["check_in_time"]["$lte"] = end_date
+                query["check_in_time"]["$lte"] = ensure_utc(end_date)
 
         if status:
             query["status"] = status
@@ -76,11 +80,13 @@ class AttendanceReadModel:
         self, employee_id: ObjectId, start_date: datetime, end_date: datetime
     ) -> dict:
         """Get attendance statistics for an employee"""
+        start_date_utc = ensure_utc(start_date)
+        end_date_utc = ensure_utc(end_date)
         pipeline = [
             {
                 "$match": {
                     "employee_id": employee_id,
-                    "check_in_time": {"$gte": start_date, "$lte": end_date},
+                    "check_in_time": {"$gte": start_date_utc, "$lte": end_date_utc},
                     "lifecycle.deleted_at": None,
                 }
             },
@@ -117,7 +123,7 @@ class AttendanceReadModel:
         total_days = stats["total_days"]
         
         # Calculate expected working days
-        days_diff = (end_date - start_date).days + 1
+        days_diff = (end_date_utc - start_date_utc).days + 1
         expected_days = days_diff
         
         return {

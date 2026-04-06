@@ -48,6 +48,18 @@ class CreateOvertimeRequestUseCase:
             microsecond=0,
         )
 
+        if day_type == OvertimeDayType.WORKING_DAY and payload.start_time < schedule_end_time:
+            raise ValueError("Working day overtime must start after scheduled end time")
+
+        overlap = self.overtime_repository.find_overlapping_request(
+            employee_id=employee["_id"],
+            request_date=payload.request_date,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+        )
+        if overlap:
+            raise ValueError("Overlapping overtime request already exists")
+
         ot = OvertimeRequest(
             employee_id=employee["_id"],
             request_date=payload.request_date,

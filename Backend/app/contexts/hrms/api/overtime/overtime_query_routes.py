@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from flask import Blueprint, request, g
 
-from app.contexts.core.security.auth_utils import get_current_staff_id
+from app.contexts.core.security.auth_utils import get_current_employee_id
 from app.contexts.shared.decorators.response_decorator import wrap_response
 from app.contexts.iam.auth.jwt_utils import login_required
 from app.contexts.hrms.mapper.overtime_mapper import OvertimeMapper
@@ -37,16 +37,16 @@ def list_overtime_requests():
 
 
 @overtime_query_bp.route("/overtime-requests/my", methods=["GET"], strict_slashes=False)
-@login_required(allowed_roles=["employee"])
+@login_required(allowed_roles=["employee", "manager", "payroll_manager", "hr_admin"])
 @wrap_response
 def list_my_overtime_requests():
-    user_id = get_current_staff_id()
+    employee_id = get_current_employee_id()
     status = request.args.get("status")
     page = int(request.args.get("page", 1))
     limit = int(request.args.get("limit", 10))
 
     items, total = g.hrms.overtime.list_my(
-        user_id=user_id,
+        employee_id=employee_id,
         status=status,
         page=page,
         limit=limit,

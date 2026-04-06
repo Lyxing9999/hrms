@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from app.contexts.shared.time_utils import utc_now
 
 
 class SoftDeleteEmployeeUseCase:
@@ -9,12 +9,13 @@ class SoftDeleteEmployeeUseCase:
 
     def execute(self, *, employee_id: str, actor_id):
         employee = self.employee_repository.find_by_id(employee_id)
+        now = utc_now()
 
         return self.employee_repository.update_fields(
             employee["_id"],
             {
-                "lifecycle.deleted_at": datetime.now(timezone.utc),
+                "lifecycle.deleted_at": now,
                 "lifecycle.deleted_by": actor_id,
-                "lifecycle.updated_at": datetime.now(timezone.utc),
+                "lifecycle.updated_at": now,
             },
         )

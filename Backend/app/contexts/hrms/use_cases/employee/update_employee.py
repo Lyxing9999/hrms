@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from app.contexts.shared.model_converter import mongo_converter
+from app.contexts.shared.time_utils import utc_now
 
 
 class UpdateEmployeeUseCase:
@@ -33,6 +32,6 @@ class UpdateEmployeeUseCase:
                 update_data["manager_user_id"]
             )
 
-        update_data["lifecycle.updated_at"] = datetime.now(timezone.utc)
+        update_data["lifecycle.updated_at"] = utc_now()
 
         return self.employee_repository.update_fields(employee["_id"], update_data)

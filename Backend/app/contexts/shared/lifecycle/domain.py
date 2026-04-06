@@ -1,10 +1,12 @@
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from bson import ObjectId
+
+from app.contexts.shared.time_utils import utc_now
 
 
 def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return utc_now()
 
 
 @dataclass

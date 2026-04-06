@@ -1,8 +1,9 @@
 from __future__ import annotations
-from datetime import datetime
 from typing import Any, Dict, Optional
 from bson import ObjectId
 from pymongo.collection import Collection
+
+from app.contexts.shared.time_utils import utc_now
 
 
 def append_history(
@@ -16,7 +17,7 @@ def append_history(
         {"_id": entity_id},
         {"$push": {"history": {
             "event": event,
-            "at": datetime.now().isoformat(),
+            "at": utc_now().isoformat(),
             "meta": {"actor_id": str(actor_id), **(meta or {})},
         }}}
     )
@@ -37,5 +38,5 @@ def write_audit_log(
         "entity_id": entity_id,
         "action": action,
         "meta": meta or {},
-        "created_at": datetime.now(),
+        "created_at": utc_now(),
     })

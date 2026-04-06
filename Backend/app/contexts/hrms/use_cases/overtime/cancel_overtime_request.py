@@ -10,5 +10,8 @@ class CancelOvertimeRequestUseCase:
         if not ot:
             raise ValueError("Overtime request not found")
 
+        if str(ot.employee_id) != str(actor_id):
+            raise ValueError("You can only cancel your own overtime request")
+
         ot.cancel(actor_id=actor_id)
         return self.overtime_repository.save(ot)

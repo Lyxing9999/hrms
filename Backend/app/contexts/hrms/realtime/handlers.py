@@ -5,12 +5,12 @@ Uses Flask-SocketIO with eventlet async_mode.
 """
 from flask import request
 from flask_socketio import join_room, leave_room, emit
-from datetime import datetime
 from typing import Optional
 
 from app.contexts.infra.realtime.socketio_ext import socketio
 from app.contexts.infra.database.mongodb import get_db
 from app.contexts.hrms.realtime.attendance_realtime_service import AttendanceRealtimeService
+from app.contexts.shared.time_utils import utc_now
 
 
 # ============================================================================
@@ -45,7 +45,7 @@ def handle_employee_join(data: dict):
         emit("employee:joined", {
             "employee_id": employee_id,
             "room": room,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat(),
         })
         
     except Exception as e:
@@ -80,7 +80,7 @@ def handle_manager_join(data: dict):
             "manager_id": manager_id,
             "room": "managers",
             "active_employees": active_employees,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": utc_now().isoformat(),
         })
         
     except Exception as e:
@@ -147,7 +147,7 @@ def handle_shift_start(data: dict):
             "accuracy": accuracy,
             "status": "active",
             "photo_url": photo_url,
-            "last_seen_at": datetime.utcnow().isoformat()
+            "last_seen_at": utc_now().isoformat(),
         }, room="managers", namespace="/")
         
     except ValueError as e:

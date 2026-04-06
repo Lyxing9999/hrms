@@ -21,16 +21,9 @@ class OvertimeDayType(str, Enum):
 
 
 class OvertimeRequest:
-    """
-    Rules:
-    - Employee must submit at least 3 hours before end of working time.
-    - Only approved OT is payable.
-    - Working day OT rate = 150%
-    - Weekend/Public holiday OT rate = 200%
-    """
-
     WORKING_DAY_RATE = 1.5
     HOLIDAY_OR_WEEKEND_RATE = 2.0
+    MIN_SUBMISSION_HOURS_BEFORE_SCHEDULE_END = 3
 
     def __init__(
         self,
@@ -69,17 +62,24 @@ class OvertimeRequest:
         self.calculated_payment = float(calculated_payment)
         self.lifecycle = lifecycle or Lifecycle()
 
+        self._validate_initial_state()
+
+    def _validate_initial_state(self) -> None:
         if self.end_time <= self.start_time:
             raise ValueError("OT end_time must be after start_time")
+
         if not self.reason:
             raise ValueError("OT reason is required")
+
         if self.basic_salary < 0:
             raise ValueError("Basic salary cannot be negative")
 
         self._validate_submission_deadline()
 
     def _validate_submission_deadline(self) -> None:
-        latest_submit_time = self.schedule_end_time - timedelta(hours=3)
+        latest_submit_time = self.schedule_end_time - timedelta(
+            hours=self.MIN_SUBMISSION_HOURS_BEFORE_SCHEDULE_END
+        )
         if self.submitted_at > latest_submit_time:
             raise ValueError("OT request must be submitted at least 3 hours before end of working time")
 
@@ -109,6 +109,8 @@ class OvertimeRequest:
         hours = self.requested_hours() if approved_hours is None else float(approved_hours)
         if hours < 0:
             raise ValueError("approved_hours cannot be negative")
+        if hours > self.requested_hours():
+            raise ValueError("approved_hours cannot exceed requested hours")
 
         self.status = OvertimeStatus.APPROVED
         self.manager_id = manager_id
@@ -120,6 +122,7 @@ class OvertimeRequest:
     def reject(self, *, manager_id: ObjectId, comment: str | None = None) -> None:
         if self.status != OvertimeStatus.PENDING:
             raise ValueError("Only pending OT request can be rejected")
+
         self.status = OvertimeStatus.REJECTED
         self.manager_id = manager_id
         self.manager_comment = (comment or "").strip() or None
@@ -128,6 +131,7 @@ class OvertimeRequest:
     def cancel(self, *, actor_id: ObjectId) -> None:
         if self.status != OvertimeStatus.PENDING:
             raise ValueError("Only pending OT request can be cancelled")
+
         self.status = OvertimeStatus.CANCELLED
         self.lifecycle.touch(now_utc())
 

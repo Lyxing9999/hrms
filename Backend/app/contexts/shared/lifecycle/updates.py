@@ -1,14 +1,15 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any, Dict
 
 from bson import ObjectId
 from .filters import FIELDS
+from app.contexts.shared.time_utils import utc_now
 
 
 def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
+    return utc_now()
 
 
 def apply_soft_delete_update(actor_id: ObjectId) -> Dict[str, Any]:

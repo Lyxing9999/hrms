@@ -15,13 +15,22 @@ class MongoOvertimeRepository:
         self.collection = db["hr_overtime_requests"]
         self.mapper = OvertimeMapper()
 
+    @staticmethod
+    def _oid(v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        return ObjectId(v)
+
     def save(self, overtime_request: OvertimeRequest) -> OvertimeRequest:
         doc = self.mapper.to_persistence(overtime_request)
         self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        return overtime_request
+        return self.find_by_id(doc["_id"])
 
-    def find_by_id(self, overtime_request_id: ObjectId) -> OvertimeRequest:
-        doc = self.collection.find_one({"_id": overtime_request_id})
+    def find_by_id(self, overtime_request_id) -> OvertimeRequest:
+        oid = self._oid(overtime_request_id)
+        doc = self.collection.find_one({"_id": oid})
         if not doc:
             raise OvertimeRequestNotFoundException(overtime_request_id)
         return self.mapper.to_domain(doc)
@@ -42,9 +51,9 @@ class MongoOvertimeRepository:
         query = {}
 
         if employee_id:
-            query["employee_id"] = employee_id
+            query["employee_id"] = self._oid(employee_id)
         if manager_id:
-            query["manager_id"] = manager_id
+            query["manager_id"] = self._oid(manager_id)
         if status:
             query["status"] = status
 
@@ -78,32 +87,24 @@ class MongoOvertimeRepository:
         employee_id: ObjectId,
         month: str,
     ) -> list[OvertimeRequest]:
-        # TODO: adapt if month is stored differently
         docs = self.collection.find({
-            "employee_id": employee_id,
+            "employee_id": self._oid(employee_id),
             "status": "approved",
             "month": month,
             "lifecycle.deleted_at": None,
         }).sort("request_date", 1)
         return [self.mapper.to_domain(doc) for doc in docs]
 
-    def find_overlapping_request(
-        self,
-        *,
-        employee_id: ObjectId,
-        start_time: datetime,
-        end_time: datetime,
-    ) -> OvertimeRequest | None:
-        start_time = ensure_utc(start_time)
-        end_time = ensure_utc(end_time)
-
+    def find_overlapping_request(self, *, employee_id, request_date, start_time, end_time):
         doc = self.collection.find_one({
-            "employee_id": employee_id,
+            "employee_id": self._oid(employee_id),
+            "request_date": request_date,
+            "status": {"$in": ["pending", "approved"]},
             "start_time": {"$lt": end_time},
             "end_time": {"$gt": start_time},
             "lifecycle.deleted_at": None,
         })
         return self.mapper.to_domain(doc) if doc else None
 
-    def delete(self, overtime_request_id: ObjectId) -> None:
-        self.collection.delete_one({"_id": overtime_request_id})
+    def delete(self, overtime_request_id) -> None:
+        self.collection.delete_one({"_id": self._oid(overtime_request_id)})

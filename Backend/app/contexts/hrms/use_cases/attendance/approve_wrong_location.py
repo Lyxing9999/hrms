@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 from app.contexts.hrms.errors.attendance_exceptions import (
     AttendanceNotFoundException,
     AttendanceWrongLocationReviewStateException,
 )
+from app.contexts.shared.time_utils import utc_now
 
 
 class ApproveWrongLocationUseCase:
@@ -50,7 +49,7 @@ class ApproveWrongLocationUseCase:
                 "status": new_status,
                 "admin_comment": comment,
                 "location_reviewed_by": admin_id,
-                "lifecycle.updated_at": datetime.now(timezone.utc),
+                "lifecycle.updated_at": utc_now(),
             },
         )
 
@@ -77,7 +76,7 @@ class ApproveWrongLocationUseCase:
                 "entity_id": entity_id,
                 "action": action,
                 "actor_id": actor_id,
-                "action_at": datetime.now(timezone.utc),
+                "action_at": utc_now(),
                 "details": details,
             }
         )

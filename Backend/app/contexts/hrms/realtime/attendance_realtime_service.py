@@ -3,11 +3,13 @@
 Service for handling realtime attendance operations including location tracking,
 geofencing validation, and shift management.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Dict, List, Optional
 from pymongo.database import Database
 from bson import ObjectId
 import math
+
+from app.contexts.shared.time_utils import ensure_utc, utc_now
 
 
 class AttendanceRealtimeService:
@@ -109,8 +111,8 @@ class AttendanceRealtimeService:
             if existing:
                 return {"success": False, "error": "Shift already active. Please stop current shift first"}
             
-            now = datetime.now(timezone.utc)
-            started_dt = datetime.fromisoformat(started_at.replace('Z', '+00:00'))
+            now = utc_now()
+            started_dt = ensure_utc(datetime.fromisoformat(started_at.replace('Z', '+00:00')))
             
             # Store attendance event
             event_doc = {
@@ -185,7 +187,7 @@ class AttendanceRealtimeService:
             if live_loc.get("status") != "active":
                 return {"success": False, "error": "Shift is not active"}
             
-            ts_dt = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            ts_dt = ensure_utc(datetime.fromisoformat(ts.replace('Z', '+00:00')))
             
             # Update live location
             self.live_locations.update_one(
@@ -197,7 +199,7 @@ class AttendanceRealtimeService:
                         "accuracy": accuracy,
                         "distance_from_office_m": validation["distance_m"],
                         "last_seen_at": ts_dt,
-                        "updated_at": datetime.now(timezone.utc)
+                        "updated_at": utc_now(),
                     }
                 }
             )
@@ -234,7 +236,7 @@ class AttendanceRealtimeService:
             if not live_loc:
                 return {"success": False, "error": "No active shift found"}
             
-            stopped_dt = datetime.fromisoformat(stopped_at.replace('Z', '+00:00'))
+            stopped_dt = ensure_utc(datetime.fromisoformat(stopped_at.replace('Z', '+00:00')))
             started_dt = live_loc.get("shift_started_at")
             
             # Calculate duration
@@ -273,7 +275,7 @@ class AttendanceRealtimeService:
                         "status": "inactive",
                         "shift_stopped_at": stopped_dt,
                         "last_seen_at": stopped_dt,
-                        "updated_at": datetime.now(timezone.utc)
+                        "updated_at": utc_now(),
                     }
                 }
             )
