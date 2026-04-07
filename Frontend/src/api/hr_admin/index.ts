@@ -5,8 +5,8 @@ import { WorkingScheduleService } from "./schedule";
 import { WorkLocationApi, WorkLocationService } from "./workLocations";
 import { AttendanceApi, AttendanceService } from "./attendance";
 import { PublicHolidayApi, PublicHolidayService } from "./publicHoliday";
-import { OvertimeRequestApi } from "./overtimeRequest/api";
-import { OvertimeRequestService } from "./overtimeRequest/service";
+import { OvertimeRequestApi } from "./overtime/api";
+import { OvertimeRequestService } from "./overtime/service";
 
 let _hrmsAdminService: ReturnType<typeof createHrmsAdminService> | null = null;
 

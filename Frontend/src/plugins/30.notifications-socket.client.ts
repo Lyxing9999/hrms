@@ -6,6 +6,8 @@ import { useNotificationStore } from "~/stores/notificationStore";
 type GlobalSocketState = {
   socket: Socket | null;
   token: string | null;
+  stopAuthWatch?: (() => void) | null;
+  onlineHandler?: (() => void) | null;
 };
 
 export default defineNuxtPlugin(() => {
@@ -18,7 +20,12 @@ export default defineNuxtPlugin(() => {
   const g = globalThis as any;
   const state: GlobalSocketState =
     g.__notif_socket_state__ ??
-    (g.__notif_socket_state__ = { socket: null, token: null });
+    (g.__notif_socket_state__ = {
+      socket: null,
+      token: null,
+      stopAuthWatch: null,
+      onlineHandler: null,
+    });
 
   const isDev = import.meta.dev;
 
@@ -77,15 +84,22 @@ export default defineNuxtPlugin(() => {
 
   if (auth.token) connect(auth.token);
 
-  watch(
+  state.stopAuthWatch?.();
+  state.stopAuthWatch = watch(
     () => auth.token,
     (token) => {
       if (token) connect(token);
       else disconnect();
-    }
+    },
   );
 
-  window.addEventListener("online", () => {
+  if (state.onlineHandler) {
+    window.removeEventListener("online", state.onlineHandler);
+  }
+
+  state.onlineHandler = () => {
     if (auth.token) connect(auth.token);
-  });
+  };
+
+  window.addEventListener("online", state.onlineHandler);
 });

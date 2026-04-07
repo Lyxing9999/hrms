@@ -23,7 +23,7 @@ import type { NotificationDTO } from "~/api/notifications/notification.dto";
 import { NOTIF_TYPE_OPTIONS } from "~/utils/constants/notification";
 import type { NotifType } from "~/api/notifications/notification.dto";
 
-import { formatDate } from "~/utils/date/formatDate";
+import { formatDate, nowIsoUtc } from "~/utils/date/formatDate";
 
 const route = useRoute();
 const msg = useMessage();
@@ -33,7 +33,7 @@ const { unreadCount } = storeToRefs(notif);
 
 type FilterMode = "all" | "unread";
 const filter = ref<FilterMode>(
-  String(route.query.filter ?? "all") === "unread" ? "unread" : "all"
+  String(route.query.filter ?? "all") === "unread" ? "unread" : "all",
 );
 
 type TypeFilter = "all" | NotifType;
@@ -75,7 +75,7 @@ function sameQuery(a: Record<string, any>, b: Record<string, any>) {
 // Sync query -> state (filter/type/limit only; q stays local)
 watch(
   () => route.query.filter,
-  (v) => (filter.value = String(v ?? "all") === "unread" ? "unread" : "all")
+  (v) => (filter.value = String(v ?? "all") === "unread" ? "unread" : "all"),
 );
 
 watch(
@@ -84,7 +84,7 @@ watch(
     const t = String(v ?? "all");
     const allowed = new Set(["all", ...NOTIF_TYPE_OPTIONS.map((x) => x.value)]);
     typeFilter.value = allowed.has(t) ? (t as TypeFilter) : "all";
-  }
+  },
 );
 
 watch(
@@ -92,7 +92,7 @@ watch(
   (v) => {
     const n = Number(v ?? 30);
     limit.value = [30, 50, 100].includes(n) ? n : 30;
-  }
+  },
 );
 
 // Write state -> query (NO q to avoid typing lag)
@@ -174,7 +174,7 @@ async function markRead(n: NotificationDTO) {
   if (!n?.id || n.read_at) return;
 
   const prev = n.read_at;
-  n.read_at = new Date().toISOString(); // optimistic local
+  n.read_at = nowIsoUtc(); // optimistic local
 
   try {
     await notif.markRead(String(n.id));
@@ -203,9 +203,9 @@ async function markAllRead() {
     return;
   }
 
-  const now = new Date().toISOString();
+  const now = nowIsoUtc();
   items.value = items.value.map((x) =>
-    x.read_at ? x : { ...x, read_at: now }
+    x.read_at ? x : { ...x, read_at: now },
   );
 
   try {

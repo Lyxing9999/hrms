@@ -4,6 +4,7 @@ import { useNuxtApp } from "nuxt/app";
 
 import type { NotificationDTO } from "~/api/notifications/notification.dto";
 import { NotificationApi } from "~/api/notifications/notification.api";
+import { nowIsoUtc } from "~/utils/date/formatDate";
 
 type Wrapped<T> = {
   success: boolean;
@@ -26,7 +27,6 @@ export const useNotificationStore = defineStore("notification", () => {
   function toggleDrawer(v?: boolean) {
     drawerOpen.value = typeof v === "boolean" ? v : !drawerOpen.value;
   }
-
 
   async function refreshUnread(): Promise<number> {
     try {
@@ -104,7 +104,7 @@ export const useNotificationStore = defineStore("notification", () => {
     if (idx >= 0 && !items.value[idx].read_at) {
       items.value[idx] = {
         ...items.value[idx],
-        read_at: new Date().toISOString(),
+        read_at: nowIsoUtc(),
       };
       unread.value = Math.max(0, unread.value - 1);
     }
@@ -120,9 +120,9 @@ export const useNotificationStore = defineStore("notification", () => {
     const api = getApi();
 
     // optimistic UI
-    const now = new Date().toISOString();
+    const now = nowIsoUtc();
     items.value = items.value.map((x) =>
-      x.read_at ? x : { ...x, read_at: now }
+      x.read_at ? x : { ...x, read_at: now },
     );
     unread.value = 0;
 

@@ -8,7 +8,7 @@ import {
 import {
   Calendar,
   Clock,
-  FileText,
+  Document,
   Clock as ClockIcon,
 } from "@element-plus/icons-vue";
 import type {
@@ -114,7 +114,7 @@ export const overtimeFormSchema: Field<OvertimeRequestCreateDTO>[] = [
           maxlength: 500,
           showWordLimit: true,
           rows: 4,
-          suffixIcon: FileText,
+          suffixIcon: Document,
         },
         formItemProps: {
           rules: [
@@ -217,7 +217,7 @@ export const overtimeUpdateFormSchema: Field<OvertimeRequestUpdateDTO>[] = [
           maxlength: 500,
           showWordLimit: true,
           rows: 4,
-          suffixIcon: FileText,
+          suffixIcon: Document,
         },
         formItemProps: {
           rules: [
@@ -262,7 +262,7 @@ export const overtimeReviewFormSchema: Field<{
           maxlength: 500,
           showWordLimit: true,
           rows: 4,
-          suffixIcon: FileText,
+          suffixIcon: Document,
         },
         formItemProps: {
           rules: [

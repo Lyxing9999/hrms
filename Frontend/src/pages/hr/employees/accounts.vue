@@ -38,7 +38,7 @@ import { useHrEmployeeStore } from "~/stores/hrEmployeeStore";
 
 definePageMeta({ layout: "default" });
 
-type ManagerRoleFilter = "all" | "manager" | "payroll_manager";
+type AccountRoleFilter = "all" | "employee" | "manager" | "payroll_manager";
 
 const employeeStore = useHrEmployeeStore();
 
@@ -48,7 +48,7 @@ const currentPage = ref(1);
 const pageSize = ref(10);
 const totalRows = ref(0);
 const search = ref("");
-const roleFilter = ref<ManagerRoleFilter>("all");
+const roleFilter = ref<AccountRoleFilter>("all");
 
 const passwordResetSaving = ref<Record<string, boolean>>({});
 const deleteAccountSaving = ref<Record<string, boolean>>({});
@@ -75,6 +75,7 @@ const createForm = reactive<{
 });
 
 const managerStats = computed(() => {
+  const employee = rows.value.filter((r) => r.role === "employee").length;
   const manager = rows.value.filter((r) => r.role === "manager").length;
   const payroll = rows.value.filter((r) => r.role === "payroll_manager").length;
   const suspended = rows.value.filter(
@@ -85,6 +86,7 @@ const managerStats = computed(() => {
 
   return {
     total: rows.value.length,
+    employee,
     manager,
     payroll,
     suspended,
@@ -117,7 +119,9 @@ function resolveLinkedState(item: Record<string, unknown>) {
 
 function roleAllowed(role: string) {
   if (roleFilter.value === "all") {
-    return role === "manager" || role === "payroll_manager";
+    return (
+      role === "employee" || role === "manager" || role === "payroll_manager"
+    );
   }
   return role === roleFilter.value;
 }
@@ -264,14 +268,13 @@ async function submitCreateAccount() {
   createSaving.value = true;
   try {
     await employeeStore.createAccount(createForm.employee_id, payload);
-    ElMessage.success("Manager account created successfully");
+    ElMessage.success("Employee account created successfully");
     closeCreateDialog();
     await fetchManagerAccounts(currentPage.value);
   } catch (error) {
     console.error(error);
     ElMessage.error(
-      employeeStore.getError("createAccount") ||
-        "Failed to create manager account",
+      employeeStore.getError("createAccount") || "Failed to create account",
     );
   } finally {
     createSaving.value = false;
@@ -389,14 +392,14 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 <template>
   <div class="manager-account-page">
     <OverviewHeader
-      title="Manager Accounts"
-      description="Dedicated control center for manager and payroll-manager access"
+      title="Employee Accounts"
+      description="Control center for employee, manager, and payroll-manager access"
       @refresh="fetchManagerAccounts(currentPage)"
     >
       <template #actions>
         <div class="header-actions">
           <ElButton type="primary" @click="openCreateDialog">
-            Create Manager Account
+            Create Employee Account
           </ElButton>
 
           <ElInput
@@ -413,7 +416,8 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
             style="width: 170px"
             @change="handleSearch"
           >
-            <ElOption label="All Manager Roles" value="all" />
+            <ElOption label="All Roles" value="all" />
+            <ElOption label="Employee" value="employee" />
             <ElOption label="Manager" value="manager" />
             <ElOption label="Payroll Manager" value="payroll_manager" />
           </ElSelect>
@@ -427,6 +431,10 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
       <ElCard
         ><div class="summary-title">Visible Accounts</div>
         <div class="summary-value">{{ managerStats.total }}</div></ElCard
+      >
+      <ElCard
+        ><div class="summary-title">Employee</div>
+        <div class="summary-value">{{ managerStats.employee }}</div></ElCard
       >
       <ElCard
         ><div class="summary-title">Manager</div>
@@ -485,7 +493,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
           <div class="insight-title">Accounts Not Linked</div>
         </template>
         <div v-if="topUnlinkedAccounts.length === 0" class="empty-note">
-          No unlinked manager accounts.
+          No unlinked accounts for selected roles.
         </div>
         <div v-else class="insight-list">
           <div
@@ -570,7 +578,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 
     <ElDialog
       v-model="createDialogVisible"
-      title="Create Manager Account"
+      title="Create Employee Account"
       width="640px"
       @close="closeCreateDialog"
     >
@@ -596,7 +604,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
         <ElFormItem label="Email">
           <ElInput
             v-model="createForm.email"
-            placeholder="manager@company.com"
+            placeholder="employee@company.com"
             clearable
           />
         </ElFormItem>
@@ -620,6 +628,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 
         <ElFormItem label="Role">
           <ElSelect v-model="createForm.role" style="width: 100%">
+            <ElOption label="Employee" :value="Role.EMPLOYEE" />
             <ElOption label="Manager" :value="Role.MANAGER" />
             <ElOption label="Payroll Manager" :value="Role.PAYROLL_MANAGER" />
           </ElSelect>

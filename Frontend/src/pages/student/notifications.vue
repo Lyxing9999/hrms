@@ -19,7 +19,7 @@ import { useMessage } from "~/composables/common/useMessage";
 import { useNotificationStore } from "~/stores/notificationStore";
 import type { NotificationDTO } from "~/api/notifications/notification.dto";
 
-import { formatDate } from "~/utils/date/formatDate";
+import { formatDate, nowIsoUtc } from "~/utils/date/formatDate";
 
 const msg = useMessage();
 
@@ -86,7 +86,7 @@ async function markRead(n: NotificationDTO) {
 
   // optimistic local
   const prev = n.read_at;
-  n.read_at = new Date().toISOString();
+  n.read_at = nowIsoUtc();
 
   try {
     await notif.markRead(String(n.id));
@@ -116,9 +116,9 @@ async function markAllRead() {
   }
 
   // optimistic local
-  const now = new Date().toISOString();
+  const now = nowIsoUtc();
   items.value = items.value.map((x) =>
-    x.read_at ? x : { ...x, read_at: now }
+    x.read_at ? x : { ...x, read_at: now },
   );
 
   try {

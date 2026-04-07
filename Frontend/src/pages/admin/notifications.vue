@@ -20,7 +20,7 @@ import NotificationDrawer from "~/components/notifications/NotificationDrawer.vu
 
 import { NotificationApi } from "~/api/notifications/notification.api";
 import type { NotificationDTO } from "~/api/notifications/notification.dto";
-import { formatDate } from "~/utils/date/formatDate";
+import { formatDate, nowIsoUtc } from "~/utils/date/formatDate";
 
 const route = useRoute();
 const msg = useMessage();
@@ -33,7 +33,7 @@ const notifApi = new NotificationApi($api as any, "/api");
 
 type FilterMode = "all" | "unread";
 const filter = ref<FilterMode>(
-  (String(route.query.filter ?? "all") as any) === "unread" ? "unread" : "all"
+  (String(route.query.filter ?? "all") as any) === "unread" ? "unread" : "all",
 );
 const q = ref<string>(String(route.query.q ?? ""));
 
@@ -47,14 +47,14 @@ watch(
   (v) => {
     const f = String(v ?? "all");
     filter.value = f === "unread" ? "unread" : "all";
-  }
+  },
 );
 
 watch(
   () => route.query.q,
   (v) => {
     q.value = String(v ?? "");
-  }
+  },
 );
 
 function setRouteQuery() {
@@ -110,7 +110,7 @@ async function markRead(n: NotificationDTO) {
   if (!n?.id || n.read_at) return;
 
   const prev = n.read_at;
-  n.read_at = new Date().toISOString();
+  n.read_at = nowIsoUtc();
 
   try {
     await notifApi.markRead(String(n.id));
@@ -131,7 +131,7 @@ async function markAllRead() {
   }
 
   // optimistic
-  const now = new Date().toISOString();
+  const now = nowIsoUtc();
   const snapshot = items.value.map((x) => ({ id: x.id, read_at: x.read_at }));
 
   items.value = items.value.map((x) => ({ ...x, read_at: x.read_at || now }));

@@ -1,6 +1,6 @@
 // frontend/src/modules/tables/columns/hr_admin/overtimeColumns.ts
 import type { ColumnConfig } from "~/components/types/tableEdit";
-import type { OvertimeRequestDTO } from "~/api/hr_admin/overtimeRequest";
+import type { OvertimeRequestDTO } from "~/api/hr_admin/overtime/dto";
 import dayjs from "dayjs";
 import duration from "dayjs/plugin/duration";
 
@@ -8,94 +8,102 @@ dayjs.extend(duration);
 
 export const overtimeColumns: ColumnConfig<OvertimeRequestDTO>[] = [
   {
-    prop: "id",
+    field: "id",
     label: "ID",
-    width: 100,
+    width: "100px",
     visible: false,
   },
   {
-    prop: "employee_id",
+    field: "employee_id",
     label: "Employee",
-    width: 150,
+    width: "150px",
     visible: true,
     sortable: false,
   },
   {
-    prop: "request_date",
+    field: "request_date",
     label: "Date",
-    width: 130,
+    width: "130px",
     visible: true,
     sortable: true,
-    formatter: (row: OvertimeRequestDTO) => {
+    render: (row: OvertimeRequestDTO) => {
       return dayjs(row.request_date).format("MMM DD, YYYY");
     },
   },
   {
-    prop: "start_time",
+    field: "start_time",
     label: "Start Time",
-    width: 120,
+    width: "120px",
     visible: true,
     sortable: false,
-    formatter: (row: OvertimeRequestDTO) => {
-      return dayjs(row.start_time, "HH:mm:ss").format("HH:mm");
+    render: (row: OvertimeRequestDTO) => {
+      return dayjs(row.start_time).format("HH:mm");
     },
   },
   {
-    prop: "end_time",
+    field: "end_time",
     label: "End Time",
-    width: 120,
+    width: "120px",
     visible: true,
     sortable: false,
-    formatter: (row: OvertimeRequestDTO) => {
-      return dayjs(row.end_time, "HH:mm:ss").format("HH:mm");
+    render: (row: OvertimeRequestDTO) => {
+      return dayjs(row.end_time).format("HH:mm");
     },
   },
   {
-    prop: "requested_hours",
+    field: "approved_hours",
     label: "Hours",
-    width: 80,
+    width: "80px",
     visible: true,
     sortable: false,
-    formatter: (row: OvertimeRequestDTO) => {
-      return `${row.requested_hours.toFixed(1)}h`;
+    render: (row: OvertimeRequestDTO) => {
+      const start = dayjs(row.start_time);
+      const end = dayjs(row.end_time);
+      const fallback =
+        start.isValid() && end.isValid()
+          ? Number((end.diff(start, "minute") / 60).toFixed(1))
+          : 0;
+      const hours = row.approved_hours > 0 ? row.approved_hours : fallback;
+      return `${Number(hours).toFixed(1)}h`;
     },
   },
   {
-    prop: "reason",
+    field: "reason",
     label: "Reason",
-    minWidth: 200,
+    minWidth: "200px",
     visible: true,
     sortable: false,
   },
   {
-    prop: "status",
+    field: "status",
     label: "Status",
-    width: 120,
+    width: "120px",
     visible: true,
     sortable: true,
     slotName: "status",
   },
   {
-    prop: "manager_comment",
+    field: "manager_comment",
     label: "Manager Comment",
-    minWidth: 180,
+    minWidth: "180px",
     visible: false,
     sortable: false,
   },
   {
-    prop: "lifecycle.created_at",
+    field: "submitted_at",
     label: "Submitted",
-    width: 160,
+    width: "160px",
     visible: true,
     sortable: true,
-    formatter: (row: OvertimeRequestDTO) => {
-      return dayjs(row.lifecycle.created_at).format("MMM DD, HH:mm");
+    render: (row: OvertimeRequestDTO) => {
+      return dayjs(row.submitted_at).format("MMM DD, HH:mm");
     },
   },
   {
-    prop: "operation",
+    field: "id",
+    operation: true,
     label: "Actions",
-    width: 200,
+    width: "250px",
     fixed: "right",
     visible: true,
     slotName: "operation",

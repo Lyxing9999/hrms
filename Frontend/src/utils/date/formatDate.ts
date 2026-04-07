@@ -7,6 +7,10 @@ dayjs.extend(timezone);
 
 export const KH_TZ = "Asia/Phnom_Penh";
 
+export function nowIsoUtc(): string {
+  return dayjs.utc().toISOString();
+}
+
 export function formatDate(raw: string | null | undefined, format?: string) {
   if (!raw) return "N/A";
 
