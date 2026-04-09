@@ -11,6 +11,7 @@ import type {
   AttendanceListParams,
   AttendancePaginatedDTO,
   AttendanceTeamListParams,
+  AttendanceTodayDTO,
   WrongLocationReportParams,
 } from "./dto";
 
@@ -49,13 +50,40 @@ export class AttendanceService {
     return data!;
   }
 
-  async getMyAttendance(options?: ApiCallOptions) {
+  async getMyAttendance(
+    params?: Omit<
+      AttendanceListParams,
+      "employee_id" | "include_deleted" | "deleted_only"
+    >,
+    options?: ApiCallOptions,
+  ): Promise<AttendancePaginatedDTO> {
     const data = await this.callApi<AttendancePaginatedDTO>(
-      () => this.attendanceApi.getMyAttendance(),
+      () => this.attendanceApi.getMyAttendance(params),
       options,
     );
-    // Return the first item (today's attendance) or undefined if no records exist
-    return data?.items?.[0] ?? null;
+
+    return (
+      data ?? {
+        items: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          page_size: 10,
+          total_pages: 0,
+        },
+      }
+    );
+  }
+
+  async getMyAttendanceToday(
+    options?: ApiCallOptions,
+  ): Promise<AttendanceTodayDTO> {
+    const data = await this.callApi<AttendanceTodayDTO>(
+      () => this.attendanceApi.getMyAttendanceToday(),
+      options,
+    );
+
+    return data ?? { item: null };
   }
 
   async getAttendances(
@@ -70,10 +98,12 @@ export class AttendanceService {
     return (
       data ?? {
         items: [],
-        total: 0,
-        page: 1,
-        page_size: 10,
-        total_pages: 0,
+        pagination: {
+          total: 0,
+          page: 1,
+          page_size: 10,
+          total_pages: 0,
+        },
       }
     );
   }
@@ -90,13 +120,16 @@ export class AttendanceService {
     return (
       data ?? {
         items: [],
-        total: 0,
-        page: 1,
-        page_size: 10,
-        total_pages: 0,
+        pagination: {
+          total: 0,
+          page: 1,
+          page_size: 10,
+          total_pages: 0,
+        },
       }
     );
   }
+
   async getWrongLocationReports(
     params?: WrongLocationReportParams,
     options?: ApiCallOptions,
@@ -109,10 +142,12 @@ export class AttendanceService {
     return (
       data ?? {
         items: [],
-        total: 0,
-        page: 1,
-        page_size: 10,
-        total_pages: 0,
+        pagination: {
+          total: 0,
+          page: 1,
+          page_size: 10,
+          total_pages: 0,
+        },
       }
     );
   }

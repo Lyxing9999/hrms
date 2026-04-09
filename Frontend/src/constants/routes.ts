@@ -1,51 +1,57 @@
 export const ROUTES = {
-  // ============================================
-  // ADMIN ROUTES (School Management)
-  // ============================================
-  ADMIN: {
-    DASHBOARD: "/admin/dashboard",
-    MANAGE_USERS: "/admin/manage-user",
-    MANAGE_CLASSES: "/admin/manage-class",
-    TEACHING_ASSIGNMENTS: "/admin/teaching-assignments",
-    MANAGE_SUBJECTS: "/admin/manage-subject",
-    MANAGE_SCHEDULES: "/admin/manage-schedule",
-    NOTIFICATIONS: "/admin/notifications",
-    SYSTEM_EVENTS: "/admin/events",
-    SETTINGS: "/admin/settings",
+  AUTH: {
+    LOGIN: "/auth/login",
+    FORGOT_PASSWORD: "/auth/forgot-password",
+    RESET_PASSWORD: "/auth/reset-password",
   },
 
   // ============================================
-  // TEACHER ROUTES
+  // SCHOOL MANAGEMENT
   // ============================================
+  ADMIN: {
+    DASHBOARD: "/admin/dashboard",
+
+    USERS: "/admin/manage-user",
+    CLASSES: "/admin/manage-class",
+    SUBJECTS: "/admin/manage-subject",
+    SCHEDULES: "/admin/manage-schedule",
+    TEACHING_ASSIGNMENTS: "/admin/teaching-assignments",
+
+    NOTIFICATIONS: "/admin/notifications",
+    EVENTS: "/admin/events",
+    SETTINGS: "/admin/settings",
+  },
+
   TEACHER: {
     DASHBOARD: "/teacher/dashboard",
-    MANAGE_STUDENTS: "/teacher/students",
-    MY_CLASSES: "/teacher/classes",
+
+    STUDENTS: "/teacher/students",
+    CLASSES: "/teacher/classes",
     GRADES: "/teacher/grades",
     SCHEDULE: "/teacher/schedule",
     ATTENDANCE: "/teacher/attendance",
+
     CALENDAR: "/teacher/calendar",
     NOTIFICATIONS: "/teacher/notifications",
     SETTINGS: "/teacher/settings",
   },
 
-  // ============================================
-  // STUDENT ROUTES
-  // ============================================
   STUDENT: {
     DASHBOARD: "/student/dashboard",
+
     ENROLLMENTS: "/student/enrollments",
-    MY_CLASSES: "/student/classes",
-    MY_GRADES: "/student/grades",
-    MY_SCHEDULE: "/student/schedule",
+    CLASSES: "/student/classes",
+    GRADES: "/student/grades",
+    SCHEDULE: "/student/schedule",
     ATTENDANCE: "/student/attendance",
-    NOTIFICATIONS: "/student/notifications",
+
     CALENDAR: "/student/calendar",
+    NOTIFICATIONS: "/student/notifications",
     SETTINGS: "/student/settings",
   },
 
   // ============================================
-  // HRMS ROUTES (Human Resource Management)
+  // HRMS
   // ============================================
   HR_ADMIN: {
     DASHBOARD: "/hr",
@@ -56,7 +62,6 @@ export const ROUTES = {
 
     ATTENDANCE: "/hr/attendance",
     ATTENDANCE_WRONG_LOCATION: "/hr/attendance/wrong-location",
-    ATTENDANCE_ADJUSTMENTS: "/hr/attendance/adjustments",
     ATTENDANCE_REPORTS: "/hr/attendance/reports",
 
     OVERTIME: "/hr/overtime",
@@ -68,6 +73,7 @@ export const ROUTES = {
     LEAVE_BALANCES: "/hr/leaves/balances",
 
     PAYROLL_RUNS: "/hr/payroll/runs",
+    PAYROLL_GENERATE: "/hr/payroll/runs/generate",
     PAYSLIPS: "/hr/payroll/payslips",
     PAYROLL_HISTORY: "/hr/payroll/history",
 
@@ -75,7 +81,6 @@ export const ROUTES = {
     WORK_LOCATIONS: "/hr/config/work-locations",
     PUBLIC_HOLIDAYS: "/hr/config/public-holidays",
     DEDUCTION_RULES: "/hr/config/deduction-rules",
-    OT_RULES: "/hr/config/overtime-rules",
 
     REPORTS_ATTENDANCE: "/hr/reports/attendance",
     REPORTS_OVERTIME: "/hr/reports/overtime",
@@ -92,12 +97,17 @@ export const ROUTES = {
 
     OVERTIME_REQUEST: "/employee/overtime/request",
     OVERTIME_HISTORY: "/employee/overtime/history",
+    OVERTIME_DETAIL: (id: string) => `/employee/overtime/${id}`,
 
     LEAVE_REQUEST: "/employee/leaves/request",
     LEAVE_HISTORY: "/employee/leaves/history",
+    LEAVE_DETAIL: (id: string) => `/employee/leaves/${id}`,
     LEAVE_BALANCE: "/employee/leaves/balance",
 
     PAYSLIPS: "/employee/payslips",
+    PAYSLIP_DETAIL: (id: string) => `/employee/payslips/${id}`,
+
+    SETTINGS: "/employee/settings",
   },
 
   MANAGER: {
@@ -108,11 +118,15 @@ export const ROUTES = {
 
     OVERTIME_REVIEWS: "/manager/overtime/reviews",
     OVERTIME_HISTORY: "/manager/overtime/history",
+    OVERTIME_DETAIL: (id: string) => `/manager/overtime/${id}`,
 
     LEAVE_REVIEWS: "/manager/leaves/reviews",
     LEAVE_HISTORY: "/manager/leaves/history",
+    LEAVE_DETAIL: (id: string) => `/manager/leaves/${id}`,
 
     REPORTS_TEAM: "/manager/reports/team",
+
+    SETTINGS: "/manager/settings",
   },
 
   PAYROLL_MANAGER: {
@@ -120,13 +134,18 @@ export const ROUTES = {
 
     PAYROLL_PROCESS: "/payroll/runs/generate",
     PAYROLL_RUNS: "/payroll/runs",
+    PAYROLL_RUN_DETAIL: (id: string) => `/payroll/runs/${id}`,
+
     PAYSLIPS: "/payroll/payslips",
+    PAYSLIP_DETAIL: (id: string) => `/payroll/payslips/${id}`,
 
     ATTENDANCE_FINAL: "/payroll/attendance/final",
+
     OVERTIME_APPROVED: "/payroll/overtime/approved",
+    OVERTIME_DETAIL: (id: string) => `/payroll/overtime/${id}`,
 
     REPORTS_PAYROLL: "/payroll/reports",
+
+    SETTINGS: "/payroll/settings",
   },
 } as const;
-
-export type RoutePath = (typeof ROUTES)[keyof typeof ROUTES][keyof unknown];

@@ -9,6 +9,7 @@ import type {
   AttendanceListParams,
   AttendancePaginatedDTO,
   AttendanceTeamListParams,
+  AttendanceTodayDTO,
   WrongLocationReportParams,
 } from "./dto";
 
@@ -45,9 +46,17 @@ export class AttendanceApi {
     return res.data;
   }
 
-  async getMyAttendance() {
+  async getMyAttendance(params?: Omit<AttendanceListParams, "employee_id" | "include_deleted" | "deleted_only">) {
     const res = await this.$api.get<ApiResponse<AttendancePaginatedDTO>>(
       `${this.baseURL}/me`,
+      { params },
+    );
+    return res.data;
+  }
+
+  async getMyAttendanceToday() {
+    const res = await this.$api.get<ApiResponse<AttendanceTodayDTO>>(
+      `${this.baseURL}/me/today`,
     );
     return res.data;
   }
@@ -55,9 +64,7 @@ export class AttendanceApi {
   async getAttendances(params?: AttendanceListParams) {
     const res = await this.$api.get<ApiResponse<AttendancePaginatedDTO>>(
       this.baseURL,
-      {
-        params,
-      },
+      { params },
     );
     return res.data;
   }
@@ -65,9 +72,7 @@ export class AttendanceApi {
   async getTeamAttendances(params?: AttendanceTeamListParams) {
     const res = await this.$api.get<ApiResponse<AttendancePaginatedDTO>>(
       `${this.baseURL}/team`,
-      {
-        params,
-      },
+      { params },
     );
     return res.data;
   }
@@ -75,10 +80,9 @@ export class AttendanceApi {
   async getWrongLocationReports(params?: WrongLocationReportParams) {
     const res = await this.$api.get<ApiResponse<AttendancePaginatedDTO>>(
       `${this.baseURL}/reports/wrong-location`,
-      {
-        params,
-      },
+      { params },
     );
     return res.data;
   }
+  
 }

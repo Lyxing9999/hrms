@@ -136,16 +136,28 @@ const formatDateTime = (iso?: string | null) => {
   });
 };
 
-const formatDateOnly = (iso?: string | null) => {
-  if (!iso) return "-";
+const formatDateOnly = (value?: string | null) => {
+  if (!value) return "-";
 
-  return new Date(iso).toLocaleDateString("en-US", {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+    ).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    });
+  }
+
+  return new Date(value).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "2-digit",
   });
 };
-
 const formatCoordinate = (value?: number | null) => {
   if (typeof value !== "number") return "-";
   return value.toFixed(6);
@@ -322,9 +334,11 @@ const loadMyAttendance = async () => {
   scheduleError.value = "";
 
   try {
-    attendance.value = await attendanceService.getMyAttendance({
+    const result = await attendanceService.getMyAttendanceToday({
       showError: false,
     });
+
+    attendance.value = result.item ?? null;
 
     const scheduleId = attendance.value?.schedule_id;
     if (!scheduleId) {
@@ -355,6 +369,7 @@ const loadMyAttendance = async () => {
       message.includes("no attendance")
     ) {
       attendance.value = null;
+      employeeSchedule.value = null;
       return;
     }
 
@@ -363,7 +378,6 @@ const loadMyAttendance = async () => {
     isLoadingAttendance.value = false;
   }
 };
-
 const handleRefresh = async () => {
   await loadMyAttendance();
 };
