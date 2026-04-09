@@ -3,6 +3,11 @@ from __future__ import annotations
 from math import radians, sin, cos, sqrt, atan2
 from bson import ObjectId
 
+from app.contexts.hrms.errors.location_exceptions import (
+    InvalidLocationCoordinatesException,
+    InvalidRadiusException,
+    WorkLocationNameRequiredException,
+)
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -31,13 +36,13 @@ class WorkLocation:
         self.lifecycle = lifecycle or Lifecycle()
 
         if not self.name:
-            raise ValueError("Location name is required")
+            raise WorkLocationNameRequiredException()
         if not (-90 <= self.latitude <= 90):
-            raise ValueError("Invalid latitude")
+            raise InvalidLocationCoordinatesException(self.latitude, self.longitude)
         if not (-180 <= self.longitude <= 180):
-            raise ValueError("Invalid longitude")
+            raise InvalidLocationCoordinatesException(self.latitude, self.longitude)
         if not (10 <= self.radius_meters <= 1000):
-            raise ValueError("Radius must be between 10 and 1000 meters")
+            raise InvalidRadiusException(self.radius_meters)
 
     def distance_meters(self, latitude: float, longitude: float) -> float:
         earth_radius = 6371000
@@ -66,16 +71,16 @@ class WorkLocation:
 
     def update_coordinates(self, latitude: float, longitude: float) -> None:
         if not (-90 <= latitude <= 90):
-            raise ValueError("Invalid latitude")
+            raise InvalidLocationCoordinatesException(latitude, longitude)
         if not (-180 <= longitude <= 180):
-            raise ValueError("Invalid longitude")
+            raise InvalidLocationCoordinatesException(latitude, longitude)
         self.latitude = float(latitude)
         self.longitude = float(longitude)
         self.lifecycle.touch(now_utc())
 
     def update_radius(self, radius_meters: int) -> None:
         if not (10 <= radius_meters <= 1000):
-            raise ValueError("Radius must be between 10 and 1000 meters")
+            raise InvalidRadiusException(radius_meters)
         self.radius_meters = int(radius_meters)
         self.lifecycle.touch(now_utc())
 

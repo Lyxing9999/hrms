@@ -64,3 +64,144 @@ class LeaveNotFoundException(AppBaseException):
             hint="Check leave ID",
             recoverable=True,
         )
+
+
+class LeaveEmployeeNotFoundException(AppBaseException):
+    def __init__(self, employee_id: str):
+        super().__init__(
+            message="Employee not found",
+            error_code="LEAVE_EMPLOYEE_NOT_FOUND",
+            status_code=404,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            context={"employee_id": employee_id},
+            user_message="Employee not found.",
+            hint="Check employee ID linked to the leave request",
+            recoverable=True,
+        )
+
+
+class LeaveApprovalNotAllowedException(AppBaseException):
+    def __init__(self, manager_user_id: str, employee_manager_user_id: str):
+        super().__init__(
+            message="You can only approve leave requests from your own team",
+            error_code="LEAVE_APPROVAL_NOT_ALLOWED",
+            status_code=403,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.AUTHORIZATION,
+            details={
+                "manager_user_id": manager_user_id,
+                "employee_manager_user_id": employee_manager_user_id,
+            },
+            user_message="You are not allowed to approve this leave request.",
+            hint="Only the employee's manager can approve this leave request",
+            recoverable=True,
+        )
+
+
+class LeaveReasonRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            message="Leave reason is required",
+            error_code="LEAVE_REASON_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.VALIDATION,
+            user_message="Leave reason is required.",
+            hint="Provide a non-empty reason for the leave request",
+            recoverable=True,
+        )
+
+
+class LeaveOverlapExistsException(AppBaseException):
+    def __init__(self, employee_id: str, start_date: date_type, end_date: date_type):
+        super().__init__(
+            message="Overlapping leave request already exists",
+            error_code="LEAVE_OVERLAP_EXISTS",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={
+                "employee_id": employee_id,
+                "start_date": str(start_date),
+                "end_date": str(end_date),
+            },
+            user_message="An overlapping leave request already exists.",
+            hint="Adjust the leave date range or cancel existing overlapping leave",
+            recoverable=True,
+        )
+
+
+class LeaveCancellationNotAllowedException(AppBaseException):
+    def __init__(self, actor_employee_id: str, leave_employee_id: str):
+        super().__init__(
+            message="You can only cancel your own leave request",
+            error_code="LEAVE_CANCELLATION_NOT_ALLOWED",
+            status_code=403,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.AUTHORIZATION,
+            details={
+                "actor_employee_id": actor_employee_id,
+                "leave_employee_id": leave_employee_id,
+            },
+            user_message="You are not allowed to cancel this leave request.",
+            hint="Only the owner of the leave request can cancel it",
+            recoverable=True,
+        )
+
+
+class LeaveContractPeriodRequiredException(AppBaseException):
+    def __init__(self, employee_id: str):
+        super().__init__(
+            message="Employee contract period is required for contract employees",
+            error_code="LEAVE_CONTRACT_PERIOD_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={"employee_id": employee_id},
+            user_message="Contract period is required for contract employees.",
+            hint="Provide both contract start_date and end_date",
+            recoverable=True,
+        )
+
+
+class LeaveApprovalStateInvalidException(AppBaseException):
+    def __init__(self, leave_id: str, status: str):
+        super().__init__(
+            message="Only pending leave request can be approved",
+            error_code="LEAVE_APPROVAL_STATE_INVALID",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={"leave_id": leave_id, "status": status},
+            user_message="Only pending leave can be approved.",
+            recoverable=True,
+        )
+
+
+class LeaveRejectionStateInvalidException(AppBaseException):
+    def __init__(self, leave_id: str, status: str):
+        super().__init__(
+            message="Only pending leave request can be rejected",
+            error_code="LEAVE_REJECTION_STATE_INVALID",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={"leave_id": leave_id, "status": status},
+            user_message="Only pending leave can be rejected.",
+            recoverable=True,
+        )
+
+
+class LeaveCancellationStateInvalidException(AppBaseException):
+    def __init__(self, leave_id: str, status: str):
+        super().__init__(
+            message="Only pending leave request can be cancelled",
+            error_code="LEAVE_CANCELLATION_STATE_INVALID",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={"leave_id": leave_id, "status": status},
+            user_message="Only pending leave can be cancelled.",
+            recoverable=True,
+        )

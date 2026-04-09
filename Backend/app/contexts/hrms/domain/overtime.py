@@ -4,6 +4,17 @@ from enum import Enum
 from datetime import datetime, date as date_type, timedelta
 from bson import ObjectId
 
+from app.contexts.hrms.errors.overtime_exceptions import (
+    OvertimeApprovalStateInvalidException,
+    OvertimeApprovedHoursExceedsRequestedException,
+    OvertimeApprovedHoursNegativeException,
+    OvertimeBasicSalaryInvalidException,
+    OvertimeCancellationStateInvalidException,
+    OvertimeEndTimeInvalidException,
+    OvertimeReasonRequiredException,
+    OvertimeRejectionStateInvalidException,
+    OvertimeSubmissionDeadlineExceededException,
+)
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -78,13 +89,13 @@ class OvertimeRequest:
 
     def _validate_initial_state(self) -> None:
         if self.end_time <= self.start_time:
-            raise ValueError("OT end_time must be after start_time")
+            raise OvertimeEndTimeInvalidException()
 
         if not self.reason:
-            raise ValueError("OT reason is required")
+            raise OvertimeReasonRequiredException()
 
         if self.basic_salary < 0:
-            raise ValueError("Basic salary cannot be negative")
+            raise OvertimeBasicSalaryInvalidException()
 
         self._validate_submission_deadline()
 
@@ -93,7 +104,7 @@ class OvertimeRequest:
             hours=self.MIN_SUBMISSION_HOURS_BEFORE_SCHEDULE_END
         )
         if self.submitted_at > latest_submit_time:
-            raise ValueError("OT request must be submitted at least 3 hours before end of working time")
+            raise OvertimeSubmissionDeadlineExceededException()
 
     def requested_hours(self) -> float:
         return (self.end_time - self.start_time).total_seconds() / 3600.0
@@ -116,13 +127,13 @@ class OvertimeRequest:
         comment: str | None = None,
     ) -> None:
         if self.status != OvertimeStatus.PENDING:
-            raise ValueError("Only pending OT request can be approved")
+            raise OvertimeApprovalStateInvalidException(str(self.id), str(self.status))
 
         hours = self.requested_hours() if approved_hours is None else float(approved_hours)
         if hours < 0:
-            raise ValueError("approved_hours cannot be negative")
+            raise OvertimeApprovedHoursNegativeException()
         if hours > self.requested_hours():
-            raise ValueError("approved_hours cannot exceed requested hours")
+            raise OvertimeApprovedHoursExceedsRequestedException()
 
         self.status = OvertimeStatus.APPROVED
         self.manager_id = manager_id
@@ -133,7 +144,7 @@ class OvertimeRequest:
 
     def reject(self, *, manager_id: ObjectId, comment: str | None = None) -> None:
         if self.status != OvertimeStatus.PENDING:
-            raise ValueError("Only pending OT request can be rejected")
+            raise OvertimeRejectionStateInvalidException(str(self.id), str(self.status))
 
         self.status = OvertimeStatus.REJECTED
         self.manager_id = manager_id
@@ -142,7 +153,7 @@ class OvertimeRequest:
 
     def cancel(self, *, actor_id: ObjectId) -> None:
         if self.status != OvertimeStatus.PENDING:
-            raise ValueError("Only pending OT request can be cancelled")
+            raise OvertimeCancellationStateInvalidException(str(self.id), str(self.status))
 
         self.status = OvertimeStatus.CANCELLED
         self.lifecycle.touch(now_utc())

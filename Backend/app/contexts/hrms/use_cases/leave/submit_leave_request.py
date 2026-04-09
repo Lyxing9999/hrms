@@ -1,6 +1,15 @@
 from __future__ import annotations
 
 from app.contexts.hrms.domain.leave import LeaveRequest, LeaveType
+from app.contexts.hrms.errors.employee_exceptions import (
+    EmployeeInactiveException,
+    EmployeeNotFoundException,
+)
+from app.contexts.hrms.errors.leave_exceptions import (
+    LeaveContractPeriodRequiredException,
+    LeaveOutsideContractException,
+    LeaveOverlapExistsException,
+)
 
 
 class SubmitLeaveRequestUseCase:
@@ -18,10 +27,11 @@ class SubmitLeaveRequestUseCase:
     def execute(self, *, employee_id, payload):
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
-            raise ValueError("Employee not found")
+            raise EmployeeNotFoundException(str(employee_id))
 
-        if str(employee.get("status") or "inactive") != "active":
-            raise ValueError("Employee is not active")
+        employee_status = str(employee.get("status") or "inactive")
+        if employee_status != "active":
+            raise EmployeeInactiveException(str(employee_id), employee_status)
 
         employment_type = str(employee.get("employment_type") or "").strip().lower()
         contract = employee.get("contract") or {}
@@ -31,10 +41,15 @@ class SubmitLeaveRequestUseCase:
 
         if employment_type == "contract":
             if not contract_start or not contract_end:
-                raise ValueError("Employee contract period is required for contract employees")
+                raise LeaveContractPeriodRequiredException(str(employee["_id"]))
 
             if payload.start_date < contract_start or payload.end_date > contract_end:
-                raise ValueError("Leave request is outside contract period")
+                raise LeaveOutsideContractException(
+                    payload.start_date,
+                    payload.end_date,
+                    contract_start,
+                    contract_end,
+                )
         else:
             contract_start = payload.start_date
             contract_end = payload.end_date
@@ -44,7 +59,11 @@ class SubmitLeaveRequestUseCase:
             end_date=payload.end_date,
         )
         if overlap:
-            raise ValueError("Overlapping leave request already exists")
+            raise LeaveOverlapExistsException(
+                str(employee["_id"]),
+                payload.start_date,
+                payload.end_date,
+            )
 
         is_paid = payload.leave_type in {
             LeaveType.ANNUAL.value,

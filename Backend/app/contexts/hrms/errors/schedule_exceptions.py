@@ -49,3 +49,31 @@ class WorkingScheduleDeletedException(AppBaseException):
             status_code=400,
             details={"schedule_id": str(schedule_id)},
         )
+
+
+class DefaultWorkingScheduleDeletionNotAllowedException(AppBaseException):
+    def __init__(self, schedule_id):
+        super().__init__(
+            error_code="DEFAULT_SCHEDULE_DELETION_NOT_ALLOWED",
+            message="Cannot delete default working schedule",
+            status_code=400,
+            details={"schedule_id": str(schedule_id)},
+        )
+
+
+class ScheduleNameRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            error_code="SCHEDULE_NAME_REQUIRED",
+            message="Schedule name is required",
+            status_code=400,
+        )
+
+
+class WorkingDaysRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            error_code="WORKING_DAYS_REQUIRED",
+            message="At least one working day is required",
+            status_code=400,
+        )

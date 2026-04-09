@@ -4,6 +4,7 @@ from bson import ObjectId
 from pymongo.database import Database
 
 from app.contexts.hrms.domain.leave import LeaveRequest
+from app.contexts.hrms.errors.leave_exceptions import LeaveNotFoundException
 from app.contexts.hrms.mapper.leave_mapper import LeaveMapper
 
 
@@ -28,7 +29,7 @@ class MongoLeaveRepository:
     def find_by_id(self, leave_id) -> LeaveRequest:
         doc = self.collection.find_one({"_id": self._oid(leave_id)})
         if not doc:
-            raise ValueError("Leave request not found")
+            raise LeaveNotFoundException(str(leave_id))
         return self.mapper.to_domain(doc)
 
     def list_requests(

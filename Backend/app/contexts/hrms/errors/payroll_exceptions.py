@@ -14,6 +14,20 @@ class PayrollAlreadyFinalizedException(AppBaseException):
             recoverable=True,
         )
 
+
+class PayrollRunAlreadyExistsException(AppBaseException):
+    def __init__(self, month: str):
+        super().__init__(
+            message=f"Payroll run already exists for month {month}",
+            error_code="PAYROLL_RUN_ALREADY_EXISTS",
+            status_code=409,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            context={"month": month},
+            user_message="Payroll for this month already exists.",
+            recoverable=True,
+        )
+
 class PayrollRunDeletedException(AppBaseException):
     def __init__(self, payroll_run_id: ObjectId):
         super().__init__(
@@ -43,8 +57,89 @@ class PayrollNotFoundException(AppBaseException):
 
 
 class PayrollRunNotFoundException(AppBaseException):
-    pass
+    def __init__(self, payroll_run_id: str):
+        super().__init__(
+            message="Payroll run not found",
+            error_code="PAYROLL_RUN_NOT_FOUND",
+            status_code=404,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            context={"payroll_run_id": str(payroll_run_id)},
+            recoverable=True,
+        )
 
 
 class PayslipNotFoundException(AppBaseException):
-    pass
+    def __init__(self, payslip_id: str):
+        super().__init__(
+            message="Payslip not found",
+            error_code="PAYSLIP_NOT_FOUND",
+            status_code=404,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            context={"payslip_id": str(payslip_id)},
+            recoverable=True,
+        )
+
+
+class PayrollMonthRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            message="Payroll month is required",
+            error_code="PAYROLL_MONTH_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.VALIDATION,
+            recoverable=True,
+        )
+
+
+class PayrollFinalizeStateInvalidException(AppBaseException):
+    def __init__(self, payroll_run_id: str, status: str):
+        super().__init__(
+            message="Only draft payroll run can be finalized",
+            error_code="PAYROLL_FINALIZE_STATE_INVALID",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={"payroll_run_id": payroll_run_id, "status": status},
+            recoverable=True,
+        )
+
+
+class PayrollMarkPaidStateInvalidException(AppBaseException):
+    def __init__(self, payroll_run_id: str, status: str):
+        super().__init__(
+            message="Only finalized payroll run can be marked paid",
+            error_code="PAYROLL_MARK_PAID_STATE_INVALID",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            details={"payroll_run_id": payroll_run_id, "status": status},
+            recoverable=True,
+        )
+
+
+class PayslipMonthRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            message="Payslip month is required",
+            error_code="PAYSLIP_MONTH_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.VALIDATION,
+            recoverable=True,
+        )
+
+
+class PayrollExpectedWorkingDaysInvalidException(AppBaseException):
+    def __init__(self, expected_working_days: int):
+        super().__init__(
+            message="expected_working_days must be positive",
+            error_code="PAYROLL_EXPECTED_WORKING_DAYS_INVALID",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.VALIDATION,
+            details={"expected_working_days": expected_working_days},
+            recoverable=True,
+        )

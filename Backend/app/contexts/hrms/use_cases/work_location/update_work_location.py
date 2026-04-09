@@ -1,6 +1,7 @@
 # app/contexts/hrms/use_cases/work_location/update_work_location.py
 from __future__ import annotations
 
+from app.contexts.hrms.errors.location_exceptions import WorkLocationCoordinatesPairRequiredException
 from app.contexts.shared.lifecycle.domain import now_utc
 
 
@@ -20,7 +21,7 @@ class UpdateWorkLocationUseCase:
         if payload.latitude is not None and payload.longitude is not None:
             location.update_coordinates(payload.latitude, payload.longitude)
         elif payload.latitude is not None or payload.longitude is not None:
-            raise ValueError("Both latitude and longitude are required when updating coordinates")
+            raise WorkLocationCoordinatesPairRequiredException()
 
         if payload.radius_meters is not None:
             location.update_radius(payload.radius_meters)

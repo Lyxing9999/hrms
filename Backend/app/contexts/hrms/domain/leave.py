@@ -4,6 +4,14 @@ from datetime import date as date_type
 from enum import Enum
 from bson import ObjectId
 
+from app.contexts.hrms.errors.leave_exceptions import (
+    LeaveApprovalStateInvalidException,
+    LeaveCancellationStateInvalidException,
+    LeaveDateRangeInvalidException,
+    LeaveOutsideContractException,
+    LeaveReasonRequiredException,
+    LeaveRejectionStateInvalidException,
+)
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -66,21 +74,26 @@ class LeaveRequest:
         self.lifecycle = lifecycle or Lifecycle()
 
         if self.end_date < self.start_date:
-            raise ValueError("Leave end_date cannot be before start_date")
+            raise LeaveDateRangeInvalidException(self.start_date, self.end_date)
         if not self.reason:
-            raise ValueError("Leave reason is required")
+            raise LeaveReasonRequiredException()
         if not (
             self.contract_start <= self.start_date <= self.contract_end
             and self.contract_start <= self.end_date <= self.contract_end
         ):
-            raise ValueError("Leave request is outside contract period")
+            raise LeaveOutsideContractException(
+                self.start_date,
+                self.end_date,
+                self.contract_start,
+                self.contract_end,
+            )
 
     def total_days(self) -> int:
         return (self.end_date - self.start_date).days + 1
 
     def approve(self, *, manager_id: ObjectId, comment: str | None = None) -> None:
         if self.status != LeaveStatus.PENDING:
-            raise ValueError("Only pending leave request can be approved")
+            raise LeaveApprovalStateInvalidException(str(self.id), str(self.status))
         self.status = LeaveStatus.APPROVED
         self.manager_user_id = manager_id
         self.manager_comment = (comment or "").strip() or None
@@ -88,7 +101,7 @@ class LeaveRequest:
 
     def reject(self, *, manager_id: ObjectId, comment: str | None = None) -> None:
         if self.status != LeaveStatus.PENDING:
-            raise ValueError("Only pending leave request can be rejected")
+            raise LeaveRejectionStateInvalidException(str(self.id), str(self.status))
         self.status = LeaveStatus.REJECTED
         self.manager_user_id = manager_id
         self.manager_comment = (comment or "").strip() or None
@@ -96,7 +109,7 @@ class LeaveRequest:
 
     def cancel(self, *, actor_id: ObjectId) -> None:
         if self.status != LeaveStatus.PENDING:
-            raise ValueError("Only pending leave request can be cancelled")
+            raise LeaveCancellationStateInvalidException(str(self.id), str(self.status))
         self.status = LeaveStatus.CANCELLED
         self.lifecycle.touch(now_utc())
 

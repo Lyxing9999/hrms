@@ -27,3 +27,12 @@ class PublicHolidayDeletedException(AppBaseException):
             error_code="PUBLIC_HOLIDAY_DELETED",
             status_code=410,
         )
+
+
+class HolidayNameRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            message="Holiday name is required",
+            error_code="HOLIDAY_NAME_REQUIRED",
+            status_code=400,
+        )

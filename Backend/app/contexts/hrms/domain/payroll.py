@@ -7,6 +7,13 @@ from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 from app.contexts.hrms.domain.attendance import AttendanceStatus
 from app.contexts.hrms.domain.overtime import OvertimeRequest
 from app.contexts.hrms.domain.deduction_rule import DeductionType
+from app.contexts.hrms.errors.payroll_exceptions import (
+    PayrollExpectedWorkingDaysInvalidException,
+    PayrollFinalizeStateInvalidException,
+    PayrollMarkPaidStateInvalidException,
+    PayrollMonthRequiredException,
+    PayslipMonthRequiredException,
+)
 
 
 class PayrollRunStatus(str, Enum):
@@ -43,17 +50,17 @@ class PayrollRun:
         self.lifecycle = lifecycle or Lifecycle()
 
         if not self.month:
-            raise ValueError("Payroll month is required")
+            raise PayrollMonthRequiredException()
 
     def finalize(self, *, actor_id: ObjectId) -> None:
         if self.status != PayrollRunStatus.DRAFT:
-            raise ValueError("Only draft payroll run can be finalized")
+            raise PayrollFinalizeStateInvalidException(str(self.id), str(self.status))
         self.status = PayrollRunStatus.FINALIZED
         self.lifecycle.touch(now_utc())
 
     def mark_paid(self, *, actor_id: ObjectId) -> None:
         if self.status != PayrollRunStatus.FINALIZED:
-            raise ValueError("Only finalized payroll run can be marked paid")
+            raise PayrollMarkPaidStateInvalidException(str(self.id), str(self.status))
         self.status = PayrollRunStatus.PAID
         self.lifecycle.touch(now_utc())
 
@@ -105,7 +112,7 @@ class Payslip:
         self.lifecycle = lifecycle or Lifecycle()
 
         if not self.month:
-            raise ValueError("Payslip month is required")
+            raise PayslipMonthRequiredException()
 
     def mark_paid(self, *, actor_id: ObjectId) -> None:
         self.status = PayslipStatus.PAID
@@ -118,7 +125,7 @@ class Payslip:
 class PayrollCalculator:
     def __init__(self, *, expected_working_days: int) -> None:
         if expected_working_days <= 0:
-            raise ValueError("expected_working_days must be positive")
+            raise PayrollExpectedWorkingDaysInvalidException(expected_working_days)
         self.expected_working_days = expected_working_days
 
     def daily_salary(self, basic_salary: float) -> float:

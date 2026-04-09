@@ -3,6 +3,12 @@ from __future__ import annotations
 from datetime import time as time_type
 from bson import ObjectId
 
+from app.contexts.hrms.errors.schedule_exceptions import (
+    InvalidWorkingDaysException,
+    InvalidWorkingHoursException,
+    ScheduleNameRequiredException,
+    WorkingDaysRequiredException,
+)
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -47,13 +53,13 @@ class WorkingSchedule:
         self.lifecycle = lifecycle or Lifecycle()
 
         if not self.name:
-            raise ValueError("Schedule name is required")
+            raise ScheduleNameRequiredException()
         if end_time <= start_time:
-            raise ValueError("End time must be later than start time")
+            raise InvalidWorkingHoursException(start_time, end_time)
         if not self.working_days:
-            raise ValueError("At least one working day is required")
+            raise WorkingDaysRequiredException()
         if not all(0 <= d <= 6 for d in self.working_days):
-            raise ValueError("working_days must contain values from 0 to 6")
+            raise InvalidWorkingDaysException(self.working_days)
 
     def _calculate_daily_hours(self, start_time: time_type, end_time: time_type) -> float:
         hours = end_time.hour - start_time.hour
@@ -68,7 +74,7 @@ class WorkingSchedule:
 
     def update_times(self, start_time: time_type, end_time: time_type) -> None:
         if end_time <= start_time:
-            raise ValueError("End time must be later than start time")
+            raise InvalidWorkingHoursException(start_time, end_time)
         self.start_time = start_time
         self.end_time = end_time
         self.total_hours_per_day = self._calculate_daily_hours(start_time, end_time)
@@ -76,9 +82,9 @@ class WorkingSchedule:
 
     def update_working_days(self, working_days: list[int]) -> None:
         if not working_days:
-            raise ValueError("At least one working day is required")
+            raise WorkingDaysRequiredException()
         if not all(0 <= d <= 6 for d in working_days):
-            raise ValueError("working_days must contain values from 0 to 6")
+            raise InvalidWorkingDaysException(working_days)
 
         self.working_days = sorted(set(working_days))
         self.weekend_days = sorted(set(range(7)) - set(self.working_days))

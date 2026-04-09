@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFoundException
+
 
 class UpdateWorkingScheduleUseCase:
     def __init__(self, *, working_schedule_repository) -> None:
@@ -8,7 +10,7 @@ class UpdateWorkingScheduleUseCase:
     def execute(self, *, schedule_id, payload):
         schedule = self.working_schedule_repository.find_by_id(schedule_id)
         if not schedule:
-            raise ValueError("Working schedule not found")
+            raise WorkingScheduleNotFoundException(schedule_id)
 
         if payload.name is not None:
             schedule.name = payload.name.strip()

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from app.contexts.hrms.domain.payroll import PayrollRun, Payslip
+from app.contexts.hrms.errors.payroll_exceptions import PayrollRunAlreadyExistsException
 
 
 class GenerateMonthlyPayrollUseCase:
@@ -38,7 +39,7 @@ class GenerateMonthlyPayrollUseCase:
     def execute(self, *, month: str, generated_by):
         existing = self.payroll_run_repository.find_by_month(month)
         if existing:
-            raise ValueError(f"Payroll run already exists for month {month}")
+            raise PayrollRunAlreadyExistsException(month)
 
         employees, _ = self.employee_repository.list_employees(
             page=1,

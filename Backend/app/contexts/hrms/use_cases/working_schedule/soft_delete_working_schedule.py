@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.schedule_exceptions import (
+    DefaultWorkingScheduleDeletionNotAllowedException,
+    WorkingScheduleNotFoundException,
+)
+
 
 class SoftDeleteWorkingScheduleUseCase:
     def __init__(self, *, working_schedule_repository) -> None:
@@ -8,10 +13,10 @@ class SoftDeleteWorkingScheduleUseCase:
     def execute(self, *, schedule_id, actor_id):
         schedule = self.working_schedule_repository.find_by_id(schedule_id)
         if not schedule:
-            raise ValueError("Working schedule not found")
+            raise WorkingScheduleNotFoundException(schedule_id)
 
         if schedule.is_default:
-            raise ValueError("Cannot delete default working schedule")
+            raise DefaultWorkingScheduleDeletionNotAllowedException(schedule_id)
 
         schedule.soft_delete(actor_id=actor_id)
         return self.working_schedule_repository.save(schedule)

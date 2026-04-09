@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.leave_exceptions import (
+    LeaveApprovalNotAllowedException,
+    LeaveEmployeeNotFoundException,
+)
+
 
 class ApproveLeaveRequestUseCase:
     def __init__(self, *, leave_repository, employee_repository, audit_log_repository=None) -> None:
@@ -12,11 +17,14 @@ class ApproveLeaveRequestUseCase:
 
         employee = self.employee_repository.find_by_id(leave.employee_id)
         if not employee:
-            raise ValueError("Employee not found")
+            raise LeaveEmployeeNotFoundException(str(leave.employee_id))
 
         employee_manager_user_id = employee.get("manager_user_id")
         if employee_manager_user_id and str(employee_manager_user_id) != str(manager_user_id):
-            raise ValueError("You can only approve leave requests from your own team")
+            raise LeaveApprovalNotAllowedException(
+                manager_user_id=str(manager_user_id),
+                employee_manager_user_id=str(employee_manager_user_id),
+            )
 
         leave.approve(manager_id=manager_user_id, comment=comment)
         return self.leave_repository.save(leave)

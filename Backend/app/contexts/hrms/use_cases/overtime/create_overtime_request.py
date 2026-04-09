@@ -4,6 +4,20 @@ from app.contexts.hrms.domain.overtime import (
     OvertimeRequest,
     OvertimeDayType,
 )
+from app.contexts.hrms.errors.employee_exceptions import (
+    EmployeeInactiveException,
+    EmployeeNotFoundException,
+    EmployeeScheduleNotAssignedException,
+)
+from app.contexts.hrms.errors.overtime_exceptions import (
+    InvalidLocalizedOvertimeTimeRangeException,
+    InvalidOvertimeTimeRangeException,
+    OverlappingOvertimeRequestException,
+    OvertimeEndTimeInvalidException,
+    OvertimeRequestDateMismatchException,
+    WorkingDayOvertimeStartInvalidException,
+)
+from app.contexts.hrms.errors.schedule_exceptions import WorkingScheduleNotFoundException
 from app.contexts.shared.time_utils import ensure_utc, to_cambodia
 
 
@@ -24,39 +38,40 @@ class CreateOvertimeRequestUseCase:
     def execute(self, *, employee_id, payload):
         employee = self.employee_repository.find_by_id(employee_id)
         if not employee:
-            raise ValueError("Employee not found")
+            raise EmployeeNotFoundException(str(employee_id))
 
-        if str(employee.get("status") or "inactive") != "active":
-            raise ValueError("Employee is not active")
+        employee_status = str(employee.get("status") or "inactive")
+        if employee_status != "active":
+            raise EmployeeInactiveException(str(employee_id), employee_status)
 
         schedule_id = employee.get("schedule_id")
         if not schedule_id:
-            raise ValueError("Employee has no assigned schedule")
+            raise EmployeeScheduleNotAssignedException(str(employee_id))
 
         schedule = self.working_schedule_repository.find_by_id(schedule_id)
         if not schedule:
-            raise ValueError("Working schedule not found")
+            raise WorkingScheduleNotFoundException(schedule_id)
 
         start_time_utc = ensure_utc(payload.start_time)
         end_time_utc = ensure_utc(payload.end_time)
 
         if not start_time_utc or not end_time_utc:
-            raise ValueError("Invalid overtime time range")
+            raise InvalidOvertimeTimeRangeException()
 
         if end_time_utc <= start_time_utc:
-            raise ValueError("OT end_time must be after start_time")
+            raise OvertimeEndTimeInvalidException()
 
         start_time_local = to_cambodia(start_time_utc)
         end_time_local = to_cambodia(end_time_utc)
 
         if not start_time_local or not end_time_local:
-            raise ValueError("Invalid localized overtime time range")
+            raise InvalidLocalizedOvertimeTimeRangeException()
 
         request_date_local = start_time_local.date()
 
         # Optional strict consistency check
         if payload.request_date != request_date_local:
-            raise ValueError("request_date must match overtime start date in Cambodia time")
+            raise OvertimeRequestDateMismatchException(payload.request_date, request_date_local)
 
         day_type = self._resolve_day_type(
             request_date=payload.request_date,
@@ -74,7 +89,7 @@ class CreateOvertimeRequestUseCase:
             day_type == OvertimeDayType.WORKING_DAY
             and start_time_local < schedule_end_time_local
         ):
-            raise ValueError("Working day overtime must start after scheduled end time")
+            raise WorkingDayOvertimeStartInvalidException()
 
         overlap = self.overtime_repository.find_overlapping_request(
             employee_id=employee["_id"],
@@ -83,7 +98,10 @@ class CreateOvertimeRequestUseCase:
             end_time=end_time_utc,
         )
         if overlap:
-            raise ValueError("Overlapping overtime request already exists")
+            raise OverlappingOvertimeRequestException(
+                str(employee["_id"]),
+                payload.request_date,
+            )
 
         schedule_end_time_utc = ensure_utc(schedule_end_time_local)
 

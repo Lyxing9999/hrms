@@ -36,3 +36,13 @@ class DeductionRuleDeletedException(AppBaseException):
             error_code="DEDUCTION_RULE_DELETED",
             status_code=410,
         )
+
+
+class DeductionMinMinutesNegativeException(AppBaseException):
+    def __init__(self, min_minutes: int):
+        super().__init__(
+            message="min_minutes cannot be negative",
+            error_code="DEDUCTION_MIN_MINUTES_NEGATIVE",
+            status_code=400,
+            details={"min_minutes": min_minutes},
+        )

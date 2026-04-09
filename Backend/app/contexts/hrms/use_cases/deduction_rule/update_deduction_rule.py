@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from app.contexts.hrms.errors.deduction_exceptions import InvalidDeductionRangeException
+
 
 class UpdateDeductionRuleUseCase:
     def __init__(self, *, deduction_rule_repository) -> None:
@@ -23,6 +25,6 @@ class UpdateDeductionRuleUseCase:
             rule.deactivate()
 
         if rule.max_minutes is not None and rule.max_minutes < rule.min_minutes:
-            raise ValueError("max_minutes cannot be less than min_minutes")
+            raise InvalidDeductionRangeException(rule.min_minutes, rule.max_minutes)
 
         return self.deduction_rule_repository.save(rule)

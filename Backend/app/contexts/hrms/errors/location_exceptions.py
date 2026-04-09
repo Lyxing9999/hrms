@@ -58,3 +58,23 @@ class WorkLocationInactiveException(AppBaseException):
             hint="Activate the location or assign another active location.",
             recoverable=True,
         )
+
+
+class WorkLocationCoordinatesPairRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            message="Both latitude and longitude are required when updating coordinates",
+            error_code="WORK_LOCATION_COORDINATES_PAIR_REQUIRED",
+            status_code=400,
+            user_message="Both latitude and longitude are required.",
+            recoverable=True,
+        )
+
+
+class WorkLocationNameRequiredException(AppBaseException):
+    def __init__(self):
+        super().__init__(
+            message="Location name is required",
+            error_code="WORK_LOCATION_NAME_REQUIRED",
+            status_code=400,
+        )

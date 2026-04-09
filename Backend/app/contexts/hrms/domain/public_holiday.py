@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date as date_type
 from bson import ObjectId
 
+from app.contexts.hrms.errors.holiday_exceptions import HolidayNameRequiredException
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -29,7 +30,7 @@ class PublicHoliday:
         self.lifecycle = lifecycle or Lifecycle()
 
         if not self.name:
-            raise ValueError("Holiday name is required")
+            raise HolidayNameRequiredException()
 
     def update_date(self, new_date: date_type) -> None:
         self.date = new_date
@@ -37,7 +38,7 @@ class PublicHoliday:
 
     def rename(self, name: str, name_kh: str | None = None) -> None:
         if not (name or "").strip():
-            raise ValueError("Holiday name is required")
+            raise HolidayNameRequiredException()
         self.name = name.strip()
         self.name_kh = name_kh.strip() if name_kh else None
         self.lifecycle.touch(now_utc())

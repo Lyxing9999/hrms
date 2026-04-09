@@ -224,9 +224,9 @@ class Attendance:
 
     def mark_missing_check_out(self) -> None:
         if self.check_in_time is None:
-            raise ValueError("Cannot mark missing check-out without check-in")
+            raise AttendanceCheckInRequiredException(str(self.employee_id))
         if self.check_out_time is not None:
-            raise ValueError("Cannot mark missing check-out when check-out already exists")
+            raise AttendanceAlreadyCheckedOutException(str(self.id))
         self.status = AttendanceStatus.MISSING_CHECK_OUT
         self.lifecycle.touch(now_utc())
         

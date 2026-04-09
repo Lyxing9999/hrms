@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import timezone
 
 from app.contexts.hrms.domain.public_holiday import PublicHoliday
+from app.contexts.hrms.errors.holiday_exceptions import DuplicateHolidayDateException
 
 
 class CreatePublicHolidayUseCase:
@@ -12,7 +13,7 @@ class CreatePublicHolidayUseCase:
     def execute(self, *, payload, created_by_user_id):
         existing = self.public_holiday_repository.find_by_date(payload.date)
         if existing and not existing.is_deleted():
-            raise ValueError("A public holiday already exists on this date")
+            raise DuplicateHolidayDateException(str(payload.date))
 
         holiday = PublicHoliday(
             name=payload.name,

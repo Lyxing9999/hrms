@@ -3,6 +3,11 @@ from __future__ import annotations
 from enum import Enum
 from bson import ObjectId
 
+from app.contexts.hrms.errors.deduction_exceptions import (
+    DeductionMinMinutesNegativeException,
+    InvalidDeductionPercentageException,
+    InvalidDeductionRangeException,
+)
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
@@ -43,11 +48,11 @@ class DeductionRule:
         self.lifecycle = lifecycle or Lifecycle()
 
         if self.min_minutes < 0:
-            raise ValueError("min_minutes cannot be negative")
+            raise DeductionMinMinutesNegativeException(self.min_minutes)
         if self.max_minutes is not None and self.max_minutes < self.min_minutes:
-            raise ValueError("max_minutes cannot be less than min_minutes")
+            raise InvalidDeductionRangeException(self.min_minutes, self.max_minutes)
         if not (0 <= self.deduction_percentage <= 100):
-            raise ValueError("deduction_percentage must be between 0 and 100")
+            raise InvalidDeductionPercentageException(self.deduction_percentage)
 
     def applies_to(self, minutes: int) -> bool:
         if minutes < self.min_minutes:
@@ -69,7 +74,7 @@ class DeductionRule:
 
     def update_percentage(self, new_percentage: float) -> None:
         if not (0 <= new_percentage <= 100):
-            raise ValueError("deduction_percentage must be between 0 and 100")
+            raise InvalidDeductionPercentageException(float(new_percentage))
         self.deduction_percentage = float(new_percentage)
         self.lifecycle.touch(now_utc())
 

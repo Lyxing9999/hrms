@@ -1,5 +1,6 @@
 from __future__ import annotations
-from app.contexts.shared.model_converter import mongo_converter
+
+from app.contexts.hrms.errors.overtime_exceptions import OvertimeOwnershipRequiredException
 
 class CancelOvertimeRequestUseCase:
     def __init__(self, *, overtime_repository) -> None:
@@ -9,7 +10,10 @@ class CancelOvertimeRequestUseCase:
         ot = self.overtime_repository.find_by_id(overtime_id)
 
         if str(ot.employee_id) != str(actor_id):
-            raise ValueError("You can only cancel your own overtime request")
+            raise OvertimeOwnershipRequiredException(
+                actor_id=str(actor_id),
+                overtime_employee_id=str(ot.employee_id),
+            )
 
         ot.cancel(actor_id=actor_id)
         return self.overtime_repository.save(ot)
