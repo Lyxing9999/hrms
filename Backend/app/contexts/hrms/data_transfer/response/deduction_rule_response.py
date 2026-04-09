@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, ConfigDict
 
+from app.contexts.admin.data_transfer.responses.common import PaginatedDTO
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
 
 
@@ -13,8 +12,12 @@ class DeductionRuleDTO(BaseModel):
     id: str
     type: str
     min_minutes: int
-    max_minutes: Optional[int] = None
+    max_minutes: int | None = None
     deduction_percentage: float
     is_active: bool
-    created_by: Optional[str] = None
+    created_by: str | None = None
     lifecycle: LifecycleDTO
+
+
+class DeductionRulePaginatedDTO(PaginatedDTO[DeductionRuleDTO]):
+    pass

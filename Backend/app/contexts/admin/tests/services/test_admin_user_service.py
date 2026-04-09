@@ -6,7 +6,7 @@ from app.contexts.iam.data_transfer.responses import IAMBaseDataDTO
 from app.contexts.admin.data_transfer.requests import AdminCreateUserSchema, AdminUpdateUserSchema
 from app.contexts.shared.model_converter import mongo_converter
 from app.contexts.shared.enum.roles import SystemRole
-from datetime import datetime
+from app.contexts.shared.time_utils import utc_now
 
 @pytest.fixture
 def mock_db():
@@ -32,7 +32,7 @@ def test_admin_create_user(user_service, monkeypatch):
     fake_model.username = payload.username
     fake_model.role = payload.role
     fake_model.created_by = created_by
-    fake_model.created_at = datetime.utcnow()
+    fake_model.created_at = utc_now()
 
     # Mock create_user and save_domain
     monkeypatch.setattr(user_service.iam_factory, "create_user", lambda **kwargs: fake_model)
@@ -61,7 +61,7 @@ def test_admin_update_user(user_service, monkeypatch):
         username=payload.username,
         role=SystemRole.STUDENT,
         created_by="admin123",
-        created_at=datetime.utcnow()
+        created_at=utc_now()
     )
     monkeypatch.setattr(user_service.iam_service, "update_info", lambda uid, pl, update_by_admin: fake_dto)
 
@@ -78,10 +78,10 @@ def test_admin_soft_delete_user(user_service, monkeypatch):
         username="softdeleted",
         role=SystemRole.STUDENT,
         deleted=True,
-        deleted_at=datetime.utcnow(),
+        deleted_at=utc_now(),
         deleted_by="admin123",
         created_by="admin123",
-        created_at=datetime.utcnow()
+        created_at=utc_now()
     )
     monkeypatch.setattr(user_service.iam_service, "soft_delete", lambda uid: fake_dto)
 
@@ -113,7 +113,7 @@ def test_admin_get_users(user_service, monkeypatch):
                 username=doc["username"],
                 role=doc["role"],
                 created_by="admin123",
-                created_at=datetime.utcnow()
+                created_at=utc_now()
             ) for doc in cursor
         ]
     monkeypatch.setattr(mongo_converter, "cursor_to_dto", mock_cursor_to_dto)

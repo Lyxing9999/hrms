@@ -11,7 +11,7 @@ from app.contexts.shared.model_converter import mongo_converter
 
 class MongoPublicHolidayRepository:
     def __init__(self, db: Database):
-        self.collection = db["public_holidays"]
+        self.collection = db["hr_public_holidays"]
         self.mapper = PublicHolidayMapper()
 
     @staticmethod
@@ -50,7 +50,17 @@ class MongoPublicHolidayRepository:
             "lifecycle.deleted_at": None,
         })
         return self.mapper.to_domain(doc) if doc else None
-
+    def list_by_date_range(self, *, start_date, end_date):
+        docs = list(
+            self.collection.find({
+                "date": {
+                    "$gte": start_date.isoformat(),
+                    "$lte": end_date.isoformat(),
+                },
+                "lifecycle.deleted_at": None,
+            }).sort("date", 1)
+        )
+        return [self.mapper.to_domain(x) for x in docs]
     def list_holidays(
         self,
         *,

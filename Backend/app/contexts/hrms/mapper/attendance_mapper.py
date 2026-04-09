@@ -4,14 +4,20 @@ from bson import ObjectId
 
 from app.contexts.hrms.domain.attendance import Attendance, AttendanceStatus, ReviewStatus
 from app.contexts.shared.lifecycle.domain import Lifecycle
-from app.contexts.shared.lifecycle.dto import LifecycleDTO
 from app.contexts.hrms.data_transfer.response.attendance_response import AttendanceDTO
 from app.contexts.shared.model_converter import mongo_converter
+from app.contexts.shared.time_utils import to_cambodia
 
 
 class AttendanceMapper:
     @staticmethod
     def _oid(v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str) and v.strip().lower() in {"", "null", "none", "undefined"}:
+            return None
         return mongo_converter.convert_to_object_id(v)
 
     @staticmethod
@@ -21,7 +27,9 @@ class AttendanceMapper:
         return str(v)
 
     @staticmethod
-    def to_domain(data: dict) -> Attendance:
+    def to_domain(data: dict | Attendance) -> Attendance:
+        if isinstance(data, Attendance):
+            return data
         if not isinstance(data, dict):
             raise TypeError(f"to_domain expected dict, got {type(data)}")
 
@@ -112,12 +120,19 @@ class AttendanceMapper:
         return doc
 
     @staticmethod
-    def to_dto(attendance: Attendance) -> AttendanceDTO:
+    def to_dto(data: Attendance | dict) -> AttendanceDTO:
+        attendance = AttendanceMapper.to_domain(data)
         lc = attendance.lifecycle
+
+        attendance_date = None
+        if attendance.attendance_date:
+            local_dt = to_cambodia(attendance.attendance_date)
+            attendance_date = local_dt.date() if local_dt else None
+
         return AttendanceDTO(
             id=str(attendance.id),
             employee_id=AttendanceMapper._sid(attendance.employee_id),
-            attendance_date=attendance.attendance_date,
+            attendance_date=attendance_date,
             check_in_time=attendance.check_in_time,
             check_out_time=attendance.check_out_time,
             schedule_id=AttendanceMapper._sid(attendance.schedule_id),
@@ -127,7 +142,7 @@ class AttendanceMapper:
             check_out_latitude=attendance.check_out_latitude,
             check_out_longitude=attendance.check_out_longitude,
             day_type=attendance.day_type.value if hasattr(attendance.day_type, "value") else str(attendance.day_type),
-            is_ot_eligible=attendance.is_ot_eligible,        
+            is_ot_eligible=attendance.is_ot_eligible,
             status=attendance.status.value if hasattr(attendance.status, "value") else str(attendance.status),
             notes=attendance.notes,
             late_minutes=attendance.late_minutes,
@@ -143,10 +158,6 @@ class AttendanceMapper:
             admin_comment=attendance.admin_comment,
             location_reviewed_by=AttendanceMapper._sid(attendance.location_reviewed_by),
             early_leave_reviewed_by=AttendanceMapper._sid(attendance.early_leave_reviewed_by),
-            lifecycle=LifecycleDTO(
-                created_at=lc.created_at,
-                updated_at=lc.updated_at,
-                deleted_at=lc.deleted_at,
-                deleted_by=AttendanceMapper._sid(lc.deleted_by),
-            ),
+            created_at=lc.created_at,
+            updated_at=lc.updated_at,
         )

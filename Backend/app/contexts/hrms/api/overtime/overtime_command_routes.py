@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from flask import Blueprint, request, g
 
-from app.contexts.core.security.auth_utils import (
-    get_current_employee_id,
-)
+from app.contexts.core.security.auth_utils import get_current_employee_id
 from app.contexts.shared.decorators.response_decorator import wrap_response
 from app.contexts.shared.model_converter import pydantic_converter
 from app.contexts.iam.auth.jwt_utils import login_required

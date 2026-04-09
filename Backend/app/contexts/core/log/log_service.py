@@ -2,8 +2,9 @@ import logging
 import sys
 import json
 import os
-from datetime import datetime
 from typing import Optional, Dict, Any
+
+from app.contexts.shared.time_utils import utc_now
 
 
 class LogService:
@@ -130,7 +131,7 @@ class LogService:
         extra: Optional[Dict[str, Any]] = None
     ):
         log_data = {
-            "ts": datetime.utcnow().isoformat(),
+            "ts": utc_now().isoformat(),
             "level": level.upper(),
             "module": module or "unknown",
             "user_id": user_id,

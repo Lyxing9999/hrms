@@ -12,7 +12,7 @@ from app.contexts.shared.time_utils import (
 
 class AttendanceReadModel:
     def __init__(self, db: Database):
-        self.collection = db["attendances"]
+        self.collection = db["hr_attendances"]
 
     def find_by_id(self, attendance_id: ObjectId) -> dict | None:
         """Find attendance by ID"""
@@ -25,10 +25,9 @@ class AttendanceReadModel:
         
         return self.collection.find_one({
             "employee_id": employee_id,
-            "check_in_time": {"$gte": start_of_day, "$lt": end_of_day},
+            "attendance_date": start_of_day,
             "lifecycle.deleted_at": None,
         })
-
 
     def list_attendances(
         self,

@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel, ConfigDict
 
-from app.contexts.shared.lifecycle.dto import LifecycleDTO
 from app.contexts.admin.data_transfer.responses.common import PaginatedDTO
+from app.contexts.shared.lifecycle.dto import LifecycleDTO
 
 
 class PayrollRunDTO(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     id: str
     month: str
@@ -18,12 +20,12 @@ class PayrollRunDTO(BaseModel):
     lifecycle: LifecycleDTO
 
 
-class PayrollRunPaginatedDTO(PaginatedDTO[PayrollRunDTO]):
-    pass
-
-
 class PayslipDTO(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     id: str
     payroll_run_id: str
@@ -41,5 +43,14 @@ class PayslipDTO(BaseModel):
     lifecycle: LifecycleDTO
 
 
+class PayrollRunPaginatedDTO(PaginatedDTO[PayrollRunDTO]):
+    pass
+
+
 class PayslipPaginatedDTO(PaginatedDTO[PayslipDTO]):
     pass
+
+
+class GeneratePayrollResultDTO(BaseModel):
+    payroll_run: PayrollRunDTO
+    payslips: list[PayslipDTO]

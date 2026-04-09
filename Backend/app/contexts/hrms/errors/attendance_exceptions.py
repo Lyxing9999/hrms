@@ -151,3 +151,54 @@ class InvalidLateMinutesException(AppBaseException):
             details={"late_minutes": late_minutes},
             recoverable=True,
         )
+
+
+class LateReasonRequiredException(AppBaseException):
+    def __init__(self, employee_id):
+        super().__init__(
+            message=(
+                f"late_reason is required when employee '{employee_id}' checks in late"
+            ),
+            error_code="LATE_REASON_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.VALIDATION,
+            user_message="Please provide a reason for late check-in.",
+            details={"employee_id": str(employee_id)},
+            recoverable=True,
+        )
+
+
+class EarlyLeaveReasonRequiredException(AppBaseException):
+    def __init__(self, employee_id):
+        super().__init__(
+            message=(
+                f"early_leave_reason is required when employee '{employee_id}' checks out early"
+            ),
+            error_code="EARLY_LEAVE_REASON_REQUIRED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.VALIDATION,
+            user_message="Please provide a reason for early check-out.",
+            details={"employee_id": str(employee_id)},
+            recoverable=True,
+        )
+
+
+class UnpaidPublicHolidayCheckInNotAllowedException(AppBaseException):
+    def __init__(self, employee_id, holiday_date: str):
+        super().__init__(
+            message=(
+                f"Employee '{employee_id}' cannot check in on unpaid public holiday date {holiday_date}"
+            ),
+            error_code="UNPAID_PUBLIC_HOLIDAY_CHECK_IN_NOT_ALLOWED",
+            status_code=400,
+            severity=ErrorSeverity.LOW,
+            category=ErrorCategory.BUSINESS_LOGIC,
+            user_message="Check-in is not allowed on an unpaid public holiday.",
+            details={
+                "employee_id": str(employee_id),
+                "holiday_date": holiday_date,
+            },
+            recoverable=True,
+        )

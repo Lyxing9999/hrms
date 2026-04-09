@@ -5,6 +5,7 @@ from bson import ObjectId
 
 from app.contexts.school.domain.class_section import ClassSection
 from app.contexts.school.mapper.class_mapper import ClassSectionMapper
+from app.contexts.shared.time_utils import utc_now
 
 
 def test_to_domain_from_dict_full_data():
@@ -12,7 +13,7 @@ def test_to_domain_from_dict_full_data():
     teacher_id = ObjectId()
     s1, s2 = ObjectId(), ObjectId()
     subj1, subj2 = ObjectId(), ObjectId()
-    now = datetime.utcnow()
+    now = utc_now()
 
     data = {
         "_id": cls_id,

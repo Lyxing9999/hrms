@@ -1,7 +1,7 @@
 from typing import Optional, Sequence, Union
-from datetime import datetime
 from bson import ObjectId
 from pymongo.database import Database
+from app.contexts.shared.time_utils import utc_now
 
 NotifTypeArg = Union[str, Sequence[str]]
 
@@ -52,7 +52,7 @@ class NotificationReadModel:
 
         res = self.col.update_one(
             {"_id": oid, "user_id": str(user_id), "read_at": None},
-            {"$set": {"read_at": datetime.utcnow()}},
+            {"$set": {"read_at": utc_now()}},
         )
         return int(res.modified_count)
 
@@ -65,7 +65,7 @@ class NotificationReadModel:
             else:
                 q["type"] = str(type)
 
-        res = self.col.update_many(q, {"$set": {"read_at": datetime.utcnow()}})
+        res = self.col.update_many(q, {"$set": {"read_at": utc_now()}})
         return int(res.modified_count)
 
     def _iso(self, v):

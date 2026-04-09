@@ -1,10 +1,10 @@
-import datetime as dt
 from typing import Any, Dict, Optional
 from pymongo.database import Database
 
 from app.contexts.notifications.realtime.emitter import emit_notification
 from app.contexts.notifications.read_models.notification_read_model import NotificationReadModel
 from app.contexts.notifications.utils.normalize import normalize_value
+from app.contexts.shared.time_utils import utc_now
 
 
 def _iso(v):
@@ -46,7 +46,7 @@ class NotificationService:
             "entity_id": entity_id,
             "data": safe_data,
             "read_at": None,
-            "created_at": dt.datetime.utcnow(),
+            "created_at": utc_now(),
         }
 
         res = self.col.insert_one(doc)

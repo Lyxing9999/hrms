@@ -1,5 +1,4 @@
 import pytest
-from datetime import datetime, timezone
 from unittest.mock import MagicMock
 from bson import ObjectId
 from flask import Flask, g, jsonify, request
@@ -7,6 +6,7 @@ from flask import Flask, g, jsonify, request
 from app.contexts.admin.data_transfer.request import AdminCreateUserSchema, AdminUpdateUserSchema
 from app.contexts.admin.data_transfer.response import AdminCreateUserDataDTO, AdminUpdateUserDataDTO
 from app.contexts.shared.enum.roles import SystemRole
+from app.contexts.shared.time_utils import utc_now
 
 BASE_URL = "/api/admin/users"
 
@@ -61,8 +61,8 @@ def test_admin_create_user(client):
         email="alice@example.com",
         role=SystemRole.STUDENT,
         created_by=str(ObjectId()),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=utc_now(),
+        updated_at=utc_now(),
         deleted=False,
         deleted_by=None
     )
@@ -86,8 +86,8 @@ def test_admin_get_users(client):
         email="bob@example.com",
         role=SystemRole.ADMIN,
         created_by=str(ObjectId()),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=utc_now(),
+        updated_at=utc_now(),
         deleted=False,
         deleted_by=None
     )
@@ -114,8 +114,8 @@ def test_admin_update_user(client):
         email="bob@example.com",
         role=SystemRole.ADMIN,
         created_by=str(ObjectId()),
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
+        created_at=utc_now(),
+        updated_at=utc_now(),
         deleted=False,
         deleted_by=None
     )

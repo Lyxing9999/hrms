@@ -271,6 +271,9 @@ def create_app():
     from app.contexts.hrms.api.work_location import register_work_location_routes
     from app.contexts.hrms.api.public_holiday import register_public_holiday_routes 
     from app.contexts.hrms.api.overtime import register_overtime_routes
+    from app.contexts.hrms.api.deduction_rule import register_deduction_rule_routes
+    from app.contexts.hrms.api.leave import register_leave_routes
+    from app.contexts.hrms.api.payroll import register_payroll_routes
 
     register_working_schedule_routes(app)
     register_employee_routes(app)
@@ -278,10 +281,9 @@ def create_app():
     register_work_location_routes(app)
     register_public_holiday_routes(app)
     register_overtime_routes(app)
-    # Register realtime attendance handlers
-    from app.contexts.hrms.realtime import handlers  # noqa: F401
-
-
+    register_deduction_rule_routes(app)
+    register_leave_routes(app)
+    register_payroll_routes(app)
     # -------------------------
     # Swagger UI
     # -------------------------

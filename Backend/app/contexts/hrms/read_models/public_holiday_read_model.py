@@ -9,7 +9,7 @@ from app.contexts.shared.model_converter import mongo_converter
 
 class PublicHolidayReadModel:
     def __init__(self, db: Database):
-        self.collection = db["public_holidays"]
+        self.collection = db["hr_public_holidays"]
 
     def get_by_id(self, holiday_id: ObjectId | str, *, show_deleted: ShowDeleted = "active") -> dict | None:
         oid = mongo_converter.convert_to_object_id(holiday_id)

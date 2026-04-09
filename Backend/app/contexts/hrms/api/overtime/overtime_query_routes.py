@@ -68,16 +68,61 @@ def get_overtime_request(overtime_id: str):
     return mapper.to_dto(overtime).model_dump(mode="json")
 
 
+@overtime_query_bp.route("/overtime-requests/pending-approval", methods=["GET"], strict_slashes=False)
+@login_required(allowed_roles=["manager", "hr_admin"])
+@wrap_response
+def list_pending_approval_overtime_requests():
+    employee_id = request.args.get("employee_id")
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 10))
+
+    items, total = g.hrms.overtime.list_pending_approval(
+        employee_id=employee_id,
+        page=page,
+        limit=limit,
+    )
+
+    return {
+        "items": [mapper.to_dto(item).model_dump(mode="json") for item in items],
+        "total": total,
+        "page": page,
+        "limit": limit,
+    }
+
+
+@overtime_query_bp.route("/overtime-requests/my-summary", methods=["GET"], strict_slashes=False)
+@login_required(allowed_roles=["employee", "manager", "payroll_manager", "hr_admin"])
+@wrap_response
+def get_my_overtime_summary():
+    employee_id = get_current_employee_id()
+    return g.hrms.overtime.get_my_summary(employee_id=employee_id)
+
+
 @overtime_query_bp.route("/overtime-requests/payroll-approved", methods=["GET"], strict_slashes=False)
 @login_required(allowed_roles=["payroll_manager", "hr_admin"])
 @wrap_response
 def list_approved_overtime_for_payroll():
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
+    employee_id = request.args.get("employee_id")
 
     items = g.hrms.overtime.list_approved_for_payroll(
         start_date=start_date,
         end_date=end_date,
+        employee_id=employee_id,
     )
 
     return [mapper.to_dto(item).model_dump(mode="json") for item in items]
+
+
+@overtime_query_bp.route("/overtime-requests/payroll-summary", methods=["GET"], strict_slashes=False)
+@login_required(allowed_roles=["payroll_manager", "hr_admin"])
+@wrap_response
+def get_overtime_payroll_summary():
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
+
+    return g.hrms.overtime.get_payroll_summary(
+        start_date=start_date,
+        end_date=end_date,
+    )

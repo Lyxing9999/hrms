@@ -2,20 +2,17 @@
 from datetime import datetime, date as date_type
 from enum import Enum
 from bson import ObjectId
-from zoneinfo import ZoneInfo
 
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
+from app.contexts.shared.time_utils import cambodia_now
 from app.contexts.school.errors.attendance_exceptions import (
     InvalidAttendanceStatusException,
     AttendanceDateInFutureException,
     AttendanceRecordDeletedException,
 )
 
-KH_TZ = ZoneInfo("Asia/Phnom_Penh")
-
-
 def today_kh() -> date_type:
-    return datetime.now(KH_TZ).date()
+    return cambodia_now().date()
 
 
 class AttendanceStatus(str, Enum):

@@ -21,6 +21,8 @@ class MongoOvertimeRepository:
             return None
         if isinstance(v, ObjectId):
             return v
+        if isinstance(v, str) and v.strip().lower() in {"", "null", "none", "undefined"}:
+            return None
         return ObjectId(v)
 
     def save(self, overtime_request: OvertimeRequest) -> OvertimeRequest:
@@ -98,7 +100,7 @@ class MongoOvertimeRepository:
     def find_overlapping_request(self, *, employee_id, request_date, start_time, end_time):
         doc = self.collection.find_one({
             "employee_id": self._oid(employee_id),
-            "request_date": request_date,
+            "request_date": request_date.isoformat() if hasattr(request_date, "isoformat") else request_date,
             "status": {"$in": ["pending", "approved"]},
             "start_time": {"$lt": end_time},
             "end_time": {"$gt": start_time},

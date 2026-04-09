@@ -8,6 +8,7 @@ from pymongo.collection import Collection
 from pymongo.database import Database
 
 from app.contexts.shared.lifecycle.filters import FIELDS
+from app.contexts.shared.time_utils import utc_now
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class PurgeRunResult:
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return utc_now()
 
 
 def _cutoff_dt(retention_days: int, now: Optional[datetime] = None) -> datetime:

@@ -1,5 +1,8 @@
+
 from __future__ import annotations
 
+
+from app.contexts.shared.model_converter import mongo_converter
 
 class ApproveOvertimeRequestUseCase:
     def __init__(self, *, overtime_repository) -> None:
@@ -14,11 +17,9 @@ class ApproveOvertimeRequestUseCase:
         comment: str | None = None,
     ):
         ot = self.overtime_repository.find_by_id(overtime_id)
-        if not ot:
-            raise ValueError("Overtime request not found")
 
         ot.approve(
-            manager_id=manager_id,
+            manager_id=mongo_converter.to_object_id(manager_id),
             approved_hours=approved_hours,
             comment=comment,
         )

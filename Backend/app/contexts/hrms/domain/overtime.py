@@ -25,6 +25,18 @@ class OvertimeRequest:
     HOLIDAY_OR_WEEKEND_RATE = 2.0
     MIN_SUBMISSION_HOURS_BEFORE_SCHEDULE_END = 3
 
+    @staticmethod
+    def _normalize_day_type(value) -> OvertimeDayType:
+        if isinstance(value, OvertimeDayType):
+            return value
+        return OvertimeDayType(str(value).strip().lower())
+
+    @staticmethod
+    def _normalize_status(value) -> OvertimeStatus:
+        if isinstance(value, OvertimeStatus):
+            return value
+        return OvertimeStatus(str(value).strip().lower())
+
     def __init__(
         self,
         *,
@@ -52,10 +64,10 @@ class OvertimeRequest:
         self.end_time = end_time
         self.schedule_end_time = schedule_end_time
         self.reason = (reason or "").strip()
-        self.day_type = OvertimeDayType(str(day_type).strip().lower())
+        self.day_type = self._normalize_day_type(day_type)
         self.basic_salary = float(basic_salary)
         self.submitted_at = submitted_at or now_utc()
-        self.status = OvertimeStatus(str(status).strip().lower())
+        self.status = self._normalize_status(status)
         self.manager_id = manager_id
         self.manager_comment = (manager_comment or "").strip() or None
         self.approved_hours = float(approved_hours)

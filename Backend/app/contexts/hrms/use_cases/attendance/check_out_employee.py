@@ -8,6 +8,7 @@ from app.contexts.hrms.domain.working_schedule import WorkingSchedule
 from app.contexts.hrms.errors.attendance_exceptions import (
     AttendanceAlreadyCheckedOutException,
     AttendanceCheckInRequiredException,
+    EarlyLeaveReasonRequiredException,
     InvalidCheckOutTimeException,
 )
 from app.contexts.hrms.errors.employee_exceptions import (
@@ -82,7 +83,7 @@ class CheckOutEmployeeUseCase:
             and early_leave_minutes >= self.EARLY_LEAVE_REASON_THRESHOLD_MINUTES
             and not (early_leave_reason or "").strip()
         ):
-            raise ValueError("early_leave_reason is required when checking out early")
+            raise EarlyLeaveReasonRequiredException(employee["_id"])
 
         attendance.check_out(
             check_out_time=check_out_time_utc,

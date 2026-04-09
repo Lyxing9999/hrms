@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, date
 from bson import ObjectId
 
 from app.contexts.school.domain.attendance import AttendanceRecord, AttendanceStatus
+from app.contexts.shared.time_utils import cambodia_now
 from app.contexts.school.errors.attendance_exceptions import (
     InvalidAttendanceStatusException,
     AttendanceDateInFutureException,
@@ -56,7 +57,7 @@ def test_attendance_invalid_status_raises():
 def test_attendance_default_date_is_today():
     student_id = ObjectId()
     class_id = ObjectId()
-    today = datetime.utcnow().date()
+    today = cambodia_now().date()
 
     record = AttendanceRecord(
         student_id=student_id,
@@ -70,7 +71,7 @@ def test_attendance_default_date_is_today():
 def test_attendance_date_in_future_raises():
     student_id = ObjectId()
     class_id = ObjectId()
-    future_date = datetime.utcnow().date() + timedelta(days=1)
+    future_date = cambodia_now().date() + timedelta(days=1)
 
     with pytest.raises(AttendanceDateInFutureException):
         AttendanceRecord(
@@ -147,7 +148,7 @@ def test_attendance_invalid_status_raises():
 def test_attendance_default_date_is_today():
     student_id = ObjectId()
     class_id = ObjectId()
-    today = datetime.utcnow().date()
+    today = cambodia_now().date()
 
     record = AttendanceRecord(
         student_id=student_id,
@@ -161,7 +162,7 @@ def test_attendance_default_date_is_today():
 def test_attendance_date_in_future_raises():
     student_id = ObjectId()
     class_id = ObjectId()
-    future_date = datetime.utcnow().date() + timedelta(days=1)
+    future_date = cambodia_now().date() + timedelta(days=1)
 
     with pytest.raises(AttendanceDateInFutureException):
         AttendanceRecord(

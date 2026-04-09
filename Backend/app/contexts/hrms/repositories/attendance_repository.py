@@ -8,12 +8,22 @@ from app.contexts.hrms.errors.attendance_exceptions import AttendanceNotFoundExc
 from app.contexts.shared.time_utils import ensure_utc
 from datetime import datetime
 from bson import ObjectId
+from datetime import date
+from calendar import monthrange
 
 class MongoAttendanceRepository:
     def __init__(self, db: Database):
         self.collection = db["hr_attendances"]
         self.mapper = AttendanceMapper()
-
+    
+    def _oid(self, v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str) and v.strip().lower() in {"", "null", "none", "undefined"}:
+            return None
+        return ObjectId(v)
     def save(self, attendance: Attendance) -> Attendance:
         doc = self.mapper.to_persistence(attendance)
         self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
@@ -149,5 +159,25 @@ class MongoAttendanceRepository:
             "lifecycle.deleted_at": None,
         })
         return [self.mapper.to_domain(doc) for doc in docs]
+    def list_by_employee_and_month(self, *, employee_id, month: str):
+        year, month_num = map(int, month.split("-"))
+        month_start = date(year, month_num, 1)
+        month_end = date(year, month_num, monthrange(year, month_num)[1])
+
+        start_key = month_start.isoformat()
+        end_key = month_end.isoformat()
+
+        docs = list(
+            self.collection.find({
+                "employee_id": self._oid(employee_id),
+                "lifecycle.deleted_at": None,
+                "attendance_date_local": {
+                    "$gte": start_key,
+                    "$lte": end_key,
+                },
+            }).sort("attendance_date_local", 1)
+        )
+        return [self.mapper.to_domain(x) for x in docs]
+    
     def delete(self, attendance_id: ObjectId) -> None:
         self.collection.delete_one({"_id": attendance_id})

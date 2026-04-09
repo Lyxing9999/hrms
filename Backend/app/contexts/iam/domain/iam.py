@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from bson import ObjectId
 from enum import Enum
 from app.contexts.shared.enum.roles import SystemRole
 from app.contexts.iam.errors.iam_exception import InvalidRoleException, UserDeletedException
-from app.contexts.shared.lifecycle.domain import Lifecycle  
+from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
 
 
 class IAMStatus(str, Enum):
@@ -128,7 +128,7 @@ class IAM:
     def ready_for_purge(self, days: int = 30) -> bool:
         if not self.is_deleted() or self.lifecycle.deleted_at is None:
             return False
-        return self.lifecycle.deleted_at < datetime.now(timezone.utc) - timedelta(days=days)
+        return self.lifecycle.deleted_at < now_utc() - timedelta(days=days)
 
     @staticmethod
     def _validate_role(role: Enum | str) -> SystemRole:

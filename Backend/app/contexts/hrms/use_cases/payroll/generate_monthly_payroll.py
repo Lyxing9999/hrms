@@ -1,173 +1,175 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
+from app.contexts.hrms.domain.payroll import PayrollRun, Payslip
+
 
 class GenerateMonthlyPayrollUseCase:
     def __init__(
         self,
         *,
         employee_repository,
+        working_schedule_repository,
+        public_holiday_repository,
         attendance_repository,
         overtime_repository,
+        leave_repository,
         deduction_rule_repository,
         payroll_run_repository,
         payslip_repository,
         audit_log_repository=None,
-        payroll_calculator=None,
+        payroll_calculator,
+        payroll_calendar_service,
     ) -> None:
         self.employee_repository = employee_repository
+        self.working_schedule_repository = working_schedule_repository
+        self.public_holiday_repository = public_holiday_repository
         self.attendance_repository = attendance_repository
         self.overtime_repository = overtime_repository
+        self.leave_repository = leave_repository
         self.deduction_rule_repository = deduction_rule_repository
         self.payroll_run_repository = payroll_run_repository
         self.payslip_repository = payslip_repository
         self.audit_log_repository = audit_log_repository
         self.payroll_calculator = payroll_calculator
+        self.payroll_calendar_service = payroll_calendar_service
 
-    def execute(
-        self,
-        *,
-        month: str,
-        generated_by: str,
-        expected_working_days: int,
-    ) -> dict:
-        payroll_run = self._create_payroll_run(
-            month=month,
-            generated_by=generated_by,
+    def execute(self, *, month: str, generated_by):
+        existing = self.payroll_run_repository.find_by_month(month)
+        if existing:
+            raise ValueError(f"Payroll run already exists for month {month}")
+
+        employees, _ = self.employee_repository.list_employees(
+            page=1,
+            page_size=5000,
+            show_deleted="active",
+        )
+        active_employees = [e for e in employees if str(e.get("status") or "").lower() == "active"]
+
+        month_start, month_end = self.payroll_calendar_service.month_range(month)
+        public_holidays = self.public_holiday_repository.list_by_date_range(
+            start_date=month_start,
+            end_date=month_end,
         )
 
-        employees = self._get_active_employees()
-        deduction_rules = self._get_active_deduction_rules()
+        deduction_rules, _ = self.deduction_rule_repository.list_rules(
+            page=1,
+            page_size=500,
+            include_deleted=False,
+        )
 
-        generated_count = 0
-        payslip_ids: list[str] = []
+        run = self.payroll_run_repository.save(
+            PayrollRun(
+                month=month,
+                generated_by=generated_by,
+            )
+        )
 
-        for employee in employees:
-            attendances = self._get_employee_attendances(employee=employee, month=month)
-            overtime_requests = self._get_employee_overtime_requests(employee=employee, month=month)
+        created_payslips = []
 
-            payroll_result = self._calculate_employee_payroll(
+        for employee in active_employees:
+            employee_id = employee["_id"]
+            basic_salary = float(employee.get("basic_salary") or 0)
+
+            schedule_id = employee.get("schedule_id")
+            if not schedule_id:
+                continue
+
+            schedule = self.working_schedule_repository.find_by_id(schedule_id)
+            if not schedule:
+                continue
+
+            calendar_info = self.payroll_calendar_service.count_expected_working_days(
+                month=month,
                 employee=employee,
+                working_schedule=schedule,
+                public_holidays=public_holidays,
+            )
+
+            expected_working_days = int(calendar_info["expected_working_days"])
+            paid_holiday_days = int(calendar_info["paid_holiday_days"])
+
+            if expected_working_days <= 0:
+                continue
+
+            attendances = self.attendance_repository.list_by_employee_and_month(
+                employee_id=employee_id,
+                month=month,
+            )
+
+            overtime_requests = self.overtime_repository.list_approved_by_employee_and_month(
+                employee_id=employee_id,
+                month=month,
+            )
+
+            approved_leaves = self.leave_repository.list_approved_by_employee_and_month(
+                employee_id=employee_id,
+                month=month,
+            )
+
+            unpaid_leave_days = self._count_unpaid_leave_days_in_month(
+                approved_leaves=approved_leaves,
+                month_start=month_start,
+                month_end=month_end,
+            )
+
+            calculator = self.payroll_calculator(
+                expected_working_days=expected_working_days
+            )
+
+            payroll_result = calculator.calculate_net_salary(
+                basic_salary=basic_salary,
                 attendances=attendances,
                 overtime_requests=overtime_requests,
                 deduction_rules=deduction_rules,
-                expected_working_days=expected_working_days,
+                unpaid_leave_days=unpaid_leave_days,
             )
 
-            payslip = self._build_payslip(
-                payroll_run=payroll_run,
-                employee=employee,
+            payslip = Payslip(
+                payroll_run_id=run.id,
+                employee_id=employee_id,
                 month=month,
-                payroll_result=payroll_result,
-                expected_working_days=expected_working_days,
+                base_salary=payroll_result["base_salary"],
+                payable_working_days=expected_working_days,
+                paid_holiday_days=paid_holiday_days,
+                unpaid_leave_days=unpaid_leave_days,
+                total_ot_hours=payroll_result["total_ot_hours"],
+                ot_payment=payroll_result["ot_payment"],
+                total_deductions=payroll_result["total_deductions"],
+                net_salary=payroll_result["net_salary"],
             )
+            created_payslips.append(self.payslip_repository.save(payslip))
 
-            self._save_payslip(payslip)
-
-            generated_count += 1
-            payslip_ids.append(str(payslip.id))
-
-        self._save_payroll_run(payroll_run)
-        self._write_audit_log(payroll_run=payroll_run, generated_by=generated_by)
-
-        return self._build_result(
-            payroll_run=payroll_run,
-            generated_count=generated_count,
-            payslip_ids=payslip_ids,
-        )
-
-    def _create_payroll_run(self, *, month: str, generated_by: str):
-        # TODO: import PayrollRun and create instance
-        payroll_run = None
-        # TODO: self.payroll_run_repository.save(payroll_run)
-        return payroll_run
-
-    def _get_active_employees(self):
-        # TODO
-        return self.employee_repository.list_active()
-
-    def _get_active_deduction_rules(self):
-        # TODO
-        return self.deduction_rule_repository.list_active()
-
-    def _get_employee_attendances(self, *, employee, month: str):
-        # TODO: replace with your real query method
-        return self.attendance_repository.list_by_employee_and_month(
-            employee_id=employee.id,
-            month=month,
-        )
-
-    def _get_employee_overtime_requests(self, *, employee, month: str):
-        # TODO: replace with your real query method
-        return self.overtime_repository.list_approved_by_employee_and_month(
-            employee_id=employee.id,
-            month=month,
-        )
-
-    def _calculate_employee_payroll(
-        self,
-        *,
-        employee,
-        attendances,
-        overtime_requests,
-        deduction_rules,
-        expected_working_days: int,
-    ) -> dict:
-        # TODO:
-        # Option A: use domain PayrollCalculator
-        # Option B: inject a calculator service
-        # Option C: compute here only temporarily
-        #
-        # expected return example:
-        # {
-        #   "base_salary": 0,
-        #   "total_ot_hours": 0,
-        #   "ot_payment": 0,
-        #   "total_deductions": 0,
-        #   "net_salary": 0,
-        #   "paid_holiday_days": 0,
-        #   "unpaid_leave_days": 0,
-        # }
         return {
-            "base_salary": employee.basic_salary,
-            "total_ot_hours": 0.0,
-            "ot_payment": 0.0,
-            "total_deductions": 0.0,
-            "net_salary": employee.basic_salary,
-            "paid_holiday_days": 0,
-            "unpaid_leave_days": 0,
+            "payroll_run": run,
+            "payslips": created_payslips,
         }
 
-    def _build_payslip(
+    def _count_unpaid_leave_days_in_month(
         self,
         *,
-        payroll_run,
-        employee,
-        month: str,
-        payroll_result: dict,
-        expected_working_days: int,
-    ):
-        # TODO: import and create Payslip
-        payslip = None
-        return payslip
+        approved_leaves: list,
+        month_start,
+        month_end,
+    ) -> int:
+        total = 0
 
-    def _save_payslip(self, payslip) -> None:
-        # TODO
-        self.payslip_repository.save(payslip)
+        for leave in approved_leaves:
+            if bool(leave.is_paid):
+                continue
 
-    def _save_payroll_run(self, payroll_run) -> None:
-        # TODO: maybe already saved during create; adapt to your repo style
-        self.payroll_run_repository.save(payroll_run)
+            leave_start = self.payroll_calendar_service._as_date(leave.start_date)
+            leave_end = self.payroll_calendar_service._as_date(leave.end_date)
+            month_start = self.payroll_calendar_service._as_date(month_start)
+            month_end = self.payroll_calendar_service._as_date(month_end)
 
-    def _write_audit_log(self, *, payroll_run, generated_by: str) -> None:
-        # TODO
-        if self.audit_log_repository is None:
-            return
+            overlap_start = max(leave_start, month_start)
+            overlap_end = min(leave_end, month_end)
 
-    def _build_result(self, *, payroll_run, generated_count: int, payslip_ids: list[str]) -> dict:
-        return {
-            "payroll_run_id": str(payroll_run.id),
-            "month": payroll_run.month,
-            "status": payroll_run.status.value,
-            "generated_count": generated_count,
-            "payslip_ids": payslip_ids,
-        }
+            if overlap_end < overlap_start:
+                continue
+
+            total += (overlap_end - overlap_start).days + 1
+
+        return total

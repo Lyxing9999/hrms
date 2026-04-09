@@ -3,15 +3,21 @@ from __future__ import annotations
 from bson import ObjectId
 
 from app.contexts.hrms.domain.deduction_rule import DeductionRule
+from app.contexts.hrms.data_transfer.response.deduction_rule_response import DeductionRuleDTO
 from app.contexts.shared.lifecycle.domain import Lifecycle
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
-from app.contexts.hrms.data_transfer.response.deduction_rule_response import DeductionRuleDTO
 from app.contexts.shared.model_converter import mongo_converter
 
 
 class DeductionRuleMapper:
     @staticmethod
     def _oid(v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str) and v.strip().lower() in {"", "null", "none", "undefined"}:
+            return None
         return mongo_converter.convert_to_object_id(v)
 
     @staticmethod
@@ -21,9 +27,9 @@ class DeductionRuleMapper:
         return str(v)
 
     @staticmethod
-    def to_domain(data: dict) -> DeductionRule:
-        if not isinstance(data, dict):
-            raise TypeError(f"to_domain expected dict, got {type(data)}")
+    def to_domain(data: dict | DeductionRule) -> DeductionRule:
+        if isinstance(data, DeductionRule):
+            return data
 
         lc_src = data.get("lifecycle") or {}
         lifecycle = Lifecycle(
@@ -37,7 +43,7 @@ class DeductionRuleMapper:
             id=DeductionRuleMapper._oid(data.get("_id") or data.get("id")),
             type=data.get("type"),
             min_minutes=int(data.get("min_minutes", 0)),
-            max_minutes=int(data["max_minutes"]) if data.get("max_minutes") is not None else None,
+            max_minutes=data.get("max_minutes"),
             deduction_percentage=float(data.get("deduction_percentage", 0)),
             is_active=bool(data.get("is_active", True)),
             created_by=DeductionRuleMapper._oid(data.get("created_by")),
@@ -46,9 +52,6 @@ class DeductionRuleMapper:
 
     @staticmethod
     def to_persistence(rule: DeductionRule) -> dict:
-        if not isinstance(rule, DeductionRule):
-            raise TypeError(f"to_persistence expected DeductionRule, got {type(rule)}")
-
         lc = rule.lifecycle
         doc = {
             "type": rule.type.value if hasattr(rule.type, "value") else str(rule.type),
@@ -71,8 +74,10 @@ class DeductionRuleMapper:
         return doc
 
     @staticmethod
-    def to_dto(rule: DeductionRule) -> DeductionRuleDTO:
+    def to_dto(data: DeductionRule | dict) -> DeductionRuleDTO:
+        rule = DeductionRuleMapper.to_domain(data)
         lc = rule.lifecycle
+
         return DeductionRuleDTO(
             id=str(rule.id),
             type=rule.type.value if hasattr(rule.type, "value") else str(rule.type),
@@ -85,6 +90,6 @@ class DeductionRuleMapper:
                 created_at=lc.created_at,
                 updated_at=lc.updated_at,
                 deleted_at=lc.deleted_at,
-                deleted_by=lc.deleted_by,
+                deleted_by=DeductionRuleMapper._sid(lc.deleted_by),
             ),
         )

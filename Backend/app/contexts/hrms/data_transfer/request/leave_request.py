@@ -1,38 +1,19 @@
 from __future__ import annotations
 
-from datetime import datetime, date
-from pydantic import BaseModel, Field, model_validator
+from datetime import date
+from pydantic import BaseModel, Field
 
 
-class OvertimeCreateSchema(BaseModel):
-    request_date: date
-    start_time: datetime
-    end_time: datetime
+class LeaveSubmitSchema(BaseModel):
+    leave_type: str = Field(..., min_length=1, max_length=50)
+    start_date: date
+    end_date: date
     reason: str = Field(..., min_length=3, max_length=500)
 
-    @model_validator(mode="after")
-    def validate_times(self):
-        if self.end_time <= self.start_time:
-            raise ValueError("end_time must be after start_time")
-        return self
+
+class LeaveApproveSchema(BaseModel):
+    comment: str | None = Field(default=None, max_length=500)
 
 
-class OvertimeApproveSchema(BaseModel):
-    approved_hours: float | None = Field(default=None, ge=0)
-    comment: str | None = Field(default=None, max_length=300)
-
-    @model_validator(mode="after")
-    def normalize_comment(self):
-        if self.comment is not None:
-            self.comment = self.comment.strip() or None
-        return self
-
-
-class OvertimeRejectSchema(BaseModel):
-    comment: str | None = Field(default=None, max_length=300)
-
-    @model_validator(mode="after")
-    def normalize_comment(self):
-        if self.comment is not None:
-            self.comment = self.comment.strip() or None
-        return self
+class LeaveRejectSchema(BaseModel):
+    comment: str | None = Field(default=None, max_length=500)

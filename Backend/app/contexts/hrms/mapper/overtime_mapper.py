@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from bson import ObjectId
 
 from app.contexts.hrms.domain.overtime import OvertimeRequest
@@ -12,6 +13,12 @@ from app.contexts.shared.model_converter import mongo_converter
 class OvertimeMapper:
     @staticmethod
     def _oid(v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str) and v.strip().lower() in {"", "null", "none", "undefined"}:
+            return None
         return mongo_converter.convert_to_object_id(v)
 
     @staticmethod
@@ -21,7 +28,10 @@ class OvertimeMapper:
         return str(v)
 
     @staticmethod
-    def to_domain(data: dict) -> OvertimeRequest:
+    def to_domain(data: dict | OvertimeRequest) -> OvertimeRequest:
+        if isinstance(data, OvertimeRequest):
+            return data
+
         lc_src = data.get("lifecycle") or {}
         lifecycle = Lifecycle(
             created_at=lc_src.get("created_at") or data.get("created_at"),
@@ -30,10 +40,16 @@ class OvertimeMapper:
             deleted_by=lc_src.get("deleted_by") or data.get("deleted_by"),
         )
 
+        raw_request_date = data.get("request_date")
+        if isinstance(raw_request_date, str):
+            request_date = date.fromisoformat(raw_request_date)
+        else:
+            request_date = raw_request_date
+
         return OvertimeRequest(
             id=OvertimeMapper._oid(data.get("_id") or data.get("id")),
             employee_id=OvertimeMapper._oid(data.get("employee_id")),
-            request_date=data.get("request_date"),
+            request_date=request_date,
             start_time=data.get("start_time"),
             end_time=data.get("end_time"),
             schedule_end_time=data.get("schedule_end_time"),
@@ -54,7 +70,7 @@ class OvertimeMapper:
         lc = ot.lifecycle
         doc = {
             "employee_id": OvertimeMapper._oid(ot.employee_id),
-            "request_date": ot.request_date,
+            "request_date": ot.request_date.isoformat() if ot.request_date else None,
             "start_time": ot.start_time,
             "end_time": ot.end_time,
             "schedule_end_time": ot.schedule_end_time,
@@ -81,8 +97,10 @@ class OvertimeMapper:
         return doc
 
     @staticmethod
-    def to_dto(ot: OvertimeRequest) -> OvertimeDTO:
+    def to_dto(data: OvertimeRequest | dict) -> OvertimeDTO:
+        ot = OvertimeMapper.to_domain(data)
         lc = ot.lifecycle
+
         return OvertimeDTO(
             id=str(ot.id),
             employee_id=OvertimeMapper._sid(ot.employee_id),

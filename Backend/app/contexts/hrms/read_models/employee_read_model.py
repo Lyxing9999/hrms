@@ -6,7 +6,7 @@ from app.contexts.shared.model_converter import mongo_converter
 
 class EmployeeReadModel:
     def __init__(self, db: Database):
-        self.collection = db["employees"]
+        self.collection = db["hr_employees"]
 
     def get_by_id(self, employee_id: ObjectId | str, *, show_deleted: ShowDeleted = "active") -> dict | None:
         oid = mongo_converter.convert_to_object_id(employee_id)

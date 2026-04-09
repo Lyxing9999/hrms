@@ -14,6 +14,7 @@ from app.contexts.school.read_models.schedule_read_model import ScheduleReadMode
 from app.contexts.school.read_models.subject_read_model import SubjectReadModel
 from app.contexts.shared.lifecycle.filters import not_deleted
 from app.contexts.shared.services.display_name_service import DisplayNameService
+from app.contexts.shared.time_utils import cambodia_now, utc_now
 from app.contexts.staff.read_models.staff_read_model import StaffReadModel
 from app.contexts.student.read_models.student_read_model import StudentReadModel
 
@@ -42,8 +43,10 @@ class AdminDashboardReadModel(MongoErrorMixin):
         self._schedules_col = db["schedules"]
 
     def _weekday_from_date(self, tz_name: str = "Asia/Phnom_Penh") -> int:
+        if tz_name == "Asia/Phnom_Penh":
+            return cambodia_now().date().isoweekday()
         tz = ZoneInfo(tz_name)
-        return datetime.now(tz).date().isoweekday()
+        return utc_now().astimezone(tz).date().isoweekday()
 
     def _count_lessons_for_weekday_active(self, weekday: int) -> int:
         return int(self._schedules_col.count_documents(not_deleted({"day_of_week": int(weekday)})))

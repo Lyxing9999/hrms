@@ -51,10 +51,6 @@ from app.contexts.hrms.use_cases.overtime.create_overtime_request import CreateO
 from app.contexts.hrms.use_cases.overtime.approve_overtime_request import ApproveOvertimeRequestUseCase
 from app.contexts.hrms.use_cases.overtime.reject_overtime_request import RejectOvertimeRequestUseCase
 from app.contexts.hrms.use_cases.overtime.cancel_overtime_request import CancelOvertimeRequestUseCase
-from app.contexts.hrms.queries.overtime.list_my_overtime_requests import ListMyOvertimeRequestsQuery
-from app.contexts.hrms.queries.overtime.list_overtime_requests import ListOvertimeRequestsQuery
-from app.contexts.hrms.queries.overtime.get_overtime_request import GetOvertimeRequestQuery
-from app.contexts.hrms.queries.overtime.list_approved_overtime_for_payroll import ListApprovedOvertimeForPayrollQuery
 
 from app.contexts.hrms.use_cases.leave.submit_leave_request import SubmitLeaveRequestUseCase
 from app.contexts.hrms.use_cases.leave.approve_leave_request import ApproveLeaveRequestUseCase
@@ -80,6 +76,51 @@ from app.contexts.hrms.queries.public_holiday.get_public_holiday import GetPubli
 from app.contexts.hrms.queries.public_holiday.check_public_holiday_by_date import CheckPublicHolidayByDateQuery
 from app.contexts.hrms.use_cases.public_holiday.import_default_public_holidays import ImportDefaultPublicHolidaysUseCase
 
+# read OT model queries
+from app.contexts.hrms.queries.overtime.list_overtime_requests import ListOvertimeRequestsQuery
+from app.contexts.hrms.queries.overtime.get_overtime_request import GetOvertimeRequestQuery
+from app.contexts.hrms.queries.overtime.list_my_overtime_requests import ListMyOvertimeRequestsQuery
+from app.contexts.hrms.queries.overtime.list_approved_overtime_for_payroll import ListApprovedOvertimeForPayrollQuery
+from app.contexts.hrms.queries.overtime.list_pending_overtime_requests import ListPendingOvertimeRequestsQuery
+from app.contexts.hrms.queries.overtime.get_my_overtime_summary import GetMyOvertimeSummaryQuery
+from app.contexts.hrms.queries.overtime.get_overtime_payroll_summary import GetOvertimePayrollSummaryQuery
+from app.contexts.hrms.queries.attendance.get_my_attendance_today import GetMyAttendanceTodayQuery
+
+# deduction rule
+from app.contexts.hrms.use_cases.deduction_rule.create_deduction_rule import CreateDeductionRuleUseCase
+from app.contexts.hrms.use_cases.deduction_rule.update_deduction_rule import UpdateDeductionRuleUseCase
+from app.contexts.hrms.use_cases.deduction_rule.soft_delete_deduction_rule import SoftDeleteDeductionRuleUseCase
+from app.contexts.hrms.use_cases.deduction_rule.restore_deduction_rule import RestoreDeductionRuleUseCase
+
+from app.contexts.hrms.queries.deduction_rule.get_deduction_rule import GetDeductionRuleQuery
+from app.contexts.hrms.queries.deduction_rule.list_deduction_rules import ListDeductionRulesQuery
+from app.contexts.hrms.queries.deduction_rule.find_applicable_deduction_rule import FindApplicableDeductionRuleQuery
+
+
+from app.contexts.hrms.use_cases.leave.submit_leave_request import SubmitLeaveRequestUseCase
+from app.contexts.hrms.use_cases.leave.approve_leave_request import ApproveLeaveRequestUseCase
+from app.contexts.hrms.use_cases.leave.reject_leave_request import RejectLeaveRequestUseCase
+from app.contexts.hrms.use_cases.leave.cancel_leave_request import CancelLeaveRequestUseCase
+
+from app.contexts.hrms.queries.leave.get_leave_request import GetLeaveRequestQuery
+from app.contexts.hrms.queries.leave.list_leave_requests import ListLeaveRequestsQuery
+from app.contexts.hrms.queries.leave.list_my_leave_requests import ListMyLeaveRequestsQuery
+from app.contexts.hrms.queries.leave.list_pending_leave_requests import ListPendingLeaveRequestsQuery
+from app.contexts.hrms.queries.leave.get_my_leave_summary import GetMyLeaveSummaryQuery
+from app.contexts.hrms.queries.leave.get_my_leave_balance import GetMyLeaveBalanceQuery
+
+
+
+
+#payroll
+from app.contexts.hrms.domain.payroll_calendar import PayrollCalendarService
+from app.contexts.hrms.use_cases.payroll.generate_monthly_payroll import GenerateMonthlyPayrollUseCase
+from app.contexts.hrms.use_cases.payroll.finalize_payroll_run import FinalizePayrollRunUseCase
+from app.contexts.hrms.use_cases.payroll.mark_payroll_run_paid import MarkPayrollRunPaidUseCase
+from app.contexts.hrms.queries.payroll.list_payroll_runs import ListPayrollRunsQuery
+from app.contexts.hrms.queries.payroll.get_payroll_run import GetPayrollRunQuery
+from app.contexts.hrms.queries.payroll.list_payslips import ListPayslipsQuery
+from app.contexts.hrms.queries.payroll.get_payslip import GetPayslipQuery
 
 class HrmsApplicationServices:
     def __init__(self, *, repositories: HrmsRepositories) -> None:
@@ -172,6 +213,9 @@ class HrmsApplicationServices:
         self.get_my_attendance = GetMyAttendanceQuery(
             attendance_repository=repositories.attendance_repository,
         )
+        self.get_my_attendance_today = GetMyAttendanceTodayQuery(
+            attendance_read_model=repositories.attendance_read_model,
+        )
         self.list_attendance = ListAttendanceQuery(
             attendance_repository=repositories.attendance_repository,
         )
@@ -230,19 +274,26 @@ class HrmsApplicationServices:
             overtime_repository=repositories.overtime_repository,
         )
         self.list_overtime_requests = ListOvertimeRequestsQuery(
-            overtime_repository=repositories.overtime_repository,
+            overtime_read_model=repositories.overtime_read_model,
         )
         self.get_overtime_request = GetOvertimeRequestQuery(
-            overtime_repository=repositories.overtime_repository,
+            overtime_read_model=repositories.overtime_read_model,
         )
         self.list_my_overtime_requests = ListMyOvertimeRequestsQuery(
-            employee_repository=repositories.employee_repository,
-            overtime_repository=repositories.overtime_repository,
+            overtime_read_model=repositories.overtime_read_model,
         )
         self.list_approved_overtime_for_payroll = ListApprovedOvertimeForPayrollQuery(
-            overtime_repository=repositories.overtime_repository,
+            overtime_read_model=repositories.overtime_read_model,
         )
-
+        self.list_pending_overtime_requests = ListPendingOvertimeRequestsQuery(
+            overtime_read_model=repositories.overtime_read_model,
+        )
+        self.get_my_overtime_summary = GetMyOvertimeSummaryQuery(
+            overtime_read_model=repositories.overtime_read_model,
+        )
+        self.get_overtime_payroll_summary = GetOvertimePayrollSummaryQuery(
+            overtime_read_model=repositories.overtime_read_model,
+        )
         # leave
         self.submit_leave_request = SubmitLeaveRequestUseCase(
             employee_repository=repositories.employee_repository,
@@ -251,21 +302,75 @@ class HrmsApplicationServices:
         )
         self.approve_leave_request = ApproveLeaveRequestUseCase(
             leave_repository=repositories.leave_repository,
+            employee_repository=repositories.employee_repository,
             audit_log_repository=repositories.audit_log_repository,
         )
+        self.reject_leave_request = RejectLeaveRequestUseCase(
+            leave_repository=repositories.leave_repository,
+            audit_log_repository=repositories.audit_log_repository,
+        )
+        self.cancel_leave_request = CancelLeaveRequestUseCase(
+            leave_repository=repositories.leave_repository,
+        )
 
+        self.get_leave_request = GetLeaveRequestQuery(
+            leave_repository=repositories.leave_repository,
+        )
+        self.list_leave_requests = ListLeaveRequestsQuery(
+            leave_repository=repositories.leave_repository,
+        )
+        self.list_my_leave_requests = ListMyLeaveRequestsQuery(
+            leave_repository=repositories.leave_repository,
+        )
+        self.list_pending_leave_requests = ListPendingLeaveRequestsQuery(
+            leave_repository=repositories.leave_repository,
+        )
+        self.get_my_leave_summary = GetMyLeaveSummaryQuery(
+            leave_repository=repositories.leave_repository,
+        )
+        self.get_my_leave_balance = GetMyLeaveBalanceQuery(
+            leave_repository=repositories.leave_repository,
+        )
         # payroll
         self.generate_monthly_payroll = GenerateMonthlyPayrollUseCase(
             employee_repository=repositories.employee_repository,
+            working_schedule_repository=repositories.working_schedule_repository,
+            public_holiday_repository=repositories.public_holiday_repository,
             attendance_repository=repositories.attendance_repository,
             overtime_repository=repositories.overtime_repository,
+            leave_repository=repositories.leave_repository,
             deduction_rule_repository=repositories.deduction_rule_repository,
             payroll_run_repository=repositories.payroll_run_repository,
             payslip_repository=repositories.payslip_repository,
             audit_log_repository=repositories.audit_log_repository,
             payroll_calculator=PayrollCalculator,
+            payroll_calendar_service=PayrollCalendarService(),
         )
 
+        self.finalize_payroll_run = FinalizePayrollRunUseCase(
+            payroll_run_repository=repositories.payroll_run_repository,
+        )
+
+        self.mark_payroll_run_paid = MarkPayrollRunPaidUseCase(
+            payroll_run_repository=repositories.payroll_run_repository,
+            payslip_repository=repositories.payslip_repository,
+        )
+
+        self.list_payroll_runs = ListPayrollRunsQuery(
+            payroll_run_repository=repositories.payroll_run_repository,
+        )
+
+        self.get_payroll_run = GetPayrollRunQuery(
+            payroll_run_repository=repositories.payroll_run_repository,
+        )
+
+        self.list_payslips = ListPayslipsQuery(
+            payslip_repository=repositories.payslip_repository,
+        )
+
+        self.get_payslip = GetPayslipQuery(
+            payslip_repository=repositories.payslip_repository,
+        )
         # work location
         self.create_work_location = CreateWorkLocationUseCase(
             work_location_repository=repositories.work_location_repository,
@@ -321,7 +426,29 @@ class HrmsApplicationServices:
             public_holiday_repository=repositories.public_holiday_repository,
             cambodia_public_holiday_provider=repositories.cambodia_public_holiday_provider,
         )
+        # deduction rule
+        self.create_deduction_rule = CreateDeductionRuleUseCase(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
+        self.update_deduction_rule = UpdateDeductionRuleUseCase(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
+        self.soft_delete_deduction_rule = SoftDeleteDeductionRuleUseCase(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
+        self.restore_deduction_rule = RestoreDeductionRuleUseCase(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
 
+        self.get_deduction_rule = GetDeductionRuleQuery(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
+        self.list_deduction_rules = ListDeductionRulesQuery(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
+        self.find_applicable_deduction_rule = FindApplicableDeductionRuleQuery(
+            deduction_rule_repository=repositories.deduction_rule_repository,
+        )
         # grouped namespaces
         self.employee = SimpleNamespace(
             get_account=self.get_account.execute,
@@ -353,6 +480,7 @@ class HrmsApplicationServices:
             list_attendance=self.list_attendance.execute,
             get_team_attendance=self.get_team_attendance.execute,
             get_wrong_location_report=self.get_wrong_location_report.execute,
+            get_my_attendance_today=self.get_my_attendance_today.execute,
         )
 
         self.working_schedule = SimpleNamespace(
@@ -375,11 +503,22 @@ class HrmsApplicationServices:
             get=self.get_overtime_request.execute,
             list_my=self.list_my_overtime_requests.execute,
             list_approved_for_payroll=self.list_approved_overtime_for_payroll.execute,
+            list_pending_approval=self.list_pending_overtime_requests.execute,
+            get_my_summary=self.get_my_overtime_summary.execute,
+            get_payroll_summary=self.get_overtime_payroll_summary.execute,
         )
 
         self.leave = SimpleNamespace(
             submit=self.submit_leave_request.execute,
             approve=self.approve_leave_request.execute,
+            reject=self.reject_leave_request.execute,
+            cancel=self.cancel_leave_request.execute,
+            get=self.get_leave_request.execute,
+            list=self.list_leave_requests.execute,
+            list_my=self.list_my_leave_requests.execute,
+            list_pending=self.list_pending_leave_requests.execute,
+            get_my_summary=self.get_my_leave_summary.execute,
+            get_my_balance=self.get_my_leave_balance.execute,
         )
 
         self.payroll = SimpleNamespace(
@@ -407,4 +546,25 @@ class HrmsApplicationServices:
             get=self.get_public_holiday.execute,
             check_by_date=self.check_public_holiday_by_date.execute,
             import_defaults=self.import_default_public_holidays.execute,
+        )
+
+
+        self.deduction_rule = SimpleNamespace(
+            create=self.create_deduction_rule.execute,
+            update=self.update_deduction_rule.execute,
+            soft_delete=self.soft_delete_deduction_rule.execute,
+            restore=self.restore_deduction_rule.execute,
+            get=self.get_deduction_rule.execute,
+            list=self.list_deduction_rules.execute,
+            find_applicable=self.find_applicable_deduction_rule.execute,
+        )
+
+        self.payroll = SimpleNamespace(
+            generate_monthly=self.generate_monthly_payroll.execute,
+            finalize=self.finalize_payroll_run.execute,
+            mark_paid=self.mark_payroll_run_paid.execute,
+            list_runs=self.list_payroll_runs.execute,
+            get_run=self.get_payroll_run.execute,
+            list_payslips=self.list_payslips.execute,
+            get_payslip=self.get_payslip.execute,
         )

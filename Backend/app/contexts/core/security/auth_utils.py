@@ -98,7 +98,18 @@ def get_current_employee_id() -> ObjectId:
             recoverable=False,
         )
 
-    return employee_doc["_id"]
+    employee_id = employee_doc.get("_id")
+    if not employee_id:
+        raise AppBaseException(
+            message="Employee profile has no _id",
+            severity=ErrorSeverity.HIGH,
+            category=ErrorCategory.SYSTEM,
+            status_code=500,
+            user_message="Employee profile is invalid",
+            recoverable=False,
+        )
+
+    return mongo_converter.convert_to_object_id(employee_id)
 # -----------------------------
 # Get full current user info (from JWT payload)
 # -----------------------------

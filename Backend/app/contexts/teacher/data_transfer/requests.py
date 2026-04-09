@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 from app.contexts.school.domain.attendance import AttendanceStatus
 from app.contexts.school.domain.grade import GradeType
+from app.contexts.shared.time_utils import cambodia_now
 
 
 def _empty_to_none(v: Any) -> Any:
@@ -34,7 +35,7 @@ TERM_FULL_RE = re.compile(r"^(?P<year>\d{4})-(?P<sem>S1|S2)$", re.IGNORECASE)
 
 def current_school_year() -> int:
     # simplest rule: calendar year
-    return dt.datetime.utcnow().year
+    return cambodia_now().year
 class TeacherMarkAttendanceRequest(BaseModel):
     student_id: str
     class_id: str

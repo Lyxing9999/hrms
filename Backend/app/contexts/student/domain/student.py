@@ -13,6 +13,7 @@ from app.contexts.student.errors.student_exceptions import (
     StudentDobStringFormatInvalidException,
     StudentCannotJoinClassWhenNotActiveException,
 )
+from app.contexts.shared.time_utils import utc_now
 
 from app.contexts.shared.lifecycle.domain import Lifecycle
 
@@ -209,7 +210,7 @@ class Student:
         self.history.append(
             {
                 "event": event,
-                "at": datetime.utcnow().isoformat(),
+                "at": utc_now().isoformat(),
                 "meta": meta or {},
             }
         )

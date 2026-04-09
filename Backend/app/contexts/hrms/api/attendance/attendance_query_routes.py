@@ -13,9 +13,9 @@ from app.contexts.iam.auth.jwt_utils import login_required
 from app.contexts.hrms.mapper.attendance_mapper import AttendanceMapper
 from app.contexts.hrms.data_transfer.response.attendance_response import (
     AttendancePaginatedDTO,
+    PaginationDTO,
+    AttendanceTodayDTO,
 )
-
-
 attendance_query_bp = Blueprint("attendance_query_bp", __name__)
 mapper = AttendanceMapper()
 
@@ -45,10 +45,12 @@ def get_my_attendance():
 
     return AttendancePaginatedDTO(
         items=[mapper.to_dto(x) for x in items],
-        total=int(total),
-        page=page,
-        page_size=page_size,
-        total_pages=total_pages,
+        pagination=PaginationDTO(
+            total=int(total),
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        ),
     )
 
 
@@ -80,10 +82,12 @@ def list_attendance():
 
     return AttendancePaginatedDTO(
         items=[mapper.to_dto(x) for x in items],
-        total=int(total),
-        page=page,
-        page_size=page_size,
-        total_pages=total_pages,
+        pagination=PaginationDTO(
+            total=int(total),
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        ),
     )
 
 
@@ -112,13 +116,13 @@ def get_team_attendance():
 
     return AttendancePaginatedDTO(
         items=[mapper.to_dto(x) for x in items],
-        total=int(total),
-        page=page,
-        page_size=page_size,
-        total_pages=total_pages,
+        pagination=PaginationDTO(
+            total=int(total),
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        ),
     )
-
-
 @attendance_query_bp.route("/attendance/reports/wrong-location", methods=["GET"], strict_slashes=False)
 @login_required(allowed_roles=["hr_admin", "manager"])
 @wrap_response
@@ -136,11 +140,28 @@ def get_wrong_location_report():
     )
 
     total_pages = max(1, math.ceil(int(total) / page_size))
-
     return AttendancePaginatedDTO(
         items=[mapper.to_dto(x) for x in items],
-        total=int(total),
-        page=page,
-        page_size=page_size,
-        total_pages=total_pages,
+        pagination=PaginationDTO(
+            total=int(total),
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        ),
+    )
+
+
+
+@attendance_query_bp.route("/attendance/me/today", methods=["GET"], strict_slashes=False)
+@login_required(allowed_roles=["employee", "hr_admin", "manager", "payroll_manager"])
+@wrap_response
+def get_my_attendance_today():
+    employee_id = get_current_employee_id()
+
+    item = g.hrms.attendance.get_my_attendance_today(
+        employee_id=employee_id,
+    )
+
+    return AttendanceTodayDTO(
+        item=mapper.to_dto(item) if item else None,
     )

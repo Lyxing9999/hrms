@@ -22,6 +22,18 @@ class LeaveStatus(str, Enum):
 
 
 class LeaveRequest:
+    @staticmethod
+    def _normalize_leave_type(value) -> LeaveType:
+        if isinstance(value, LeaveType):
+            return value
+        return LeaveType(str(value).strip().lower())
+
+    @staticmethod
+    def _normalize_status(value) -> LeaveStatus:
+        if isinstance(value, LeaveStatus):
+            return value
+        return LeaveStatus(str(value).strip().lower())
+
     def __init__(
         self,
         *,
@@ -41,14 +53,14 @@ class LeaveRequest:
     ) -> None:
         self.id = id or ObjectId()
         self.employee_id = employee_id
-        self.leave_type = LeaveType(str(leave_type).strip().lower())
+        self.leave_type = self._normalize_leave_type(leave_type)
         self.start_date = start_date
         self.end_date = end_date
         self.reason = (reason or "").strip()
         self.contract_start = contract_start
         self.contract_end = contract_end
         self.is_paid = bool(is_paid)
-        self.status = LeaveStatus(str(status).strip().lower())
+        self.status = self._normalize_status(status)
         self.manager_user_id = manager_user_id
         self.manager_comment = (manager_comment or "").strip() or None
         self.lifecycle = lifecycle or Lifecycle()

@@ -30,3 +30,18 @@ class LeaveRequestDTO(BaseModel):
 
 class LeaveRequestPaginatedDTO(PaginatedDTO[LeaveRequestDTO]):
     pass
+
+
+class LeaveSummaryDTO(BaseModel):
+    total_requests: int
+    pending: int
+    approved: int
+    rejected: int
+    cancelled: int
+    total_approved_days: int
+
+
+class LeaveBalanceDTO(BaseModel):
+    annual_entitlement: int
+    used_days: int
+    remaining_days: int

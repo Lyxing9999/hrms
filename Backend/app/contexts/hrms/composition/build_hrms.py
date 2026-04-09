@@ -13,3 +13,7 @@ def build_hrms_repositories(db: Database) -> HrmsRepositories:
 def build_hrms(db: Database) -> HrmsApplicationServices:
     repositories = build_hrms_repositories(db)
     return HrmsApplicationServices(repositories=repositories)
+
+
+def build_hrms_application_services(db: Database) -> HrmsApplicationServices:
+    return build_hrms(db)

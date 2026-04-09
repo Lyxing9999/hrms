@@ -5,6 +5,7 @@ from bson import ObjectId
 
 from app.contexts.student.domain.student import Student, Gender, StudentStatus
 from app.contexts.shared.model_converter import mongo_converter
+from app.contexts.shared.time_utils import utc_now
 
 from ..errors.student_exceptions import (
     StudentUserNotFoundException,
@@ -75,7 +76,7 @@ class StudentFactory:
 
         # -------- Audit / History --------
         # Keep history timestamps consistent (UTC)
-        now_iso = datetime.utcnow().isoformat()
+        now_iso = utc_now().isoformat()
 
         history = [
             {

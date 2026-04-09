@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 from bson import ObjectId
-from datetime import datetime
 from pymongo.database import Database
 
 from app.contexts.hrms.domain.leave import LeaveRequest
 from app.contexts.hrms.mapper.leave_mapper import LeaveMapper
-from app.contexts.hrms.errors.leave_exceptions import LeaveNotFoundException
-from app.contexts.shared.time_utils import ensure_utc
 
 
 class MongoLeaveRepository:
@@ -15,45 +12,41 @@ class MongoLeaveRepository:
         self.collection = db["hr_leave_requests"]
         self.mapper = LeaveMapper()
 
-    def save(self, leave_request: LeaveRequest) -> LeaveRequest:
-        doc = self.mapper.to_persistence(leave_request)
-        self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
-        return leave_request
+    @staticmethod
+    def _oid(v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        return ObjectId(v)
 
-    def find_by_id(self, leave_request_id: ObjectId) -> LeaveRequest:
-        doc = self.collection.find_one({"_id": leave_request_id})
+    def save(self, leave: LeaveRequest) -> LeaveRequest:
+        doc = self.mapper.to_persistence(leave)
+        self.collection.replace_one({"_id": doc["_id"]}, doc, upsert=True)
+        return self.find_by_id(doc["_id"])
+
+    def find_by_id(self, leave_id) -> LeaveRequest:
+        doc = self.collection.find_one({"_id": self._oid(leave_id)})
         if not doc:
-            raise LeaveNotFoundException(leave_request_id)
+            raise ValueError("Leave request not found")
         return self.mapper.to_domain(doc)
 
-    def list_leave_requests(
+    def list_requests(
         self,
         *,
         employee_id: ObjectId | None = None,
-        manager_user_id: ObjectId | None = None,
         status: str | None = None,
-        start_date: datetime | None = None,
-        end_date: datetime | None = None,
         include_deleted: bool = False,
         deleted_only: bool = False,
         page: int = 1,
-        limit: int = 10,
+        page_size: int = 10,
     ) -> tuple[list[LeaveRequest], int]:
         query = {}
 
         if employee_id:
-            query["employee_id"] = employee_id
-        if manager_user_id:
-            query["manager_user_id"] = manager_user_id
+            query["employee_id"] = self._oid(employee_id)
         if status:
             query["status"] = status
-
-        if start_date or end_date:
-            query["start_date"] = {}
-            if start_date:
-                query["start_date"]["$gte"] = ensure_utc(start_date)
-            if end_date:
-                query["start_date"]["$lte"] = ensure_utc(end_date)
 
         if deleted_only:
             query["lifecycle.deleted_at"] = {"$ne": None}
@@ -61,18 +54,17 @@ class MongoLeaveRepository:
             query["lifecycle.deleted_at"] = None
 
         total = self.collection.count_documents(query)
-        skip = (page - 1) * limit
+        skip = (page - 1) * page_size
 
-        docs = (
+        docs = list(
             self.collection.find(query)
             .sort("start_date", -1)
             .skip(skip)
-            .limit(limit)
+            .limit(page_size)
         )
+        return [self.mapper.to_domain(x) for x in docs], total
 
-        return [self.mapper.to_domain(doc) for doc in docs], total
-
-    def find_overlapping_leave(
+    def find_overlapping_approved_or_pending(
         self,
         *,
         employee_id: ObjectId,
@@ -80,12 +72,27 @@ class MongoLeaveRepository:
         end_date,
     ) -> LeaveRequest | None:
         doc = self.collection.find_one({
-            "employee_id": employee_id,
-            "start_date": {"$lte": end_date},
-            "end_date": {"$gte": start_date},
+            "employee_id": self._oid(employee_id),
+            "status": {"$in": ["pending", "approved"]},
+            "start_date": {"$lte": end_date.isoformat()},
+            "end_date": {"$gte": start_date.isoformat()},
             "lifecycle.deleted_at": None,
         })
         return self.mapper.to_domain(doc) if doc else None
+    
+    def list_approved_by_employee_and_month(self, *, employee_id, month: str):
+        year, month_num = map(int, month.split("-"))
+        month_start = f"{year:04d}-{month_num:02d}-01"
+        from calendar import monthrange
+        month_end = f"{year:04d}-{month_num:02d}-{monthrange(year, month_num)[1]:02d}"
 
-    def delete(self, leave_request_id: ObjectId) -> None:
-        self.collection.delete_one({"_id": leave_request_id})
+        docs = list(
+            self.collection.find({
+                "employee_id": self._oid(employee_id),
+                "status": "approved",
+                "lifecycle.deleted_at": None,
+                "start_date": {"$lte": month_end},
+                "end_date": {"$gte": month_start},
+            }).sort("start_date", 1)
+        )
+        return [self.mapper.to_domain(x) for x in docs]

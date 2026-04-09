@@ -11,8 +11,10 @@ from app.contexts.hrms.domain.work_location import WorkLocation
 from app.contexts.hrms.domain.working_schedule import WorkingSchedule
 from app.contexts.hrms.errors.attendance_exceptions import (
     AlreadyCheckedInTodayException,
+    LateReasonRequiredException,
     LocationValidationException,
     NotScheduledWorkingDayException,
+    UnpaidPublicHolidayCheckInNotAllowedException,
 )
 from app.contexts.hrms.errors.employee_exceptions import (
     EmployeeInactiveException,
@@ -110,7 +112,7 @@ class CheckInEmployeeUseCase:
             and late_minutes >= self.LATE_REASON_THRESHOLD_MINUTES
             and not (late_reason or "").strip()
         ):
-            raise ValueError("late_reason is required when employee checks in late")
+            raise LateReasonRequiredException(employee["_id"])
 
         now = utc_now()
 
@@ -233,7 +235,10 @@ class CheckInEmployeeUseCase:
         holiday = self.public_holiday_repository.find_by_date(check_in_time_local.date())
         if holiday:
             if not holiday.is_paid:
-                raise ValueError("Check-in is not allowed on an unpaid public holiday")
+                raise UnpaidPublicHolidayCheckInNotAllowedException(
+                    employee_id=employee_id,
+                    holiday_date=check_in_time_local.date().isoformat(),
+                )
             return AttendanceDayType.PUBLIC_HOLIDAY
 
         weekday_value = check_in_time_local.weekday()

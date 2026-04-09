@@ -1,6 +1,7 @@
 from __future__ import annotations
 from app.contexts.core.config.setting import settings
 
+from app.contexts.hrms.read_models.attendance_read_model import AttendanceReadModel
 from pymongo.database import Database
 
 from app.contexts.hrms.repositories.employee_repository import MongoEmployeeRepository
@@ -11,10 +12,12 @@ from app.contexts.hrms.repositories.overtime_repository import MongoOvertimeRepo
 from app.contexts.hrms.repositories.leave_repository import MongoLeaveRepository
 from app.contexts.hrms.repositories.public_holiday_repository import MongoPublicHolidayRepository
 from app.contexts.hrms.repositories.deduction_rule_repository import MongoDeductionRuleRepository
-from app.contexts.hrms.repositories.payroll_repository import MongoPayrollRunRepository, MongoPayslipRepository
+from app.contexts.hrms.repositories.payroll_repository import MongoPayrollRunRepository
+from app.contexts.hrms.repositories.payslip_repository import MongoPayslipRepository
 from app.contexts.hrms.repositories.audit_log_repository import MongoAuditLogRepository
 from app.contexts.hrms.integrations.iam_gateway import HRMSIamGateway
 from app.contexts.hrms.services.cambodia_public_holiday_provider import CambodiaPublicHolidayProvider
+from app.contexts.hrms.read_models.overtime_read_model import OvertimeReadModel
 
 
 class HrmsRepositories:
@@ -32,6 +35,8 @@ class HrmsRepositories:
         self.payslip_repository = MongoPayslipRepository(db)
         self.audit_log_repository = MongoAuditLogRepository(db)
         self.iam_gateway = HRMSIamGateway(db)
+        self.overtime_read_model = OvertimeReadModel(db)
+        self.attendance_read_model = AttendanceReadModel(db)
         self.cambodia_public_holiday_provider = CambodiaPublicHolidayProvider(
         api_key=settings.CALENDARIFIC_API_KEY or "",
         )
