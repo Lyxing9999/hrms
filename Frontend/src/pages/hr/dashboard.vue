@@ -87,6 +87,16 @@ function formatShortDate(value?: string | null): string {
   });
 }
 
+function formatMonthShort(value?: string | null): string {
+  if (!value) return "-";
+  const date = new Date(`${value}-01T00:00:00`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    year: "2-digit",
+  });
+}
+
 function initialsFromName(value?: string): string {
   const safe = String(value || "Unknown").trim();
   const parts = safe.split(/\s+/).filter(Boolean);
@@ -246,12 +256,22 @@ const attendanceTrendOption = computed(() => {
 
   return {
     tooltip: { trigger: "axis" },
-    legend: { bottom: 0, textStyle: { fontSize: 11 } },
-    grid: { left: 28, right: 12, top: 12, bottom: 32 },
+    legend: {
+      top: 0,
+      left: "center",
+      itemGap: 14,
+      textStyle: { fontSize: 11 },
+    },
+    grid: { left: 28, right: 12, top: 34, bottom: 24 },
     xAxis: {
       type: "category",
       boundaryGap: false,
       data: days.map((d) => formatShortDate(d)),
+      axisLabel: {
+        hideOverlap: true,
+        fontSize: 11,
+        margin: 10,
+      },
     },
     yAxis: { type: "value", minInterval: 1 },
     series: [
@@ -294,9 +314,23 @@ const payrollFlowOption = computed(() => {
 
   return {
     tooltip: { trigger: "axis" },
-    legend: { bottom: 0, textStyle: { fontSize: 11 } },
-    grid: { left: 28, right: 12, top: 12, bottom: 32 },
-    xAxis: { type: "category", boundaryGap: false, data: months },
+    legend: {
+      top: 0,
+      left: "center",
+      itemGap: 14,
+      textStyle: { fontSize: 11 },
+    },
+    grid: { left: 28, right: 12, top: 34, bottom: 24 },
+    xAxis: {
+      type: "category",
+      boundaryGap: false,
+      data: months.map((m) => formatMonthShort(m)),
+      axisLabel: {
+        hideOverlap: true,
+        fontSize: 11,
+        margin: 10,
+      },
+    },
     yAxis: { type: "value", minInterval: 1 },
     series: [
       {
@@ -522,12 +556,6 @@ onActivated(() => {
     >
       <template #actions>
         <BaseButton plain @click="fetchDashboard">Refresh Data</BaseButton>
-        <BaseButton
-          type="primary"
-          @click="router.push(ROUTES.HR_ADMIN.EMPLOYEES)"
-        >
-          Employee Center
-        </BaseButton>
       </template>
     </OverviewHeader>
 
@@ -910,17 +938,17 @@ onActivated(() => {
 }
 
 .chart-trio {
-  margin-top: 14px;
+  margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
 }
 
 .panel-card {
   border-radius: 16px;
   border: 1px solid var(--border-color);
   background: var(--color-card);
-  padding: 12px;
+  padding: 14px;
 }
 
 .panel-card header {
@@ -943,13 +971,13 @@ onActivated(() => {
 }
 
 .chart-box {
-  margin-top: 4px;
+  margin-top: 8px;
   width: 100%;
-  height: 220px;
+  height: 290px;
 }
 
 .chart-fallback {
-  min-height: 220px;
+  min-height: 260px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1268,6 +1296,14 @@ onActivated(() => {
     grid-template-columns: 1fr;
   }
 
+  .chart-box {
+    height: 320px;
+  }
+
+  .chart-fallback {
+    min-height: 290px;
+  }
+
   .bottom-grid {
     grid-template-columns: 1fr;
   }
@@ -1303,6 +1339,22 @@ onActivated(() => {
 
   .metric-card {
     padding: 12px;
+  }
+
+  .chart-trio {
+    gap: 12px;
+  }
+
+  .panel-card {
+    padding: 12px;
+  }
+
+  .chart-box {
+    height: 250px;
+  }
+
+  .chart-fallback {
+    min-height: 220px;
   }
 
   .leave-cards {
@@ -1396,7 +1448,12 @@ onActivated(() => {
   }
 
   .chart-box {
-    height: 180px;
+    margin-top: 6px;
+    height: 210px;
+  }
+
+  .chart-fallback {
+    min-height: 190px;
   }
 
   .leave-zone__head {

@@ -879,8 +879,8 @@ onActivated(() => {
 
 <style scoped>
 .employee-dashboard-page {
-  padding: 20px;
-  max-width: 1520px;
+  padding: 16px;
+  max-width: 1460px;
   margin: 0 auto;
 }
 
@@ -893,7 +893,7 @@ onActivated(() => {
 }
 
 .panel-card {
-  border-radius: 18px;
+  border-radius: 16px;
   border: 1px solid var(--border-color);
   background: var(--color-card);
   transition: border-color 0.22s ease, box-shadow 0.22s ease,
@@ -903,11 +903,11 @@ onActivated(() => {
 .panel-card:hover {
   border-color: color-mix(
     in srgb,
-    var(--primary-color) 30%,
+    var(--color-primary) 30%,
     var(--border-color)
   );
   box-shadow: 0 10px 24px
-    color-mix(in srgb, var(--primary-color) 10%, transparent);
+    color-mix(in srgb, var(--color-primary) 10%, transparent);
   transform: translateY(-1px);
 }
 
@@ -933,9 +933,13 @@ onActivated(() => {
   --kpi-accent: var(--chart-2);
   position: relative;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 16px;
   min-height: 156px;
-  background: #fff;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary-light-8) 100%, var(--color-card)) 0%,
+    var(--color-card) 100%
+  );
   border-color: color-mix(in srgb, var(--kpi-accent) 18%, var(--border-color));
 }
 
@@ -957,19 +961,19 @@ onActivated(() => {
   pointer-events: none;
 }
 
-.kpi-card--employee::before {
+.kpi-card--employee {
   --kpi-accent: var(--chart-6);
 }
 
-.kpi-card--attendance::before {
+.kpi-card--attendance {
   --kpi-accent: var(--chart-2);
 }
 
-.kpi-card--overtime::before {
+.kpi-card--overtime {
   --kpi-accent: var(--button-warning-bg);
 }
 
-.kpi-card--leave::before {
+.kpi-card--leave {
   --kpi-accent: var(--chart-7);
 }
 
@@ -1023,11 +1027,11 @@ onActivated(() => {
 }
 
 .chart-box--standard {
-  height: 300px;
+  height: 260px;
 }
 
 .chart-box--tall {
-  height: 360px;
+  height: 320px;
 }
 
 .chart-view {
@@ -1036,7 +1040,7 @@ onActivated(() => {
 }
 
 .chart-fallback {
-  min-height: 280px;
+  min-height: 240px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1115,7 +1119,7 @@ onActivated(() => {
 
 @media (max-width: 768px) {
   .employee-dashboard-page {
-    padding: 12px;
+    padding: 10px;
   }
 
   .panel-card :deep(.el-card__body) {
@@ -1141,11 +1145,11 @@ onActivated(() => {
 
   .chart-box--standard,
   .chart-box--tall {
-    height: 250px;
+    height: 220px;
   }
 
   .chart-fallback {
-    min-height: 250px;
+    min-height: 220px;
   }
 
   .meta-grid {
@@ -1159,11 +1163,11 @@ onActivated(() => {
   }
 
   .chart-box--standard {
-    height: 320px;
+    height: 280px;
   }
 
   .chart-box--tall {
-    height: 380px;
+    height: 340px;
   }
 }
 </style>

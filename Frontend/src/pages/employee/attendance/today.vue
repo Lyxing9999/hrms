@@ -594,14 +594,20 @@ onUnmounted(() => {
     </OverviewHeader>
 
     <section class="clock-hero rounded-2xl p-5 sm:p-6">
-      <p class="text-xs uppercase tracking-[0.2em] text-slate-300">
-        Local Time
-      </p>
-      <p class="mt-2 text-2xl font-semibold sm:text-3xl">
-        {{ clockLabel }}
-      </p>
-    </section>
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="clock-hero__eyebrow">Local Time</p>
+          <p class="clock-hero__time">
+            {{ clockLabel }}
+          </p>
+          <p class="clock-hero__subtext">
+            Live company local time for attendance actions
+          </p>
+        </div>
 
+        <div class="clock-hero__badge">HRMS</div>
+      </div>
+    </section>
     <div
       v-if="pageError"
       class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
@@ -610,9 +616,7 @@ onUnmounted(() => {
     </div>
 
     <div class="grid gap-5 lg:grid-cols-2">
-      <section
-        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-      >
+      <section class="panel-card rounded-2xl p-5 sm:p-6">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h2 class="text-lg font-semibold text-slate-900">
@@ -717,7 +721,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div class="surface-card rounded-xl p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
               <h3 class="text-sm font-semibold text-slate-800">
                 Today&apos;s Work Schedule
@@ -779,7 +783,7 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div class="surface-card rounded-xl p-4">
             <div class="mb-3 flex items-center justify-between gap-3">
               <h3 class="text-sm font-semibold text-slate-800">
                 Employee Location Map
@@ -877,9 +881,7 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section
-        class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-      >
+      <section class="panel-card rounded-2xl p-5 sm:p-6">
         <div>
           <h2 class="text-lg font-semibold text-slate-900">
             Attendance Actions
@@ -905,7 +907,7 @@ onUnmounted(() => {
         </div>
 
         <div class="mt-5 space-y-6">
-          <div class="rounded-xl border border-slate-200 p-4">
+          <div class="surface-card rounded-xl p-4">
             <div class="flex items-center justify-between">
               <h3
                 class="text-sm font-semibold uppercase tracking-wide text-slate-700"
@@ -951,7 +953,7 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <div class="rounded-xl border border-slate-200 p-4">
+          <div class="surface-card rounded-xl p-4">
             <div class="flex items-center justify-between">
               <h3
                 class="text-sm font-semibold uppercase tracking-wide text-slate-700"
@@ -1113,19 +1115,164 @@ onUnmounted(() => {
 <style scoped>
 .attendance-today-page {
   color: var(--text-color);
+  --page-surface-soft: color-mix(
+    in srgb,
+    var(--muted-color) 8%,
+    var(--color-card) 92%
+  );
+  --page-surface-soft-2: color-mix(
+    in srgb,
+    var(--muted-color) 14%,
+    var(--color-card) 86%
+  );
+  --page-panel-hover-border: color-mix(
+    in srgb,
+    var(--muted-color) 26%,
+    var(--border-color) 74%
+  );
+  --page-panel-hover-shadow: color-mix(
+    in srgb,
+    var(--muted-color) 14%,
+    transparent
+  );
+}
+
+.panel-card {
+  border: 1px solid var(--border-color);
+  background: var(--color-card);
+  box-shadow: 0 10px 24px var(--card-shadow);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease,
+    transform 0.22s ease;
+}
+
+.panel-card:hover {
+  border-color: var(--page-panel-hover-border);
+  box-shadow: 0 14px 30px var(--page-panel-hover-shadow);
+  transform: translateY(-1px);
+}
+
+.surface-card {
+  border: 1px solid var(--border-color);
+  background: var(--page-surface-soft);
 }
 
 .clock-hero {
-  border: 1px solid var(--border-color);
-  color: var(--color-light);
+  border: 1px solid var(--hrms-border);
+  color: white;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--color-primary) 62%, var(--color-dark)) 0%,
-    color-mix(in srgb, var(--color-primary-light-2) 46%, var(--color-dark)) 100%
+    var(--hrms-primary-500) 0%,
+    var(--hrms-primary-600) 55%,
+    var(--hrms-primary-700) 100%
   );
-  box-shadow: 0 10px 24px var(--card-shadow);
+  box-shadow: 0 10px 24px rgba(244, 63, 107, 0.18);
 }
 
+.clock-hero__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.clock-hero__time {
+  margin-top: 0.55rem;
+  font-size: clamp(1.6rem, 2.5vw, 2.4rem);
+  line-height: 1.2;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.clock-hero__subtext {
+  margin-top: 0.45rem;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.clock-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 74px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border-radius: 0.9rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: all 0.18s ease;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.btn-primary {
+  color: #fff;
+  background: linear-gradient(
+    135deg,
+    var(--hrms-primary-500) 0%,
+    var(--hrms-primary-600) 100%
+  );
+  border-color: var(--hrms-primary-600);
+  box-shadow: 0 8px 18px rgba(244, 63, 107, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(
+    135deg,
+    var(--hrms-primary-600) 0%,
+    var(--hrms-primary-700) 100%
+  );
+}
+
+.btn-secondary {
+  color: var(--hrms-text);
+  background: #ffffff;
+  border-color: var(--hrms-border);
+}
+.surface-card {
+  border: 1px solid var(--hrms-border);
+  background: var(--hrms-surface-soft);
+}
+
+.panel-card {
+  border: 1px solid var(--hrms-border);
+  background: var(--hrms-surface);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--hrms-primary-50);
+  border-color: var(--hrms-primary-200);
+}
+
+.btn-success {
+  color: #fff;
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  border-color: #15803d;
+}
 .status-badge {
   border-color: transparent;
 }
@@ -1165,15 +1312,11 @@ onUnmounted(() => {
 }
 
 .attendance-today-page :deep(.bg-slate-50) {
-  background-color: var(--hover-bg) !important;
+  background-color: var(--page-surface-soft) !important;
 }
 
 .attendance-today-page :deep(.bg-slate-100) {
-  background-color: color-mix(
-    in srgb,
-    var(--hover-bg) 65%,
-    var(--color-card) 35%
-  ) !important;
+  background-color: var(--page-surface-soft-2) !important;
 }
 
 .attendance-today-page :deep(.bg-slate-200) {
@@ -1203,11 +1346,19 @@ onUnmounted(() => {
 }
 
 .attendance-today-page :deep(.bg-slate-900) {
-  background-color: var(--button-primary-bg) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--text-color) 84%,
+    var(--color-card) 16%
+  ) !important;
 }
 
 .attendance-today-page :deep(.hover\:bg-slate-700:hover) {
-  background-color: var(--button-primary-hover-bg) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--text-color) 72%,
+    var(--color-card) 28%
+  ) !important;
 }
 
 .attendance-today-page :deep(.bg-emerald-600) {
@@ -1219,7 +1370,7 @@ onUnmounted(() => {
 }
 
 .attendance-today-page :deep(.text-white) {
-  color: var(--button-primary-text) !important;
+  color: var(--color-light) !important;
 }
 
 .attendance-today-page :deep(.text-sky-700) {
