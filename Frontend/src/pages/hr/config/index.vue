@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
 import { ElCard, ElRow, ElCol } from "element-plus";
 import { Clock, Location, Calendar, Coin } from "@element-plus/icons-vue";
+import { ROUTES } from "~/constants/routes";
 
 const router = useRouter();
 
@@ -12,28 +13,28 @@ const configModules = ref([
     title: "Working Schedules",
     description: "Configure working hours and days",
     icon: Clock,
-    route: "/hr/config/schedules",
+    route: ROUTES.HR_ADMIN.WORKING_SCHEDULES,
     color: "#409EFF",
   },
   {
     title: "Work Locations",
     description: "Manage approved work locations",
     icon: Location,
-    route: "/hr/config/locations",
+    route: ROUTES.HR_ADMIN.WORK_LOCATIONS,
     color: "#67C23A",
   },
   {
     title: "Public Holidays",
     description: "Khmer calendar and holidays",
     icon: Calendar,
-    route: "/hr/config/holidays",
+    route: ROUTES.HR_ADMIN.PUBLIC_HOLIDAYS,
     color: "#E6A23C",
   },
   {
     title: "Deduction Rules",
     description: "Late and absence deduction policies",
     icon: Coin,
-    route: "/hr/config/deductions",
+    route: ROUTES.HR_ADMIN.DEDUCTION_RULES,
     color: "#F56C6C",
   },
 ]);

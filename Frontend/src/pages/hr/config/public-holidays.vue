@@ -2,6 +2,17 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useNuxtApp } from "nuxt/app";
 import { ElMessageBox } from "element-plus";
+import {
+  ArrowLeftBold,
+  ArrowRightBold,
+  Delete,
+  Edit,
+  Plus,
+  Refresh,
+  RefreshLeft,
+  Search,
+  Upload,
+} from "@element-plus/icons-vue";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
 import BaseButton from "~/components/base/BaseButton.vue";
 import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
@@ -49,6 +60,44 @@ const importingDefaults = ref(false);
 const importYear = ref(new Date().getFullYear());
 const importSummaryVisible = ref(false);
 const importSummary = ref<PublicHolidayImportResultDTO | null>(null);
+const checkByDate = ref(toLocalDateKey(new Date()));
+const checkingByDate = ref(false);
+const byDateChecked = ref(false);
+const byDateResult = ref<PublicHolidayDTO | null>(null);
+
+function toLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDateKeyFromBackend(value: string): string {
+  const firstTenChars = value.slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(firstTenChars)) {
+    return firstTenChars;
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return toLocalDateKey(parsed);
+}
+
+function parseHolidayDate(value: string): Date {
+  const dateKey = getDateKeyFromBackend(value);
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+  if (!match) {
+    return new Date(value);
+  }
+
+  const [, year, month, day] = match;
+  // Noon avoids timezone boundary issues when comparing local calendar dates.
+  return new Date(Number(year), Number(month) - 1, Number(day), 12, 0, 0, 0);
+}
 
 const form = reactive<HolidayFormModel>(getDefaultForm());
 
@@ -110,7 +159,7 @@ const summaryCards = computed(() => {
   const paid = active.filter((item) => item.is_paid);
   const currentYear = new Date().getFullYear();
   const thisYear = active.filter(
-    (item) => new Date(item.date).getFullYear() === currentYear,
+    (item) => parseHolidayDate(item.date).getFullYear() === currentYear,
   );
 
   return [
@@ -133,7 +182,7 @@ const filteredHolidays = computed(() => {
 
       // Filter by year if selected
       if (selectedYear.value) {
-        const itemYear = new Date(item.date).getFullYear();
+        const itemYear = parseHolidayDate(item.date).getFullYear();
         if (itemYear !== selectedYear.value) return false;
       }
 
@@ -152,7 +201,10 @@ const filteredHolidays = computed(() => {
 
       return searchableText.includes(keyword);
     })
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .sort(
+      (a, b) =>
+        parseHolidayDate(a.date).getTime() - parseHolidayDate(b.date).getTime(),
+    );
 });
 
 const totalRows = computed(() => filteredHolidays.value.length);
@@ -173,7 +225,7 @@ const availableYears = computed(() => {
 
   // Add years from existing holidays
   holidays.value.forEach((holiday) => {
-    years.add(new Date(holiday.date).getFullYear());
+    years.add(parseHolidayDate(holiday.date).getFullYear());
   });
 
   return Array.from(years).sort((a, b) => b - a);
@@ -194,7 +246,7 @@ const formError = computed(() => {
   // Date validation
   if (!form.date) return "Date is required.";
 
-  const selectedDate = new Date(form.date);
+  const selectedDate = parseHolidayDate(form.date);
   if (Number.isNaN(selectedDate.getTime())) return "Invalid date.";
 
   // Description validation
@@ -221,18 +273,18 @@ const activeHolidaysOnly = computed(() => {
 
 const calendarYear = computed(() => currentCalendarDate.value.getFullYear());
 const calendarMonth = computed(() => currentCalendarDate.value.getMonth());
-const todayDateStr = computed(() => new Date().toISOString().split("T")[0]);
+const todayDateStr = computed(() => toLocalDateKey(new Date()));
 
 const holidaysByDate = computed(() => {
   const map = new Map<string, PublicHolidayDTO[]>();
   activeHolidaysOnly.value
     .filter(
       (holiday) =>
-        new Date(holiday.date).getFullYear() === calendarYear.value &&
-        new Date(holiday.date).getMonth() === calendarMonth.value,
+        parseHolidayDate(holiday.date).getFullYear() === calendarYear.value &&
+        parseHolidayDate(holiday.date).getMonth() === calendarMonth.value,
     )
     .forEach((holiday) => {
-      const key = holiday.date;
+      const key = getDateKeyFromBackend(holiday.date);
       if (!map.has(key)) {
         map.set(key, []);
       }
@@ -251,7 +303,7 @@ const calendarDays = computed(() => {
   const current = new Date(startDate);
 
   while (current <= lastDay || current.getDay() !== 0) {
-    const dateStr = current.toISOString().split("T")[0];
+    const dateStr = toLocalDateKey(current);
     const hasHoliday = holidaysByDate.value.has(dateStr);
     const holidaysOnDate = holidaysByDate.value.get(dateStr) || [];
 
@@ -299,7 +351,7 @@ function getDefaultForm(): HolidayFormModel {
   return {
     name: "",
     name_kh: null,
-    date: new Date().toISOString().split("T")[0],
+    date: toLocalDateKey(new Date()),
     is_paid: true,
     description: null,
   };
@@ -314,7 +366,7 @@ function fillForm(holiday: PublicHolidayDTO) {
   const normalized = {
     name: holiday.name,
     name_kh: holiday.name_kh ?? null,
-    date: holiday.date,
+    date: getDateKeyFromBackend(holiday.date),
     is_paid: holiday.is_paid,
     description: holiday.description ?? null,
   };
@@ -327,10 +379,9 @@ function fillForm(holiday: PublicHolidayDTO) {
  */
 function formatDate(dateString: string): string {
   try {
-    return new Intl.DateTimeFormat("en-GB", {
-      dateStyle: "short",
-      timeZone: "UTC",
-    }).format(new Date(dateString + "T00:00:00Z"));
+    return new Intl.DateTimeFormat("en-GB", { dateStyle: "short" }).format(
+      parseHolidayDate(dateString),
+    );
   } catch {
     return dateString;
   }
@@ -469,6 +520,25 @@ async function importDefaults() {
   }
 }
 
+async function runByDateCheck() {
+  if (!checkByDate.value) return;
+
+  checkingByDate.value = true;
+  byDateChecked.value = false;
+  byDateResult.value = null;
+
+  try {
+    byDateResult.value = await publicHolidayService.getPublicHolidayByDate(
+      checkByDate.value,
+    );
+    byDateChecked.value = true;
+  } catch (error: any) {
+    console.error("By-date check error:", error);
+  } finally {
+    checkingByDate.value = false;
+  }
+}
+
 async function confirmDelete(holiday: PublicHolidayDTO) {
   try {
     await ElMessageBox.confirm(
@@ -550,7 +620,7 @@ function openCalendarSummary(
   dateStr: string,
 ) {
   selectedCalendarDateHolidays.value = dateHolidays;
-  currentCalendarDate.value = new Date(dateStr);
+  currentCalendarDate.value = parseHolidayDate(dateStr);
   calendarSummaryVisible.value = true;
 }
 
@@ -579,41 +649,53 @@ watch(filter, async () => {
       :backPath="'/hr/config'"
     >
       <template #actions>
-        <div class="header-import-tools">
-          <el-input-number
-            v-model="importYear"
-            :min="2000"
-            :max="2100"
-            :step="1"
-            controls-position="right"
-            size="default"
-          />
+        <div class="holiday-header-actions">
+          <div class="header-import-tools">
+            <el-input-number
+              v-model="importYear"
+              :min="2000"
+              :max="2100"
+              :step="1"
+              controls-position="right"
+              size="default"
+            />
+            <BaseButton
+              type="success"
+              :loading="importingDefaults"
+              :disabled="loading || importingDefaults"
+              @click="importDefaults"
+            >
+              <template #iconPre>
+                <el-icon><Upload /></el-icon>
+              </template>
+              Import Defaults
+            </BaseButton>
+          </div>
+
           <BaseButton
-            type="success"
-            :loading="importingDefaults"
-            :disabled="loading || importingDefaults"
-            @click="importDefaults"
+            plain
+            :loading="loading"
+            class="holiday-header-btn holiday-header-btn--refresh"
+            @click="loadHolidays"
           >
-            Import Defaults
+            <template #iconPre>
+              <el-icon><Refresh /></el-icon>
+            </template>
+            Refresh
+          </BaseButton>
+
+          <BaseButton
+            type="primary"
+            class="holiday-header-btn"
+            :disabled="loading"
+            @click="openCreateDialog"
+          >
+            <template #iconPre>
+              <el-icon><Plus /></el-icon>
+            </template>
+            Add Holiday
           </BaseButton>
         </div>
-
-        <BaseButton
-          plain
-          :loading="loading"
-          class="!border-[color:var(--color-primary)] !text-[color:var(--color-primary)] hover:!bg-[var(--color-primary-light-7)]"
-          @click="loadHolidays"
-        >
-          Refresh
-        </BaseButton>
-
-        <BaseButton
-          type="primary"
-          :disabled="loading"
-          @click="openCreateDialog"
-        >
-          Add Holiday
-        </BaseButton>
       </template>
     </OverviewHeader>
 
@@ -621,8 +703,8 @@ watch(filter, async () => {
       <el-segmented
         v-model="viewMode"
         :options="[
-          { label: '📋 Table View', value: 'table' },
-          { label: '📅 Calendar View', value: 'calendar' },
+          { label: 'Table View', value: 'table' },
+          { label: 'Calendar View', value: 'calendar' },
         ]"
       />
     </div>
@@ -648,7 +730,7 @@ watch(filter, async () => {
           @clear="onFilterChange"
         >
           <template #prefix>
-            <i class="el-icon-search" />
+            <el-icon><Search /></el-icon>
           </template>
         </el-input>
 
@@ -675,6 +757,48 @@ watch(filter, async () => {
           ]"
           @change="onFilterChange"
         />
+      </div>
+
+      <div class="holiday-by-date-checker">
+        <div class="holiday-by-date-header">
+          <el-icon><Calendar /></el-icon>
+          <span>Check Holiday By Date</span>
+        </div>
+
+        <div class="holiday-by-date-controls">
+          <el-date-picker
+            v-model="checkByDate"
+            type="date"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            placeholder="Select date"
+            style="width: 100%"
+          />
+          <BaseButton
+            type="primary"
+            :loading="checkingByDate"
+            @click="runByDateCheck"
+          >
+            Check Date
+          </BaseButton>
+        </div>
+
+        <div v-if="byDateChecked" class="holiday-by-date-result">
+          <el-alert
+            v-if="byDateResult"
+            title="Holiday found for selected date"
+            type="success"
+            :closable="false"
+            show-icon
+          />
+          <el-alert
+            v-else
+            title="No holiday found for selected date"
+            type="info"
+            :closable="false"
+            show-icon
+          />
+        </div>
       </div>
 
       <div class="holiday-table-card">
@@ -737,6 +861,9 @@ watch(filter, async () => {
                 size="small"
                 @click="openEditDialog(row as PublicHolidayDTO)"
               >
+                <template #iconPre>
+                  <el-icon><Edit /></el-icon>
+                </template>
                 Edit
               </BaseButton>
 
@@ -748,6 +875,9 @@ watch(filter, async () => {
                 :loading="actionLoading[(row as PublicHolidayDTO).id]"
                 @click="confirmDelete(row as PublicHolidayDTO)"
               >
+                <template #iconPre>
+                  <el-icon><Delete /></el-icon>
+                </template>
                 Delete
               </BaseButton>
 
@@ -759,6 +889,9 @@ watch(filter, async () => {
                 :loading="actionLoading[(row as PublicHolidayDTO).id]"
                 @click="confirmRestore(row as PublicHolidayDTO)"
               >
+                <template #iconPre>
+                  <el-icon><RefreshLeft /></el-icon>
+                </template>
                 Restore
               </BaseButton>
             </div>
@@ -770,9 +903,19 @@ watch(filter, async () => {
     <!-- Calendar View -->
     <div v-if="viewMode === 'calendar'" class="holiday-calendar-view">
       <div class="calendar-header">
-        <BaseButton icon-left @click="previousMonth">← Previous</BaseButton>
+        <BaseButton @click="previousMonth">
+          <template #iconPre>
+            <el-icon><ArrowLeftBold /></el-icon>
+          </template>
+          Previous
+        </BaseButton>
         <h2 class="calendar-month-year">{{ monthYear }}</h2>
-        <BaseButton icon-left @click="nextMonth">Next →</BaseButton>
+        <BaseButton @click="nextMonth">
+          Next
+          <template #iconPost>
+            <el-icon><ArrowRightBold /></el-icon>
+          </template>
+        </BaseButton>
       </div>
 
       <div class="calendar-container">
@@ -974,6 +1117,9 @@ watch(filter, async () => {
                 closeCalendarSummary();
               "
             >
+              <template #iconPre>
+                <el-icon><Edit /></el-icon>
+              </template>
               Edit
             </BaseButton>
             <BaseButton
@@ -985,6 +1131,9 @@ watch(filter, async () => {
                 closeCalendarSummary();
               "
             >
+              <template #iconPre>
+                <el-icon><Delete /></el-icon>
+              </template>
               Delete
             </BaseButton>
           </div>
@@ -1070,11 +1219,51 @@ watch(filter, async () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-right: 8px;
 
   :deep(.el-input-number) {
     width: 140px;
   }
+}
+
+.holiday-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.holiday-header-actions :deep(.el-button) {
+  min-height: 36px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.holiday-header-btn--refresh {
+  border-color: color-mix(
+    in srgb,
+    var(--border-color) 60%,
+    var(--color-primary) 40%
+  ) !important;
+  color: color-mix(
+    in srgb,
+    var(--text-color) 82%,
+    var(--color-primary) 18%
+  ) !important;
+  background: color-mix(
+    in srgb,
+    var(--color-card) 94%,
+    var(--color-bg) 6%
+  ) !important;
+}
+
+.holiday-header-btn--refresh:hover:not(.is-disabled):not([disabled]) {
+  background: var(--hover-bg) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--border-color) 48%,
+    var(--color-primary) 52%
+  ) !important;
 }
 
 .holiday-summary-grid {
@@ -1142,6 +1331,33 @@ watch(filter, async () => {
   border-radius: 4px;
   padding: 16px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.holiday-by-date-checker {
+  border: 1px solid var(--el-border-color-light);
+  background: var(--el-bg-color-overlay);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.holiday-by-date-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.holiday-by-date-controls {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 10px;
+}
+
+.holiday-by-date-result {
+  margin-top: 10px;
 }
 
 .holiday-date {
@@ -1619,11 +1835,28 @@ watch(filter, async () => {
     padding: 16px;
   }
 
+  .holiday-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+
+    :deep(.el-button) {
+      width: 100%;
+    }
+  }
+
   .header-import-tools {
     width: 100%;
     margin-right: 0;
+    display: grid;
+    grid-template-columns: 1fr;
 
     :deep(.el-input-number) {
+      width: 100%;
+    }
+
+    :deep(.el-button) {
       width: 100%;
     }
   }
@@ -1657,6 +1890,10 @@ watch(filter, async () => {
   }
 
   .import-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .holiday-by-date-controls {
     grid-template-columns: 1fr;
   }
 }

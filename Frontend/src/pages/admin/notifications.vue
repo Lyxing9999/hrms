@@ -38,6 +38,7 @@ const filter = ref<FilterMode>(
 const q = ref<string>(String(route.query.q ?? ""));
 
 const loading = ref(false);
+const markingAllRead = ref(false);
 const items = ref<NotificationDTO[]>([]);
 
 const limit = ref<number>(30);
@@ -92,6 +93,11 @@ async function refreshUnread() {
 }
 
 async function load() {
+  if (loading.value) {
+    msg.showActionInProgress();
+    return;
+  }
+
   loading.value = true;
   try {
     const res = await notifApi.listLatest({ limit: limit.value });
@@ -100,7 +106,6 @@ async function load() {
     await refreshUnread();
   } catch {
     items.value = [];
-    msg.showError("Failed to load notifications");
   } finally {
     loading.value = false;
   }
@@ -117,16 +122,19 @@ async function markRead(n: NotificationDTO) {
     await refreshUnread();
   } catch {
     n.read_at = prev ?? null;
-    msg.showError("Failed to mark as read");
   }
 }
 
 async function markAllRead() {
+  if (markingAllRead.value) {
+    msg.showActionInProgress();
+    return;
+  }
+
   if (!items.value.length) return;
 
   const anyUnread = items.value.some((x) => !x.read_at);
   if (!anyUnread) {
-    msg.showSuccess("No unread notifications");
     return;
   }
 
@@ -136,10 +144,10 @@ async function markAllRead() {
 
   items.value = items.value.map((x) => ({ ...x, read_at: x.read_at || now }));
 
+  markingAllRead.value = true;
   try {
     await notifApi.markAllRead();
     await refreshUnread();
-    msg.showSuccess("All notifications marked as read");
   } catch {
     // rollback
     const map = new Map(snapshot.map((x) => [String(x.id), x.read_at]));
@@ -147,7 +155,8 @@ async function markAllRead() {
       ...x,
       read_at: map.get(String(x.id)) ?? x.read_at,
     }));
-    msg.showError("Failed to mark all as read");
+  } finally {
+    markingAllRead.value = false;
   }
 }
 
@@ -188,7 +197,14 @@ onMounted(async () => {
             Refresh
           </BaseButton>
 
-          <BaseButton type="primary" plain size="small" @click="markAllRead">
+          <BaseButton
+            type="primary"
+            plain
+            size="small"
+            :loading="markingAllRead"
+            :disabled="loading"
+            @click="markAllRead"
+          >
             <el-icon class="mr-1"><Check /></el-icon>
             Mark all read
           </BaseButton>

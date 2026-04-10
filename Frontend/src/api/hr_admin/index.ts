@@ -7,7 +7,10 @@ import { AttendanceApi, AttendanceService } from "./attendance";
 import { PublicHolidayApi, PublicHolidayService } from "./publicHoliday";
 import { OvertimeRequestApi } from "./overtime/api";
 import { OvertimeRequestService } from "./overtime/service";
-
+import { LeaveRequestApi } from "./leave/api";
+import { LeaveRequestService } from "./leave/service";
+import { DeductionRuleApi } from "./deduction/api";
+import { DeductionRuleService } from "./deduction/service";
 let _hrmsAdminService: ReturnType<typeof createHrmsAdminService> | null = null;
 
 function createHrmsAdminService() {
@@ -21,6 +24,8 @@ function createHrmsAdminService() {
     attendance: new AttendanceApi($api),
     publicHoliday: new PublicHolidayApi($api),
     overtimeRequest: new OvertimeRequestApi($api),
+    leaveRequest: new LeaveRequestApi($api),
+    deductionRule: new DeductionRuleApi($api),
   };
 
   return {
@@ -30,6 +35,8 @@ function createHrmsAdminService() {
     attendance: new AttendanceService(hrmsApi.attendance),
     publicHoliday: new PublicHolidayService(hrmsApi.publicHoliday),
     overtimeRequest: new OvertimeRequestService(hrmsApi.overtimeRequest),
+    leaveRequest: new LeaveRequestService(hrmsApi.leaveRequest),
+    deductionRule: new DeductionRuleService(hrmsApi.deductionRule),
   };
 }
 

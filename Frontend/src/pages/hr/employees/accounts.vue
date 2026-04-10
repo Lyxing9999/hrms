@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 import {
-  ElButton,
   ElCard,
   ElDialog,
   ElForm,
@@ -15,15 +14,11 @@ import {
   ElSelect,
   ElTag,
 } from "element-plus";
-import type { FormInstance } from "element-plus";
 
 import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
-
-import {
-  employeeAccountColumns,
-  type HrEmployeeAccountRow,
-} from "~/modules/tables/columns/hr_admin/employeeAccountColumns";
+import BaseButton from "~/components/base/BaseButton.vue";
+import type { ColumnConfig } from "~/components/types/tableEdit";
 
 import type {
   HrCreateEmployeeAccountDTO,
@@ -33,16 +28,28 @@ import type {
 } from "~/api/hr_admin/employees/dto";
 import { Status } from "~/api/types/enums/status.enum";
 import { Role } from "~/api/types/enums/role.enum";
-import { useEmployeeAccountStatusInline } from "~/composables/features/hrms/useHrUserStatusInline";
 import { useHrEmployeeStore } from "~/stores/hrEmployeeStore";
 
 definePageMeta({ layout: "default" });
 
 type AccountRoleFilter = "all" | "employee" | "manager" | "payroll_manager";
+type AccountStatusValue = `${Status}`;
+
+interface AccountTableRow {
+  id: string;
+  user_id?: string | null;
+  is_linked?: boolean;
+  account_name?: string | null;
+  email?: string | null;
+  username?: string | null;
+  role?: string | null;
+  status?: string | null;
+  account_deleted: boolean;
+}
 
 const employeeStore = useHrEmployeeStore();
 
-const rows = ref<HrEmployeeAccountRow[]>([]);
+const rows = ref<AccountTableRow[]>([]);
 const loading = ref(false);
 const currentPage = ref(1);
 const pageSize = ref(10);
@@ -50,13 +57,13 @@ const totalRows = ref(0);
 const search = ref("");
 const roleFilter = ref<AccountRoleFilter>("all");
 
-const passwordResetSaving = ref<Record<string, boolean>>({});
 const deleteAccountSaving = ref<Record<string, boolean>>({});
+const restoreAccountSaving = ref<Record<string, boolean>>({});
+const updateStatusSaving = ref<Record<string, boolean>>({});
 const employeesWithoutAccounts = ref<HrEmployeeDTO[]>([]);
 const unlinkedAccounts = ref<HrEmployeeAccountListItemDTO[]>([]);
 
 const createDialogVisible = ref(false);
-const createFormRef = ref<FormInstance>();
 const createSaving = ref(false);
 const createCandidatesLoading = ref(false);
 const createCandidates = ref<HrEmployeeDTO[]>([]);
@@ -71,8 +78,37 @@ const createForm = reactive<{
   email: "",
   username: "",
   password: "",
-  role: Role.MANAGER,
+  role: Role.EMPLOYEE,
 });
+
+const tableColumns: ColumnConfig<AccountTableRow>[] = [
+  { field: "username", label: "Username", minWidth: "180px" },
+  { field: "account_name", label: "Account Name", minWidth: "220px" },
+  { field: "email", label: "Email", minWidth: "260px" },
+  {
+    field: "role",
+    label: "Role",
+    width: "140px",
+    useSlot: true,
+    slotName: "role",
+  },
+  {
+    field: "status",
+    label: "Status",
+    width: "130px",
+    useSlot: true,
+    slotName: "status",
+  },
+  {
+    field: "id",
+    label: "Actions",
+    operation: true,
+    minWidth: "360px",
+    useSlot: true,
+    slotName: "operation",
+    fixed: "right",
+  },
+];
 
 const managerStats = computed(() => {
   const employee = rows.value.filter((r) => r.role === "employee").length;
@@ -81,8 +117,6 @@ const managerStats = computed(() => {
   const suspended = rows.value.filter(
     (r) => String(r.status).toLowerCase() === Status.SUSPENDED,
   ).length;
-  const noAccount = employeesWithoutAccounts.value.length;
-  const unlinked = unlinkedAccounts.value.length;
 
   return {
     total: rows.value.length,
@@ -90,8 +124,8 @@ const managerStats = computed(() => {
     manager,
     payroll,
     suspended,
-    noAccount,
-    unlinked,
+    noAccount: employeesWithoutAccounts.value.length,
+    unlinked: unlinkedAccounts.value.length,
   };
 });
 
@@ -107,16 +141,6 @@ function normalizeRole(raw?: string | null): string {
     .toLowerCase();
 }
 
-function resolveLinkedState(item: Record<string, unknown>) {
-  if (typeof item.is_linked === "boolean") return item.is_linked;
-  if (typeof item.linked === "boolean") return item.linked;
-
-  const employee = item.employee as Record<string, unknown> | undefined;
-  if (employee && typeof employee.id !== "undefined") return true;
-
-  return !!item.employee;
-}
-
 function roleAllowed(role: string) {
   if (roleFilter.value === "all") {
     return (
@@ -126,14 +150,36 @@ function roleAllowed(role: string) {
   return role === roleFilter.value;
 }
 
+function mapError(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "response" in error) {
+    const e = error as {
+      response?: { data?: { user_message?: string; message?: string } };
+    };
+    return (
+      e.response?.data?.user_message || e.response?.data?.message || fallback
+    );
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
 function toManagerAccountRow(
   item: HrEmployeeWithAccountSummaryDTO,
-): HrEmployeeAccountRow | null {
+): AccountTableRow | null {
   const account = item.account ?? item.user ?? null;
   if (!account) return null;
 
   const role = normalizeRole(account.role);
   if (!roleAllowed(role)) return null;
+
+  const accountRecord = account as unknown as Record<string, unknown>;
+  const lifecycle = accountRecord.lifecycle as
+    | Record<string, unknown>
+    | undefined;
+  const deletedAt =
+    (accountRecord.deleted_at as string | null | undefined) ??
+    (lifecycle?.deleted_at as string | null | undefined) ??
+    null;
 
   return {
     id: item.employee.id,
@@ -143,8 +189,15 @@ function toManagerAccountRow(
     username: account.username ?? null,
     role,
     status: account.status ?? null,
-    is_linked: resolveLinkedState(item as unknown as Record<string, unknown>),
+    is_linked: !!item.employee,
+    account_deleted: !!deletedAt,
   };
+}
+
+function resolveIamTargetId(row: AccountTableRow): string {
+  const iamId = String(row.user_id ?? "").trim();
+  if (iamId) return iamId;
+  return String(row.id);
 }
 
 async function fetchManagerAccounts(page = currentPage.value) {
@@ -154,12 +207,13 @@ async function fetchManagerAccounts(page = currentPage.value) {
       page,
       limit: pageSize.value,
       q: search.value.trim() || undefined,
+      include_deleted: true,
       with_accounts: true,
     });
 
     rows.value = (res.items ?? [])
       .map(toManagerAccountRow)
-      .filter((row): row is HrEmployeeAccountRow => !!row);
+      .filter((row): row is AccountTableRow => !!row);
 
     const accountItems = res.items ?? [];
     employeesWithoutAccounts.value = accountItems
@@ -176,6 +230,7 @@ async function fetchManagerAccounts(page = currentPage.value) {
       page: 1,
       limit: 300,
       q: search.value.trim() || undefined,
+      include_deleted: true,
     });
 
     unlinkedAccounts.value = (accountRes.items ?? []).filter((account) => {
@@ -186,19 +241,10 @@ async function fetchManagerAccounts(page = currentPage.value) {
     totalRows.value = rows.value.length;
     currentPage.value = page;
   } catch (error) {
-    console.error(error);
-    ElMessage.error(
-      employeeStore.getError("getEmployeesWithAccounts") ||
-        "Failed to load manager accounts",
-    );
+    ElMessage.error(mapError(error, "Failed to load employee accounts"));
   } finally {
     loading.value = false;
   }
-}
-
-function createForEmployee(employeeId: string) {
-  createForm.employee_id = employeeId;
-  createDialogVisible.value = true;
 }
 
 function resetCreateForm() {
@@ -206,7 +252,7 @@ function resetCreateForm() {
   createForm.email = "";
   createForm.username = "";
   createForm.password = "";
-  createForm.role = Role.MANAGER;
+  createForm.role = Role.EMPLOYEE;
 }
 
 async function fetchCreateCandidates(keyword = "") {
@@ -223,14 +269,15 @@ async function fetchCreateCandidates(keyword = "") {
       .filter((item) => !(item.account ?? item.user))
       .map((item) => item.employee);
   } catch (error) {
-    console.error(error);
-    ElMessage.error(
-      employeeStore.getError("getEmployeesWithAccounts") ||
-        "Failed to load available employees",
-    );
+    ElMessage.error(mapError(error, "Failed to load available employees"));
   } finally {
     createCandidatesLoading.value = false;
   }
+}
+
+function createForEmployee(employeeId: string) {
+  createForm.employee_id = employeeId;
+  createDialogVisible.value = true;
 }
 
 async function openCreateDialog() {
@@ -272,86 +319,18 @@ async function submitCreateAccount() {
     closeCreateDialog();
     await fetchManagerAccounts(currentPage.value);
   } catch (error) {
-    console.error(error);
-    ElMessage.error(
-      employeeStore.getError("createAccount") || "Failed to create account",
-    );
+    ElMessage.error(mapError(error, "Failed to create account"));
   } finally {
     createSaving.value = false;
   }
 }
 
-async function copyText(value: string) {
-  if (!value) return false;
-  try {
-    await navigator.clipboard.writeText(value);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function handlePasswordReset(row: HrEmployeeAccountRow) {
+async function handleDeleteAccount(row: AccountTableRow) {
   try {
     await ElMessageBox.confirm(
-      `Reset password for ${row.account_name || row.email || row.id}?`,
-      "Confirm Password Reset",
-      {
-        type: "warning",
-        confirmButtonText: "Reset",
-        cancelButtonText: "Cancel",
-      },
-    );
-
-    const rowId = String(row.id);
-    passwordResetSaving.value[rowId] = true;
-    const resetResult = await employeeStore.requestEmployeeAccountPasswordReset(
-      row.id,
-    );
-
-    const resetLink = resetResult?.reset_link?.trim() || "";
-    if (!resetLink) {
-      ElMessage.success("Password reset requested successfully");
-      return;
-    }
-
-    try {
-      await ElMessageBox.confirm(
-        `Reset link:\n${resetLink}\n\nClick Copy to copy this link.`,
-        "Password Reset Link",
-        {
-          type: "success",
-          confirmButtonText: "Copy Link",
-          cancelButtonText: "Close",
-          distinguishCancelAndClose: true,
-        },
-      );
-
-      const copied = await copyText(resetLink);
-      if (copied) {
-        ElMessage.success("Reset link copied");
-      } else {
-        ElMessage.warning("Could not copy automatically. Please copy manually");
-      }
-    } catch {
-      // User closed the dialog.
-    }
-  } catch (error: any) {
-    if (error === "cancel" || error === "close") return;
-    console.error(error);
-    ElMessage.error(
-      employeeStore.getError("requestEmployeeAccountPasswordReset") ||
-        "Failed to send password reset link",
-    );
-  } finally {
-    passwordResetSaving.value[String(row.id)] = false;
-  }
-}
-
-async function handleDeleteAccount(row: HrEmployeeAccountRow) {
-  try {
-    await ElMessageBox.confirm(
-      `Delete account for ${row.account_name || row.email || row.id}?`,
+      `Delete account for ${
+        row.account_name || row.email || row.user_id || row.id
+      }?`,
       "Confirm Delete Account",
       {
         type: "warning",
@@ -360,20 +339,72 @@ async function handleDeleteAccount(row: HrEmployeeAccountRow) {
       },
     );
 
-    const rowId = String(row.id);
+    const targetId = resolveIamTargetId(row);
+    const rowId = targetId;
     deleteAccountSaving.value[rowId] = true;
-    await employeeStore.softDeleteEmployeeAccount(row.id);
+    await employeeStore.softDeleteEmployeeAccount(targetId);
     ElMessage.success("Account deleted successfully");
     await fetchManagerAccounts(currentPage.value);
   } catch (error: any) {
     if (error === "cancel" || error === "close") return;
-    console.error(error);
-    ElMessage.error(
-      employeeStore.getError("softDeleteEmployeeAccount") ||
-        "Failed to delete account",
-    );
+    ElMessage.error(mapError(error, "Failed to delete account"));
   } finally {
-    deleteAccountSaving.value[String(row.id)] = false;
+    deleteAccountSaving.value[resolveIamTargetId(row)] = false;
+  }
+}
+
+async function handleRestoreAccount(row: AccountTableRow) {
+  try {
+    await ElMessageBox.confirm(
+      `Restore account for ${
+        row.account_name || row.email || row.user_id || row.id
+      }?`,
+      "Confirm Restore Account",
+      {
+        type: "info",
+        confirmButtonText: "Restore",
+        cancelButtonText: "Cancel",
+      },
+    );
+
+    const targetId = resolveIamTargetId(row);
+    const rowId = targetId;
+    restoreAccountSaving.value[rowId] = true;
+    await employeeStore.restoreEmployeeAccount(targetId);
+    ElMessage.success("Account restored successfully");
+    await fetchManagerAccounts(currentPage.value);
+  } catch (error: any) {
+    if (error === "cancel" || error === "close") return;
+    ElMessage.error(mapError(error, "Failed to restore account"));
+  } finally {
+    restoreAccountSaving.value[resolveIamTargetId(row)] = false;
+  }
+}
+
+async function handleSetAccountStatus(
+  row: AccountTableRow,
+  status: AccountStatusValue,
+) {
+  if (!status) return;
+
+  const previous = String(row.status ?? Status.ACTIVE);
+  if (previous === status) return;
+
+  const targetId = resolveIamTargetId(row);
+  const rowId = targetId;
+  updateStatusSaving.value[rowId] = true;
+
+  try {
+    await employeeStore.setEmployeeAccountStatus(targetId, {
+      status: status as Status,
+    });
+    row.status = status;
+    ElMessage.success("Account status updated");
+  } catch (error) {
+    row.status = previous;
+    ElMessage.error(mapError(error, "Failed to update account status"));
+  } finally {
+    updateStatusSaving.value[rowId] = false;
   }
 }
 
@@ -385,8 +416,6 @@ async function handleSearch() {
 onMounted(async () => {
   await fetchManagerAccounts(1);
 });
-
-const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 </script>
 
 <template>
@@ -398,9 +427,9 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
     >
       <template #actions>
         <div class="header-actions">
-          <ElButton type="primary" @click="openCreateDialog">
+          <BaseButton type="primary" @click="openCreateDialog">
             Create Employee Account
-          </ElButton>
+          </BaseButton>
 
           <ElInput
             v-model="search"
@@ -422,7 +451,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
             <ElOption label="Payroll Manager" value="payroll_manager" />
           </ElSelect>
 
-          <ElButton @click="handleSearch">Search</ElButton>
+          <BaseButton @click="handleSearch">Search</BaseButton>
         </div>
       </template>
     </OverviewHeader>
@@ -460,9 +489,9 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 
     <div class="insight-grid">
       <ElCard>
-        <template #header>
-          <div class="insight-title">Employees Without Account</div>
-        </template>
+        <template #header
+          ><div class="insight-title">Employees Without Account</div></template
+        >
         <div v-if="topEmployeesWithoutAccount.length === 0" class="empty-note">
           No employees without account.
         </div>
@@ -476,22 +505,22 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
               <div class="row-main">{{ employee.full_name }}</div>
               <div class="row-sub">{{ employee.employee_code }}</div>
             </div>
-            <ElButton
+            <BaseButton
               size="small"
               type="primary"
               plain
               @click="createForEmployee(employee.id)"
             >
               Create Account
-            </ElButton>
+            </BaseButton>
           </div>
         </div>
       </ElCard>
 
       <ElCard>
-        <template #header>
-          <div class="insight-title">Accounts Not Linked</div>
-        </template>
+        <template #header
+          ><div class="insight-title">Accounts Not Linked</div></template
+        >
         <div v-if="topUnlinkedAccounts.length === 0" class="empty-note">
           No unlinked accounts for selected roles.
         </div>
@@ -518,9 +547,13 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
     <ElCard>
       <SmartTable
         :data="rows"
-        :columns="employeeAccountColumns"
+        :columns="tableColumns"
         :loading="loading"
+        :total="totalRows"
+        :page="currentPage"
+        :page-size="pageSize"
         :has-fetched-once="true"
+        @page="fetchManagerAccounts"
       >
         <template #role="{ row }">
           <ElTag
@@ -533,17 +566,36 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 
         <template #status="{ row }">
           <ElTag
-            :type="statusTagType((row.status ?? Status.ACTIVE) as Status)"
+            :type="
+              (row.status ?? Status.ACTIVE) === Status.ACTIVE
+                ? 'success'
+                : (row.status ?? Status.ACTIVE) === Status.INACTIVE
+                ? 'warning'
+                : 'danger'
+            "
             effect="plain"
             size="small"
           >
-            {{ formatStatusLabel((row.status ?? Status.ACTIVE) as Status) }}
+            {{ row.status || "-" }}
           </ElTag>
         </template>
 
         <template #operation="{ row }">
           <div class="operation-actions">
-            <ElButton
+            <ElSelect
+              :model-value="String(row.status || Status.ACTIVE)"
+              size="small"
+              style="width: 132px"
+              :disabled="updateStatusSaving?.[String(row.id)] ?? false"
+              @change="(value) => handleSetAccountStatus(row, value as AccountStatusValue)"
+            >
+              <ElOption label="Active" :value="Status.ACTIVE" />
+              <ElOption label="Inactive" :value="Status.INACTIVE" />
+              <ElOption label="Suspended" :value="Status.SUSPENDED" />
+            </ElSelect>
+
+            <BaseButton
+              v-if="!row.account_deleted"
               size="small"
               type="danger"
               plain
@@ -551,16 +603,17 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
               @click="handleDeleteAccount(row)"
             >
               Delete
-            </ElButton>
-            <ElButton
+            </BaseButton>
+            <BaseButton
+              v-else
               size="small"
-              type="warning"
+              type="success"
               plain
-              :loading="passwordResetSaving?.[String(row.id)] ?? false"
-              @click="handlePasswordReset(row)"
+              :loading="restoreAccountSaving?.[String(row.id)] ?? false"
+              @click="handleRestoreAccount(row)"
             >
-              Reset / Copy Link
-            </ElButton>
+              Restore
+            </BaseButton>
           </div>
         </template>
       </SmartTable>
@@ -582,7 +635,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
       width="640px"
       @close="closeCreateDialog"
     >
-      <ElForm ref="createFormRef" label-position="top">
+      <ElForm label-position="top">
         <ElFormItem label="Employee">
           <ElSelect
             v-model="createForm.employee_id"
@@ -637,14 +690,14 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
 
       <template #footer>
         <div class="dialog-actions">
-          <ElButton @click="closeCreateDialog">Cancel</ElButton>
-          <ElButton
+          <BaseButton @click="closeCreateDialog">Cancel</BaseButton>
+          <BaseButton
             type="primary"
             :loading="createSaving"
             @click="submitCreateAccount"
           >
             Create Account
-          </ElButton>
+          </BaseButton>
         </div>
       </template>
     </ElDialog>
@@ -669,6 +722,7 @@ const { statusTagType, formatStatusLabel } = useEmployeeAccountStatusInline();
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .dialog-actions {

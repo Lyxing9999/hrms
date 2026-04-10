@@ -45,6 +45,7 @@ const q = ref<string>(String(route.query.q ?? ""));
 const limit = ref<number>(Number(route.query.limit ?? 30) || 30);
 
 const loading = ref(false);
+const markingAllRead = ref(false);
 const items = ref<NotificationDTO[]>([]);
 
 function normalizeQuery(obj: Record<string, any>) {
@@ -158,13 +159,17 @@ function openDrawer() {
 }
 
 async function load() {
+  if (loading.value) {
+    msg.showActionInProgress();
+    return;
+  }
+
   loading.value = true;
   try {
     await notif.loadLatest(limit.value);
     items.value = [...notif.latest];
   } catch {
     items.value = [];
-    msg.showError("Failed to load notifications");
   } finally {
     loading.value = false;
   }
@@ -180,16 +185,19 @@ async function markRead(n: NotificationDTO) {
     await notif.markRead(String(n.id));
   } catch {
     n.read_at = prev ?? null;
-    msg.showError("Failed to mark as read");
   }
 }
 
 async function markAllRead() {
+  if (markingAllRead.value) {
+    msg.showActionInProgress();
+    return;
+  }
+
   if (!items.value.length) return;
 
   const anyUnread = items.value.some((x) => !x.read_at);
   if (!anyUnread) {
-    msg.showSuccess("No unread notifications");
     return;
   }
 
@@ -208,12 +216,13 @@ async function markAllRead() {
     x.read_at ? x : { ...x, read_at: now },
   );
 
+  markingAllRead.value = true;
   try {
     await notif.markAllRead();
-    msg.showSuccess("All notifications marked as read");
   } catch {
-    msg.showError("Failed to mark all as read");
     await load(); // rollback from server
+  } finally {
+    markingAllRead.value = false;
   }
 }
 
@@ -258,7 +267,14 @@ onMounted(async () => {
             Refresh
           </BaseButton>
 
-          <BaseButton type="primary" plain size="small" @click="markAllRead">
+          <BaseButton
+            type="primary"
+            plain
+            size="small"
+            :loading="markingAllRead"
+            :disabled="loading"
+            @click="markAllRead"
+          >
             <el-icon class="mr-1"><Check /></el-icon>
             Mark all read
           </BaseButton>

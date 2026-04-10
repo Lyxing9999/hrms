@@ -1,220 +1,294 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { useRouter } from "vue-router";
+import { computed, reactive, ref } from "vue";
+import {
+  ElButton,
+  ElCol,
+  ElInput,
+  ElMessage,
+  ElMessageBox,
+  ElOption,
+  ElPagination,
+  ElRow,
+  ElSelect,
+  ElTag,
+} from "element-plus";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
+import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
 import BaseButton from "~/components/base/BaseButton.vue";
-import { ElCard, ElRow, ElCol } from "element-plus";
-import { useAuthStore } from "~/stores/authStore";
+import { hrmsAdminService } from "~/api/hr_admin";
+import type {
+  OvertimeRequestDTO,
+  OvertimeRequestListParams,
+  OvertimeRequestStatus,
+} from "~/api/hr_admin/overtime/dto";
+import { overtimeColumns } from "~/modules/tables/columns/hr_admin/overtimeColumns";
 
-const router = useRouter();
-const authStore = useAuthStore();
+definePageMeta({ layout: "default" });
 
-const isManager = computed(() => {
-  const role = authStore.user?.role;
-  return role === "manager" || role === "hr_admin" || role === "admin";
+const overtimeService = hrmsAdminService().overtimeRequest;
+
+const loading = ref(false);
+const rows = ref<OvertimeRequestDTO[]>([]);
+
+const pagination = reactive({
+  page: 1,
+  limit: 10,
+  total: 0,
 });
 
-const modules = ref([
-  {
-    title: "New Request",
-    description: "Submit a new overtime request",
-    route: "/hr/overtime/request",
-    icon: "EditPen",
-    color: "#409EFF",
-    status: "ready",
-    roles: ["employee", "manager", "hr_admin", "admin"],
-  },
-  {
-    title: "My History",
-    description: "View your overtime request history",
-    route: "/hr/overtime/history",
-    icon: "Calendar",
-    color: "#67C23A",
-    status: "ready",
-    roles: ["employee", "manager", "hr_admin", "admin"],
-  },
-  {
-    title: "Approvals",
-    description: "Review and approve team overtime requests",
-    route: "/hr/overtime/approvals",
-    icon: "Check",
-    color: "#E6A23C",
-    status: "ready",
-    roles: ["manager", "hr_admin", "admin"],
-  },
-  {
-    title: "Team History",
-    description: "View team member overtime records",
-    route: "/hr/overtime/history#team",
-    icon: "UserFilled",
-    color: "#F56C6C",
-    status: "ready",
-    roles: ["manager", "hr_admin", "admin"],
-  },
-]);
+const filters = reactive<{
+  employee_id: string;
+  status: OvertimeRequestStatus | undefined;
+}>({
+  employee_id: "",
+  status: undefined,
+});
 
-const availableModules = computed(() => {
-  const userRole = authStore.user?.role;
-  return modules.value.filter((module) =>
-    module.roles.includes(userRole || ""),
+const activeFilterBadge = computed(() => {
+  return [Boolean(filters.employee_id.trim()), Boolean(filters.status)].filter(
+    Boolean,
+  ).length;
+});
+
+function buildParams(
+  page = pagination.page,
+  limit = pagination.limit,
+): OvertimeRequestListParams {
+  return {
+    page,
+    limit,
+    employee_id: filters.employee_id.trim() || undefined,
+    status: filters.status,
+  };
+}
+
+async function fetchOvertimeRequests(
+  page = pagination.page,
+  limit = pagination.limit,
+) {
+  loading.value = true;
+  try {
+    const response = await overtimeService.getRequests(
+      buildParams(page, limit),
+    );
+    rows.value = response.items ?? [];
+    pagination.total = response.total ?? rows.value.length;
+    pagination.page = response.page ?? page;
+    pagination.limit = response.limit ?? limit;
+  } catch {
+    ElMessage.error("Failed to load overtime records");
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function applyFilters() {
+  pagination.page = 1;
+  await fetchOvertimeRequests(1, pagination.limit);
+}
+
+function resetFilters() {
+  filters.employee_id = "";
+  filters.status = undefined;
+  applyFilters();
+}
+
+async function handlePageChange(page: number) {
+  pagination.page = page;
+  await fetchOvertimeRequests(page, pagination.limit);
+}
+
+async function handlePageSizeChange(size: number) {
+  pagination.limit = size;
+  pagination.page = 1;
+  await fetchOvertimeRequests(1, size);
+}
+
+function getStatusTagType(
+  status: string,
+): "warning" | "success" | "danger" | "info" {
+  const typeMap: Record<string, "warning" | "success" | "danger" | "info"> = {
+    pending: "warning",
+    approved: "success",
+    rejected: "danger",
+    cancelled: "info",
+  };
+  return typeMap[status] || "info";
+}
+
+function getStatusClass(status: string): string {
+  const classMap: Record<string, string> = {
+    pending: "status-pill status-pill--pending",
+    approved: "status-pill status-pill--approved",
+    rejected: "status-pill status-pill--rejected",
+    cancelled: "status-pill status-pill--cancelled",
+  };
+  return classMap[status] || "status-pill";
+}
+
+async function showDetails(row: OvertimeRequestDTO) {
+  await ElMessageBox.alert(
+    `Overtime ID: ${row.id}\nEmployee: ${row.employee_id}\nDate: ${
+      row.request_date
+    }\nStart: ${row.start_time}\nEnd: ${row.end_time}\nStatus: ${
+      row.status
+    }\nReason: ${row.reason}\nManager comment: ${row.manager_comment || "-"}`,
+    "Overtime details",
+    { type: "info" },
   );
-});
+}
+
+await fetchOvertimeRequests(1, pagination.limit);
 </script>
 
 <template>
-  <div class="overtime-page">
-    <OverviewHeader
-      :title="'Overtime Management'"
-      :description="'Request, approve, and track overtime hours'"
-      :backPath="'/hr'"
-    />
-
-    <el-row :gutter="16" class="mt-4">
-      <el-col
-        v-for="module in availableModules"
-        :key="module.route"
-        :xs="24"
-        :sm="12"
-        :md="6"
-        class="mb-4"
+  <OverviewHeader
+    :title="'Overtime Overview'"
+    :description="'Review all overtime requests across employees'"
+    :backPath="'/hr'"
+  >
+    <template #actions>
+      <BaseButton
+        plain
+        :loading="loading"
+        class="!border-[color:var(--color-primary)] !text-[color:var(--color-primary)] hover:!bg-[var(--color-primary-light-7)]"
+        @click="fetchOvertimeRequests(pagination.page, pagination.limit)"
       >
-        <el-card
-          shadow="hover"
-          class="module-card"
-          @click="router.push(module.route)"
-        >
-          <div class="card-icon" :style="{ backgroundColor: module.color }">
-            <el-icon :size="32" color="#fff">
-              <component :is="module.icon" />
-            </el-icon>
-          </div>
-          <h3 class="card-title">{{ module.title }}</h3>
-          <p class="card-description">{{ module.description }}</p>
-          <el-tag type="success" size="small" class="mt-2"> Ready </el-tag>
-        </el-card>
-      </el-col>
-    </el-row>
+        Refresh
+      </BaseButton>
+    </template>
+  </OverviewHeader>
 
-    <!-- Info Section -->
-    <el-row :gutter="16" class="mt-8">
-      <el-col :span="24">
-        <el-card>
-          <template #header>
-            <div class="card-header">
-              <span class="title">Overtime Policy</span>
-            </div>
-          </template>
-          <div class="policy-content">
-            <div class="policy-item">
-              <h4>Request Requirements:</h4>
-              <ul>
-                <li>
-                  Submit overtime requests at least 3 hours before working
-                  overtime
-                </li>
-                <li>Provide a clear reason for the overtime</li>
-                <li>Requests must be approved by your manager</li>
-                <li>Only edit or cancel requests that are pending approval</li>
-              </ul>
-            </div>
-            <div class="policy-item">
-              <h4>Overtime Rates:</h4>
-              <ul>
-                <li>Weekday overtime: 150% of base salary</li>
-                <li>Weekend overtime: 200% of base salary</li>
-                <li>Public holiday overtime: 200-250% of base salary</li>
-              </ul>
-            </div>
-            <div class="policy-item" v-if="isManager">
-              <h4>Manager Responsibilities:</h4>
-              <ul>
-                <li>Review team overtime requests within 24 hours</li>
-                <li>Approve or reject with relevant comments</li>
-                <li>Monitor team overtime hours for compliance</li>
-                <li>Ensure overtime is business-critical</li>
-              </ul>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-  </div>
+  <el-row :gutter="12" class="mb-4">
+    <el-col :xs="24" :sm="12" :md="8" :lg="6">
+      <ElInput
+        v-model="filters.employee_id"
+        clearable
+        placeholder="Filter by employee_id"
+      />
+    </el-col>
+
+    <el-col :xs="24" :sm="12" :md="8" :lg="6">
+      <ElSelect
+        v-model="filters.status"
+        clearable
+        class="w-full"
+        placeholder="Status"
+      >
+        <ElOption label="Pending" value="pending" />
+        <ElOption label="Approved" value="approved" />
+        <ElOption label="Rejected" value="rejected" />
+        <ElOption label="Cancelled" value="cancelled" />
+      </ElSelect>
+    </el-col>
+
+    <el-col :xs="24" :sm="24" :md="8" :lg="12">
+      <div class="filter-actions">
+        <BaseButton type="primary" :loading="loading" @click="applyFilters">
+          Apply Filters
+          <span v-if="activeFilterBadge" class="filter-badge">{{
+            activeFilterBadge
+          }}</span>
+        </BaseButton>
+        <BaseButton plain :disabled="loading" @click="resetFilters">
+          Reset
+        </BaseButton>
+      </div>
+    </el-col>
+  </el-row>
+
+  <SmartTable
+    :columns="overtimeColumns"
+    :data="rows"
+    :loading="loading"
+    :total="pagination.total"
+    :page="pagination.page"
+    :page-size="pagination.limit"
+    @page="handlePageChange"
+    @page-size="handlePageSizeChange"
+  >
+    <template #status="{ row }">
+      <ElTag
+        :type="getStatusTagType(row.status)"
+        effect="plain"
+        round
+        size="small"
+        :class="getStatusClass(row.status)"
+      >
+        {{ row.status.charAt(0).toUpperCase() + row.status.slice(1) }}
+      </ElTag>
+    </template>
+
+    <template #operation="{ row }">
+      <ElButton
+        type="info"
+        size="small"
+        link
+        @click="showDetails(row as OvertimeRequestDTO)"
+      >
+        View
+      </ElButton>
+    </template>
+  </SmartTable>
+
+  <el-row v-if="pagination.total > 0" justify="end" class="m-4">
+    <ElPagination
+      :current-page="pagination.page"
+      :page-size="pagination.limit"
+      :total="pagination.total"
+      :page-sizes="[10, 20, 50, 100]"
+      layout="total, sizes, prev, pager, next, jumper"
+      background
+      @current-change="handlePageChange"
+      @size-change="handlePageSizeChange"
+    />
+  </el-row>
 </template>
 
 <style scoped>
-.overtime-page {
-  padding: 20px;
-}
-
-.module-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-align: center;
-  padding: 24px;
-  min-height: 220px;
-}
-
-.module-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-}
-
-.card-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+.filter-actions {
+  height: 100%;
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.card-title {
-  font-size: 16px;
+.filter-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 18px;
+  background: color-mix(in srgb, var(--color-primary) 20%, white 80%);
+}
+
+.status-pill {
   font-weight: 600;
-  margin: 0 0 8px 0;
+  letter-spacing: 0.01em;
 }
 
-.card-description {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  margin: 0;
+.status-pill--pending {
+  border-color: #e6a23c;
+  color: #b88230;
+  background: #fff8eb;
 }
 
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.status-pill--approved {
+  border-color: #67c23a;
+  color: #3b8f1d;
+  background: #f1faec;
 }
 
-.title {
-  font-size: 16px;
-  font-weight: 600;
+.status-pill--rejected {
+  border-color: #f56c6c;
+  color: #c74141;
+  background: #fff2f2;
 }
 
-.policy-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-}
-
-.policy-item h4 {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  color: var(--el-text-color-primary);
-}
-
-.policy-item ul {
-  margin: 0;
-  padding-left: 20px;
-  list-style-type: disc;
-}
-
-.policy-item li {
-  margin-bottom: 8px;
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-  line-height: 1.6;
+.status-pill--cancelled {
+  border-color: #909399;
+  color: #61656d;
+  background: #f5f6f7;
 }
 </style>

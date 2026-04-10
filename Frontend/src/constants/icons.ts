@@ -71,6 +71,7 @@ export const ICONS = {
   HR_REPORTS_PAYROLL: "ep:document",
   HR_REPORTS_WRONG_LOCATION: "ep:document",
   HR_SETTINGS: "ep:setting",
+  
 
   // Employee Module
   EMPLOYEE_DASHBOARD: "ep:data-analysis",

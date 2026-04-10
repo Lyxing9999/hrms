@@ -32,7 +32,7 @@ const actions = [
   {
     title: "Generate Payroll",
     description: "Start a payroll batch for the current cycle.",
-    route: ROUTES.PAYROLL_MANAGER.PAYROLL_PROCESS,
+    route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
     color: "#0f766e",
   },

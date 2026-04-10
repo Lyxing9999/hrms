@@ -14,7 +14,7 @@ const actions = [
   {
     title: "Generate Payroll",
     description: "Continue to payroll generation.",
-    route: ROUTES.PAYROLL_MANAGER.PAYROLL_PROCESS,
+    route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
     color: "#0f766e",
   },

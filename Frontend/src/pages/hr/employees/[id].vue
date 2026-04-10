@@ -1,0 +1,936 @@
+<script setup lang="ts">
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { ElMessage } from "element-plus";
+import { CopyDocument, Refresh, UserFilled } from "@element-plus/icons-vue";
+
+import OverviewHeader from "~/components/overview/OverviewHeader.vue";
+import BaseButton from "~/components/base/BaseButton.vue";
+import { hrmsAdminService } from "~/api/hr_admin";
+import type {
+  HrEmployeeDTO,
+  HrUpdateEmployeeAccountDTO,
+  HrUpdateEmployeeDTO,
+  HrEmployeeContractDTO,
+  HrSalaryType,
+} from "~/api/hr_admin/employees/dto";
+import type { SelectOptionDTO } from "~/api/types/common/select-option.type";
+import { useHrEmployeeStore } from "~/stores/hrEmployeeStore";
+
+definePageMeta({ layout: "default" });
+
+interface EmployeeForm {
+  full_name: string;
+  department: string;
+  position: string;
+  employment_type: "permanent" | "contract";
+  basic_salary: number | null;
+  status: "active" | "inactive";
+  contract: {
+    start_date: string;
+    end_date: string;
+    salary_type: HrSalaryType;
+    rate: number | null;
+    pay_on_holiday: boolean;
+    pay_on_weekend: boolean;
+    leave_policy_id: string | null;
+  } | null;
+}
+
+interface AccountForm {
+  email: string;
+  username: string;
+  password: string;
+}
+
+const route = useRoute();
+const router = useRouter();
+const employeeStore = useHrEmployeeStore();
+const scheduleService = hrmsAdminService().workingSchedule;
+const { $api } = useNuxtApp();
+
+const employeeId = computed(() => String(route.params.id ?? ""));
+
+const pageLoading = ref(false);
+const employee = ref<HrEmployeeDTO | null>(null);
+const account = ref<{
+  id: string;
+  email?: string | null;
+  username?: string | null;
+  role?: string | null;
+  status?: string | null;
+} | null>(null);
+
+const employeeSaving = ref(false);
+const accountSaving = ref(false);
+const assignSaving = ref(false);
+const linkSaving = ref(false);
+const resetSaving = ref(false);
+const defaultResetSaving = ref(false);
+
+const scheduleOptionsLoading = ref(false);
+const scheduleOptions = ref<SelectOptionDTO[]>([]);
+
+const accountOptionsLoading = ref(false);
+const accountOptions = ref<Array<{ value: string; label: string }>>([]);
+
+const employeeForm = reactive<EmployeeForm>({
+  full_name: "",
+  department: "",
+  position: "",
+  employment_type: "permanent",
+  basic_salary: null,
+  status: "active",
+  contract: null,
+});
+
+const accountForm = reactive<AccountForm>({
+  email: "",
+  username: "",
+  password: "",
+});
+
+const assignForm = reactive({
+  schedule_id: "",
+});
+
+const linkForm = reactive({
+  user_id: "",
+});
+
+const resetInfo = ref<{ message?: string; reset_link?: string } | null>(null);
+
+// Watch employment_type and initialize contract when switching to/from contract
+watch(
+  () => employeeForm.employment_type,
+  (newType) => {
+    if (newType === "contract" && !employeeForm.contract) {
+      employeeForm.contract = {
+        start_date: "",
+        end_date: "",
+        salary_type: "monthly",
+        rate: null,
+        pay_on_holiday: false,
+        pay_on_weekend: false,
+        leave_policy_id: null,
+      };
+    } else if (newType === "permanent") {
+      employeeForm.contract = null;
+    }
+  },
+);
+
+function mapError(error: unknown, fallback: string) {
+  if (error && typeof error === "object" && "response" in error) {
+    const e = error as {
+      response?: { data?: { user_message?: string; message?: string } };
+    };
+    return (
+      e.response?.data?.user_message || e.response?.data?.message || fallback
+    );
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
+function formatCurrency(value: number | null | undefined) {
+  if (value == null) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function fillEmployeeForm(data: HrEmployeeDTO) {
+  employeeForm.full_name = data.full_name ?? "";
+  employeeForm.department = data.department ?? "";
+  employeeForm.position = data.position ?? "";
+  employeeForm.employment_type =
+    data.employment_type === "contract" ? "contract" : "permanent";
+  employeeForm.basic_salary = data.basic_salary ?? 0;
+  employeeForm.status = data.status === "inactive" ? "inactive" : "active";
+
+  if (data.contract) {
+    employeeForm.contract = {
+      start_date: data.contract.start_date ?? "",
+      end_date: data.contract.end_date ?? "",
+      salary_type: data.contract.salary_type ?? "monthly",
+      rate: data.contract.rate ?? null,
+      pay_on_holiday: data.contract.pay_on_holiday ?? false,
+      pay_on_weekend: data.contract.pay_on_weekend ?? false,
+      leave_policy_id: data.contract.leave_policy_id ?? null,
+    };
+  } else {
+    employeeForm.contract = null;
+  }
+}
+
+function fillAccountForm() {
+  accountForm.email = account.value?.email ?? "";
+  accountForm.username = account.value?.username ?? "";
+  accountForm.password = "";
+}
+
+async function loadScheduleOptions() {
+  scheduleOptionsLoading.value = true;
+  try {
+    scheduleOptions.value = await scheduleService.getScheduleSelectOptions({
+      showError: false,
+    });
+  } catch {
+    scheduleOptions.value = [];
+  } finally {
+    scheduleOptionsLoading.value = false;
+  }
+}
+
+async function loadAccountOptions() {
+  accountOptionsLoading.value = true;
+  try {
+    const response = await employeeStore.getEmployeeAccounts({
+      page: 1,
+      limit: 300,
+    });
+
+    accountOptions.value = (response.items ?? []).map((item) => ({
+      value: item.id,
+      label:
+        item.email ||
+        item.username ||
+        `${item.role || "account"} (${item.id.slice(0, 8)}...)`,
+    }));
+  } catch {
+    accountOptions.value = [];
+  } finally {
+    accountOptionsLoading.value = false;
+  }
+}
+
+async function loadDetail() {
+  if (!employeeId.value) return;
+
+  pageLoading.value = true;
+  resetInfo.value = null;
+
+  try {
+    const [employeeRes, accountRes] = await Promise.all([
+      employeeStore.getEmployee(employeeId.value),
+      employeeStore.getEmployeeAccount(employeeId.value),
+    ]);
+
+    employee.value = employeeRes;
+    account.value = accountRes;
+    fillEmployeeForm(employeeRes);
+    fillAccountForm();
+
+    await Promise.all([loadScheduleOptions(), loadAccountOptions()]);
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to load employee detail"));
+  } finally {
+    pageLoading.value = false;
+  }
+}
+
+async function submitEmployeeUpdate() {
+  if (!employeeId.value) return;
+  if (!employeeForm.full_name.trim()) {
+    ElMessage.warning("Full name is required");
+    return;
+  }
+  if (
+    employeeForm.basic_salary == null ||
+    Number(employeeForm.basic_salary) < 0
+  ) {
+    ElMessage.warning("Basic salary must be 0 or greater");
+    return;
+  }
+
+  // Validate contract fields if employment type is contract
+  if (employeeForm.employment_type === "contract") {
+    if (!employeeForm.contract?.start_date) {
+      ElMessage.warning("Contract start date is required");
+      return;
+    }
+    if (!employeeForm.contract?.end_date) {
+      ElMessage.warning("Contract end date is required");
+      return;
+    }
+    if (
+      employeeForm.contract.rate == null ||
+      Number(employeeForm.contract.rate) < 0
+    ) {
+      ElMessage.warning("Contract rate must be 0 or greater");
+      return;
+    }
+  }
+
+  const payload: HrUpdateEmployeeDTO = {
+    full_name: employeeForm.full_name.trim(),
+    department: employeeForm.department.trim() || null,
+    position: employeeForm.position.trim() || null,
+    employment_type: employeeForm.employment_type,
+    basic_salary: Number(employeeForm.basic_salary),
+    status: employeeForm.status,
+    contract:
+      employeeForm.employment_type === "contract" && employeeForm.contract
+        ? {
+            start_date: employeeForm.contract.start_date,
+            end_date: employeeForm.contract.end_date,
+            salary_type: employeeForm.contract.salary_type,
+            rate: Number(employeeForm.contract.rate),
+            pay_on_holiday: employeeForm.contract.pay_on_holiday,
+            pay_on_weekend: employeeForm.contract.pay_on_weekend,
+            leave_policy_id: employeeForm.contract.leave_policy_id,
+          }
+        : null,
+  };
+
+  employeeSaving.value = true;
+  try {
+    const updated = await employeeStore.updateEmployee(
+      employeeId.value,
+      payload,
+    );
+    employee.value = updated;
+    fillEmployeeForm(updated);
+    ElMessage.success("Employee updated successfully");
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to update employee"));
+  } finally {
+    employeeSaving.value = false;
+  }
+}
+
+async function submitAccountUpdate() {
+  if (!employeeId.value || !account.value) return;
+
+  const payload: HrUpdateEmployeeAccountDTO = {};
+  if (accountForm.email.trim()) payload.email = accountForm.email.trim();
+  if (accountForm.username.trim())
+    payload.username = accountForm.username.trim();
+  if (accountForm.password.trim()) payload.password = accountForm.password;
+
+  if (!payload.email && !payload.username && !payload.password) {
+    ElMessage.warning("Add at least one account field to update");
+    return;
+  }
+
+  accountSaving.value = true;
+  try {
+    const updated = await employeeStore.updateEmployeeAccount(
+      employeeId.value,
+      payload,
+    );
+    account.value = updated;
+    fillAccountForm();
+    ElMessage.success("Employee account updated successfully");
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to update employee account"));
+  } finally {
+    accountSaving.value = false;
+  }
+}
+
+async function submitAssignSchedule() {
+  if (!employeeId.value) return;
+  if (!assignForm.schedule_id) {
+    ElMessage.warning("Please select a schedule");
+    return;
+  }
+
+  assignSaving.value = true;
+  try {
+    if (!$api) throw new Error("API client unavailable");
+    await ($api as any).post(
+      `/api/hrms/employees/${employeeId.value}/assign-schedule`,
+      { schedule_id: assignForm.schedule_id },
+    );
+    ElMessage.success("Schedule assigned successfully");
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to assign schedule"));
+  } finally {
+    assignSaving.value = false;
+  }
+}
+
+async function submitLinkAccount() {
+  if (!employeeId.value) return;
+  if (!linkForm.user_id) {
+    ElMessage.warning("Please select an account");
+    return;
+  }
+
+  linkSaving.value = true;
+  try {
+    const updated = await employeeStore.linkAccount(employeeId.value, {
+      user_id: linkForm.user_id,
+    });
+    employee.value = updated;
+    account.value = await employeeStore.getEmployeeAccount(employeeId.value);
+    fillAccountForm();
+    linkForm.user_id = "";
+    ElMessage.success("Account linked successfully");
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to link account"));
+  } finally {
+    linkSaving.value = false;
+  }
+}
+
+async function requestPasswordReset() {
+  if (!employeeId.value) return;
+
+  resetSaving.value = true;
+  try {
+    const response = await employeeStore.requestEmployeeAccountPasswordReset(
+      employeeId.value,
+    );
+    resetInfo.value = response;
+    ElMessage.success(response.message || "Password reset requested");
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to request password reset"));
+  } finally {
+    resetSaving.value = false;
+  }
+}
+
+async function resetPasswordDefault() {
+  if (!employeeId.value) return;
+
+  defaultResetSaving.value = true;
+  try {
+    if (!$api) throw new Error("API client unavailable");
+    await ($api as any).post(
+      `/api/hrms/employees/${employeeId.value}/account/reset-password`,
+      {},
+    );
+    ElMessage.success("Password reset successfully");
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to reset password"));
+  } finally {
+    defaultResetSaving.value = false;
+  }
+}
+
+async function copyResetLink() {
+  const link = resetInfo.value?.reset_link;
+  if (!link) return;
+
+  try {
+    await navigator.clipboard.writeText(link);
+    ElMessage.success("Reset link copied");
+  } catch {
+    ElMessage.warning("Could not copy link automatically");
+  }
+}
+
+onMounted(() => {
+  loadDetail();
+});
+</script>
+
+<template>
+  <div class="employee-detail-page">
+    <OverviewHeader
+      :title="employee ? `${employee.full_name}` : 'Employee Detail'"
+      :description="
+        employee
+          ? `Code: ${employee.employee_code}`
+          : 'Loading employee profile and account details'
+      "
+      @refresh="loadDetail"
+    >
+      <template #actions>
+        <div class="header-actions">
+          <BaseButton plain @click="router.push('/hr/employees')">
+            Back to Directory
+          </BaseButton>
+          <BaseButton type="primary" :loading="pageLoading" @click="loadDetail">
+            Refresh
+          </BaseButton>
+        </div>
+      </template>
+    </OverviewHeader>
+
+    <el-skeleton v-if="pageLoading" :rows="10" animated />
+
+    <template v-else>
+      <div class="top-grid">
+        <el-card shadow="never" class="profile-card">
+          <div class="profile-head">
+            <el-avatar :size="48" class="profile-avatar">
+              <el-icon><UserFilled /></el-icon>
+            </el-avatar>
+            <div>
+              <div class="profile-name">{{ employee?.full_name || "-" }}</div>
+              <div class="profile-meta">
+                {{ employee?.employee_code || "-" }}
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-grid">
+            <div class="mini-item">
+              <span>Employment</span>
+              <strong>{{ employee?.employment_type || "-" }}</strong>
+            </div>
+            <div class="mini-item">
+              <span>Status</span>
+              <strong>{{ employee?.status || "-" }}</strong>
+            </div>
+            <div class="mini-item">
+              <span>Department</span>
+              <strong>{{ employee?.department || "-" }}</strong>
+            </div>
+            <div class="mini-item">
+              <span>Salary</span>
+              <strong>{{ formatCurrency(employee?.basic_salary) }}</strong>
+            </div>
+          </div>
+        </el-card>
+
+        <el-card shadow="never" class="profile-card">
+          <div class="card-title">Reset Password</div>
+          <div class="action-stack">
+            <BaseButton
+              type="warning"
+              :loading="resetSaving"
+              :disabled="!account"
+              @click="requestPasswordReset"
+            >
+              Request Reset Link
+            </BaseButton>
+
+            <BaseButton
+              type="danger"
+              plain
+              :loading="defaultResetSaving"
+              :disabled="!account"
+              @click="resetPasswordDefault"
+            >
+              Reset Password
+            </BaseButton>
+
+            <div v-if="resetInfo?.reset_link" class="reset-link-box">
+              <div class="reset-link-title">Reset Link</div>
+              <div class="reset-link-value">{{ resetInfo.reset_link }}</div>
+              <BaseButton plain @click="copyResetLink">
+                <template #iconPre>
+                  <el-icon><CopyDocument /></el-icon>
+                </template>
+                Copy Link
+              </BaseButton>
+            </div>
+          </div>
+        </el-card>
+      </div>
+
+      <div class="content-grid">
+        <el-card shadow="never" class="section-card">
+          <div class="card-title">Update Employee</div>
+          <el-form label-position="top" class="form-grid">
+            <el-form-item label="Full Name" required>
+              <el-input v-model="employeeForm.full_name" />
+            </el-form-item>
+            <el-form-item label="Department">
+              <el-input v-model="employeeForm.department" />
+            </el-form-item>
+            <el-form-item label="Position">
+              <el-input v-model="employeeForm.position" />
+            </el-form-item>
+            <el-form-item label="Employment Type">
+              <el-select v-model="employeeForm.employment_type">
+                <el-option label="Permanent" value="permanent" />
+                <el-option label="Contract" value="contract" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="Basic Salary" required>
+              <el-input-number
+                v-model="employeeForm.basic_salary"
+                :min="0"
+                :step="10"
+                :precision="2"
+                controls-position="right"
+                style="width: 100%"
+              />
+            </el-form-item>
+            <el-form-item label="Status">
+              <el-select v-model="employeeForm.status">
+                <el-option label="Active" value="active" />
+                <el-option label="Inactive" value="inactive" />
+              </el-select>
+            </el-form-item>
+
+            <!-- Contract fields only for contract employees -->
+            <template v-if="employeeForm.employment_type === 'contract'">
+              <el-divider />
+              <div class="contract-section-title">Contract Details</div>
+
+              <el-form-item label="Start Date" required>
+                <el-date-picker
+                  v-model="employeeForm.contract.start_date"
+                  type="date"
+                  placeholder="Select date"
+                  style="width: 100%"
+                  :disabled-date="
+                    (date) =>
+                      employeeForm.contract?.end_date &&
+                      new Date(date) > new Date(employeeForm.contract.end_date)
+                  "
+                />
+              </el-form-item>
+
+              <el-form-item label="End Date" required>
+                <el-date-picker
+                  v-model="employeeForm.contract.end_date"
+                  type="date"
+                  placeholder="Select date"
+                  style="width: 100%"
+                  :disabled-date="
+                    (date) =>
+                      employeeForm.contract?.start_date &&
+                      new Date(date) <
+                        new Date(employeeForm.contract.start_date)
+                  "
+                />
+              </el-form-item>
+
+              <el-form-item label="Salary Type" required>
+                <el-select v-model="employeeForm.contract.salary_type">
+                  <el-option label="Monthly" value="monthly" />
+                  <el-option label="Daily" value="daily" />
+                  <el-option label="Hourly" value="hourly" />
+                </el-select>
+              </el-form-item>
+
+              <el-form-item label="Rate" required>
+                <el-input-number
+                  v-model="employeeForm.contract.rate"
+                  :min="0"
+                  :step="1"
+                  :precision="2"
+                  controls-position="right"
+                  style="width: 100%"
+                />
+              </el-form-item>
+
+              <el-form-item>
+                <el-checkbox v-model="employeeForm.contract.pay_on_holiday">
+                  Pay on Holiday
+                </el-checkbox>
+              </el-form-item>
+
+              <el-form-item>
+                <el-checkbox v-model="employeeForm.contract.pay_on_weekend">
+                  Pay on Weekend
+                </el-checkbox>
+              </el-form-item>
+
+              <el-form-item label="Leave Policy ID">
+                <el-input
+                  v-model="employeeForm.contract.leave_policy_id"
+                  placeholder="Optional leave policy ID"
+                />
+              </el-form-item>
+            </template>
+          </el-form>
+
+          <div class="card-actions">
+            <BaseButton
+              type="primary"
+              :loading="employeeSaving"
+              @click="submitEmployeeUpdate"
+            >
+              Save Employee
+            </BaseButton>
+          </div>
+        </el-card>
+
+        <el-card shadow="never" class="section-card">
+          <div class="card-title">Account</div>
+          <div
+            class="account-badge"
+            :class="{ 'account-badge--none': !account }"
+          >
+            {{ account ? "Account linked" : "No account linked" }}
+          </div>
+
+          <el-form label-position="top" class="form-grid">
+            <el-form-item label="Email">
+              <el-input
+                v-model="accountForm.email"
+                :disabled="!account"
+                placeholder="Email"
+              />
+            </el-form-item>
+            <el-form-item label="Username">
+              <el-input
+                v-model="accountForm.username"
+                :disabled="!account"
+                placeholder="Username"
+              />
+            </el-form-item>
+            <el-form-item label="New Password">
+              <el-input
+                v-model="accountForm.password"
+                :disabled="!account"
+                type="password"
+                show-password
+                placeholder="Leave empty to keep current password"
+              />
+            </el-form-item>
+          </el-form>
+
+          <div class="card-actions">
+            <BaseButton
+              type="primary"
+              :disabled="!account"
+              :loading="accountSaving"
+              @click="submitAccountUpdate"
+            >
+              Update Account
+            </BaseButton>
+          </div>
+
+          <el-divider />
+
+          <div class="sub-title">Link Existing Account</div>
+          <div class="link-grid">
+            <el-select
+              v-model="linkForm.user_id"
+              filterable
+              placeholder="Select account"
+              :loading="accountOptionsLoading"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in accountOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+
+            <BaseButton
+              type="success"
+              :loading="linkSaving"
+              @click="submitLinkAccount"
+            >
+              Link Account
+            </BaseButton>
+          </div>
+        </el-card>
+
+        <el-card shadow="never" class="section-card">
+          <div class="card-title">Assign Schedule</div>
+
+          <div class="link-grid">
+            <el-select
+              v-model="assignForm.schedule_id"
+              filterable
+              placeholder="Select working schedule"
+              :loading="scheduleOptionsLoading"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="item in scheduleOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+
+            <BaseButton
+              type="warning"
+              :loading="assignSaving"
+              @click="submitAssignSchedule"
+            >
+              <template #iconPre>
+                <el-icon><Refresh /></el-icon>
+              </template>
+              Assign Schedule
+            </BaseButton>
+          </div>
+        </el-card>
+      </div>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.employee-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.top-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 12px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.profile-card,
+.section-card {
+  border: 1px solid var(--el-border-color-light);
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.profile-avatar {
+  background: color-mix(in srgb, var(--el-color-primary) 22%, #ffffff 78%);
+  color: var(--el-color-primary);
+}
+
+.profile-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.profile-meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mini-item {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mini-item span {
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.mini-item strong {
+  font-size: 13px;
+  color: var(--el-text-color-primary);
+}
+
+.card-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.sub-title {
+  font-size: 13px;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.link-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-badge {
+  margin-bottom: 10px;
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--el-color-success-dark-2);
+  background: var(--el-color-success-light-9);
+}
+
+.account-badge--none {
+  color: var(--el-color-warning-dark-2);
+  background: var(--el-color-warning-light-9);
+}
+
+.reset-link-box {
+  border: 1px dashed var(--el-border-color);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reset-link-title {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.reset-link-value {
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--el-text-color-primary);
+}
+
+.contract-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 8px;
+}
+
+@media (max-width: 1180px) {
+  .top-grid,
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .header-actions,
+  .link-grid {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .mini-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

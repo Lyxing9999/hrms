@@ -21,39 +21,41 @@ interface MenuNode extends MenuItem {
   children?: MenuNode[];
 }
 
+type AppRoleKey = Exclude<RoleKey, "AUTH">;
+
 const props = defineProps<{ logoSrc: string; collapsed?: boolean }>();
 const emit = defineEmits<{ (e: "navigate"): void }>();
 
 const authStore = useAuthStore();
 const route = useRoute();
 
-/** Role menus */
-const menus: Record<RoleKey, MenuItem[]> = {
+/** Role menus driven by src/constants/routes.ts */
+const menus: Record<AppRoleKey, MenuItem[]> = {
   ADMIN: [
-    { title: "Dashboard", icon: "HomeFilled", route: ROUTES.ADMIN.DASHBOARD },
+    { title: "Dashboard", icon: "Odometer", route: ROUTES.ADMIN.DASHBOARD },
     {
       title: "Management",
-      icon: "Management",
+      icon: "Grid",
       children: [
         {
-          title: "Manage Users",
-          icon: "UserFilled",
-          route: ROUTES.ADMIN.MANAGE_USERS,
+          title: "Users",
+          icon: "User",
+          route: ROUTES.ADMIN.USERS,
         },
         {
-          title: "Manage Classes",
-          icon: "Notebook",
-          route: ROUTES.ADMIN.MANAGE_CLASSES,
+          title: "Classes",
+          icon: "Reading",
+          route: ROUTES.ADMIN.CLASSES,
         },
         {
-          title: "Manage Subjects",
+          title: "Subjects",
           icon: "Collection",
-          route: ROUTES.ADMIN.MANAGE_SUBJECTS,
+          route: ROUTES.ADMIN.SUBJECTS,
         },
         {
-          title: "Manage Schedules",
+          title: "Schedules",
           icon: "Calendar",
-          route: ROUTES.ADMIN.MANAGE_SCHEDULES,
+          route: ROUTES.ADMIN.SCHEDULES,
         },
       ],
     },
@@ -77,21 +79,22 @@ const menus: Record<RoleKey, MenuItem[]> = {
           icon: "Bell",
           route: ROUTES.ADMIN.NOTIFICATIONS,
         },
+        { title: "Events", icon: "Tickets", route: ROUTES.ADMIN.EVENTS },
         { title: "Settings", icon: "Setting", route: ROUTES.ADMIN.SETTINGS },
       ],
     },
   ],
 
   TEACHER: [
-    { title: "Dashboard", icon: "HomeFilled", route: ROUTES.TEACHER.DASHBOARD },
+    { title: "Dashboard", icon: "Odometer", route: ROUTES.TEACHER.DASHBOARD },
     {
       title: "Students",
       icon: "UserFilled",
       children: [
         {
-          title: "Manage Students",
+          title: "Students",
           icon: "UserFilled",
-          route: ROUTES.TEACHER.MANAGE_STUDENTS,
+          route: ROUTES.TEACHER.STUDENTS,
         },
       ],
     },
@@ -100,9 +103,9 @@ const menus: Record<RoleKey, MenuItem[]> = {
       icon: "Notebook",
       children: [
         {
-          title: "My Classes",
+          title: "Classes",
           icon: "Notebook",
-          route: ROUTES.TEACHER.MY_CLASSES,
+          route: ROUTES.TEACHER.CLASSES,
         },
         { title: "Grades", icon: "TrendCharts", route: ROUTES.TEACHER.GRADES },
         {
@@ -129,25 +132,30 @@ const menus: Record<RoleKey, MenuItem[]> = {
   ],
 
   STUDENT: [
-    { title: "Dashboard", icon: "HomeFilled", route: ROUTES.STUDENT.DASHBOARD },
+    { title: "Dashboard", icon: "Odometer", route: ROUTES.STUDENT.DASHBOARD },
     {
       title: "My Study",
       icon: "Notebook",
       children: [
         {
-          title: "My Classes",
+          title: "Enrollments",
+          icon: "DocumentAdd",
+          route: ROUTES.STUDENT.ENROLLMENTS,
+        },
+        {
+          title: "Classes",
           icon: "Notebook",
-          route: ROUTES.STUDENT.MY_CLASSES,
+          route: ROUTES.STUDENT.CLASSES,
         },
         {
-          title: "My Grades",
+          title: "Grades",
           icon: "TrendCharts",
-          route: ROUTES.STUDENT.MY_GRADES,
+          route: ROUTES.STUDENT.GRADES,
         },
         {
-          title: "My Schedule",
+          title: "Schedule",
           icon: "Timer",
-          route: ROUTES.STUDENT.MY_SCHEDULE,
+          route: ROUTES.STUDENT.SCHEDULE,
         },
         {
           title: "Attendance",
@@ -174,8 +182,8 @@ const menus: Record<RoleKey, MenuItem[]> = {
   HR_ADMIN: [
     {
       title: "Dashboard",
-      icon: "HomeFilled",
-      route: "/hr",
+      icon: "Odometer",
+      route: ROUTES.HR_ADMIN.DASHBOARD,
     },
     {
       title: "Employees",
@@ -184,17 +192,17 @@ const menus: Record<RoleKey, MenuItem[]> = {
         {
           title: "Employee Directory",
           icon: "User",
-          route: "/hr/employees",
+          route: ROUTES.HR_ADMIN.EMPLOYEES,
         },
         {
           title: "Employee Accounts",
           icon: "Avatar",
-          route: "/hr/employees/accounts",
+          route: ROUTES.HR_ADMIN.EMPLOYEE_ACCOUNTS,
         },
         {
-          title: "Attendance Log",
-          icon: "Finished",
-          route: "/hr/employees/attendance",
+          title: "Archived Employees",
+          icon: "FolderDelete",
+          route: ROUTES.HR_ADMIN.EMPLOYEE_ARCHIVED,
         },
       ],
     },
@@ -205,27 +213,17 @@ const menus: Record<RoleKey, MenuItem[]> = {
         {
           title: "Overview",
           icon: "List",
-          route: "/hr/attendance",
+          route: ROUTES.HR_ADMIN.ATTENDANCE,
         },
         {
-          title: "Check In",
-          icon: "Clock",
-          route: "/hr/attendance/check-in",
-        },
-        {
-          title: "Attendance History",
-          icon: "Document",
-          route: "/hr/attendance/history",
-        },
-        {
-          title: "Team Attendance",
-          icon: "UserFilled",
-          route: "/hr/attendance/team",
+          title: "Wrong Location",
+          icon: "Warning",
+          route: ROUTES.HR_ADMIN.ATTENDANCE_WRONG_LOCATION,
         },
         {
           title: "Attendance Reports",
           icon: "Document",
-          route: "/hr/attendance/reports",
+          route: ROUTES.HR_ADMIN.ATTENDANCE_REPORTS,
         },
       ],
     },
@@ -236,22 +234,17 @@ const menus: Record<RoleKey, MenuItem[]> = {
         {
           title: "Overview",
           icon: "Timer",
-          route: "/hr/overtime",
+          route: ROUTES.HR_ADMIN.OVERTIME,
         },
         {
-          title: "Request Overtime",
-          icon: "EditPen",
-          route: "/hr/overtime/request",
+          title: "Overtime Reviews",
+          icon: "CircleCheck",
+          route: ROUTES.HR_ADMIN.OVERTIME_REVIEWS,
         },
         {
           title: "Overtime History",
           icon: "List",
-          route: "/hr/overtime/history",
-        },
-        {
-          title: "Approvals",
-          icon: "CircleCheck",
-          route: "/hr/overtime/approvals",
+          route: ROUTES.HR_ADMIN.OVERTIME_HISTORY,
         },
       ],
     },
@@ -262,7 +255,17 @@ const menus: Record<RoleKey, MenuItem[]> = {
         {
           title: "Leave Management",
           icon: "Calendar",
-          route: "/hr/leaves",
+          route: ROUTES.HR_ADMIN.LEAVES,
+        },
+        {
+          title: "Leave Reviews",
+          icon: "DocumentChecked",
+          route: ROUTES.HR_ADMIN.LEAVE_REVIEWS,
+        },
+        {
+          title: "Leave Balances",
+          icon: "Coin",
+          route: ROUTES.HR_ADMIN.LEAVE_BALANCES,
         },
       ],
     },
@@ -271,24 +274,24 @@ const menus: Record<RoleKey, MenuItem[]> = {
       icon: "Money",
       children: [
         {
-          title: "Overview",
-          icon: "Money",
-          route: "/hr/payroll",
+          title: "Generate Payroll",
+          icon: "Operation",
+          route: ROUTES.HR_ADMIN.PAYROLL_GENERATE,
         },
         {
-          title: "Process Payroll",
-          icon: "Operation",
-          route: "/hr/payroll/process",
+          title: "Payroll Runs",
+          icon: "List",
+          route: ROUTES.HR_ADMIN.PAYROLL_RUNS,
         },
         {
           title: "Payroll History",
           icon: "List",
-          route: "/hr/payroll/history",
+          route: ROUTES.HR_ADMIN.PAYROLL_HISTORY,
         },
         {
           title: "Payslips",
           icon: "Document",
-          route: "/hr/payslips",
+          route: ROUTES.HR_ADMIN.PAYSLIPS,
         },
       ],
     },
@@ -297,29 +300,24 @@ const menus: Record<RoleKey, MenuItem[]> = {
       icon: "Setting",
       children: [
         {
-          title: "Overview",
-          icon: "Setting",
-          route: "/hr/config",
-        },
-        {
           title: "Working Schedules",
           icon: "Clock",
-          route: "/hr/config/schedules",
+          route: ROUTES.HR_ADMIN.WORKING_SCHEDULES,
         },
         {
           title: "Work Locations",
           icon: "Location",
-          route: "/hr/config/locations",
+          route: ROUTES.HR_ADMIN.WORK_LOCATIONS,
         },
         {
           title: "Public Holidays",
           icon: "Calendar",
-          route: "/hr/config/public-holidays",
+          route: ROUTES.HR_ADMIN.PUBLIC_HOLIDAYS,
         },
         {
           title: "Deduction Rules",
           icon: "Coin",
-          route: "/hr/config/deductions",
+          route: ROUTES.HR_ADMIN.DEDUCTION_RULES,
         },
       ],
     },
@@ -328,29 +326,24 @@ const menus: Record<RoleKey, MenuItem[]> = {
       icon: "DataAnalysis",
       children: [
         {
-          title: "Overview",
-          icon: "DataAnalysis",
-          route: "/hr/reports",
-        },
-        {
           title: "Attendance",
           icon: "Document",
-          route: "/hr/reports/attendance",
+          route: ROUTES.HR_ADMIN.REPORTS_ATTENDANCE,
         },
         {
           title: "Overtime",
           icon: "Document",
-          route: "/hr/reports/overtime",
+          route: ROUTES.HR_ADMIN.REPORTS_OVERTIME,
         },
         {
           title: "Payroll",
           icon: "Document",
-          route: "/hr/reports/payroll",
+          route: ROUTES.HR_ADMIN.REPORTS_PAYROLL,
         },
         {
-          title: "Deductions",
+          title: "Wrong Location",
           icon: "Document",
-          route: "/hr/reports/deductions",
+          route: ROUTES.HR_ADMIN.REPORTS_WRONG_LOCATION,
         },
       ],
     },
@@ -359,7 +352,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
   EMPLOYEE: [
     {
       title: "Dashboard",
-      icon: "HomeFilled",
+      icon: "Odometer",
       route: ROUTES.EMPLOYEE.DASHBOARD,
     },
     {
@@ -367,9 +360,9 @@ const menus: Record<RoleKey, MenuItem[]> = {
       icon: "Clock",
       children: [
         {
-          title: "Check In",
+          title: "Today",
           icon: "Clock",
-          route: ROUTES.EMPLOYEE.ATTENDANCE_CHECK,
+          route: ROUTES.EMPLOYEE.ATTENDANCE_TODAY,
         },
         {
           title: "Attendance History",
@@ -436,7 +429,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
   MANAGER: [
     {
       title: "Dashboard",
-      icon: "HomeFilled",
+      icon: "Odometer",
       route: ROUTES.MANAGER.DASHBOARD,
     },
     {
@@ -503,7 +496,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
   PAYROLL_MANAGER: [
     {
       title: "Dashboard",
-      icon: "HomeFilled",
+      icon: "Odometer",
       route: ROUTES.PAYROLL_MANAGER.DASHBOARD,
     },
     {
@@ -513,7 +506,7 @@ const menus: Record<RoleKey, MenuItem[]> = {
         {
           title: "Generate Payroll",
           icon: "Operation",
-          route: ROUTES.PAYROLL_MANAGER.PAYROLL_PROCESS,
+          route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
         },
         {
           title: "Payroll Runs",
@@ -596,7 +589,8 @@ function toNodes(items: MenuItem[], path: string[] = []): MenuNode[] {
 
 const menuTree = computed<MenuNode[]>(() => {
   if (!role.value) return [];
-  return toNodes(menus[role.value] ?? []);
+  if (role.value === "AUTH") return [];
+  return toNodes(menus[role.value]);
 });
 
 /** active leaf route */
@@ -733,6 +727,23 @@ function handleSelect() {
   background: var(--app-active-bg);
   color: var(--app-primary);
   border-radius: 12px;
+}
+
+:deep(.el-menu-item .el-icon),
+:deep(.el-sub-menu__title .el-icon) {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+  color: color-mix(in srgb, var(--app-primary) 70%, var(--app-text));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+:deep(.el-menu-item.is-active .el-icon) {
+  background: color-mix(in srgb, var(--app-primary) 22%, transparent);
+  color: var(--app-primary);
 }
 
 .menu-skeleton .skeleton-item {

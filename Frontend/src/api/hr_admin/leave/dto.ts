@@ -1,0 +1,103 @@
+import type { LifecycleDTO } from "~/api/types/lifecycle.dto";
+
+export type LeaveRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
+
+/**
+ * Leave request data transfer object
+ */
+export interface LeaveRequestDTO {
+  id: string;
+  employee_id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  contract_start: string;
+  contract_end: string;
+  is_paid: boolean;
+  status: LeaveRequestStatus;
+  manager_user_id: string | null;
+  manager_comment: string | null;
+  total_days: number;
+  lifecycle: LifecycleDTO;
+}
+
+/**
+ * DTO for submitting a leave request
+ * POST /api/hrms/leave-requests
+ */
+export interface LeaveSubmitDTO {
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+}
+
+/**
+ * DTO for approving a leave request
+ * POST /api/hrms/leave-requests/<leave_id>/approve
+ */
+export interface LeaveApproveDTO {
+  comment?: string | null;
+}
+
+/**
+ * DTO for rejecting a leave request
+ * POST /api/hrms/leave-requests/<leave_id>/reject
+ */
+export interface LeaveRejectDTO {
+  comment?: string | null;
+}
+
+/**
+ * List parameters for leave requests
+ * GET /api/hrms/leave-requests
+ * GET /api/hrms/leave-requests/my
+ */
+export interface LeaveRequestListParams {
+  employee_id?: string;
+  status?: LeaveRequestStatus;
+  include_deleted?: boolean;
+  deleted_only?: boolean;
+  page?: number;
+  limit?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * Paginated leave request list response
+ */
+export interface LeaveRequestListResponseDTO {
+  items: LeaveRequestDTO[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+/**
+ * My leave summary
+ * GET /api/hrms/leave-requests/my-summary
+ */
+export interface LeaveSummaryDTO {
+  total_requests: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  cancelled: number;
+  total_approved_days: number;
+}
+
+/**
+ * My leave balance
+ * GET /api/hrms/leave-requests/my-balance
+ */
+export interface LeaveBalanceDTO {
+  annual_entitlement: number;
+  used_days: number;
+  remaining_days: number;
+}

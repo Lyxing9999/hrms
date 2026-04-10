@@ -81,6 +81,7 @@ export interface AttendanceCheckOutDTO {
 export interface AttendanceApproveWrongLocationDTO {
   approved: boolean;
   comment?: string | null;
+  location_id?: string | null;
 }
 
 export interface AttendanceListParams {

@@ -22,7 +22,7 @@ const actions = [
   {
     title: "Attendance",
     description: "Go back to attendance and check-in flows.",
-    route: ROUTES.EMPLOYEE.ATTENDANCE_CHECK,
+    route: ROUTES.EMPLOYEE.ATTENDANCE_TODAY,
     icon: Calendar,
     color: "#2563eb",
   },

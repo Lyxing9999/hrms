@@ -34,7 +34,7 @@ const actions = [
     title: "Check In",
     description:
       "Open the attendance flow built on the HRMS attendance endpoints.",
-    route: ROUTES.EMPLOYEE.ATTENDANCE_CHECK,
+    route: ROUTES.EMPLOYEE.ATTENDANCE_TODAY,
     icon: Clock,
     color: "#0f766e",
   },

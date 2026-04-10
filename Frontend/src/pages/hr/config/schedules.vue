@@ -514,22 +514,25 @@ watch(
       :backPath="'/hr/config'"
     >
       <template #actions>
-        <BaseButton
-          plain
-          :loading="loading"
-          class="!border-[color:var(--color-primary)] !text-[color:var(--color-primary)] hover:!bg-[var(--color-primary-light-7)]"
-          @click="loadSchedules"
-        >
-          Refresh
-        </BaseButton>
+        <div class="schedule-header-actions">
+          <BaseButton
+            plain
+            :loading="loading"
+            class="schedule-header-btn schedule-header-btn--refresh"
+            @click="loadSchedules"
+          >
+            Refresh
+          </BaseButton>
 
-        <BaseButton
-          type="primary"
-          :disabled="loading"
-          @click="openCreateDialog"
-        >
-          Add Schedule
-        </BaseButton>
+          <BaseButton
+            type="primary"
+            class="schedule-header-btn"
+            :disabled="loading"
+            @click="openCreateDialog"
+          >
+            Add Schedule
+          </BaseButton>
+        </div>
       </template>
     </OverviewHeader>
 
@@ -829,6 +832,47 @@ watch(
   gap: 16px;
 }
 
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.schedule-header-btn {
+  min-height: 36px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.schedule-header-btn--refresh {
+  border-color: color-mix(
+    in srgb,
+    var(--border-color) 60%,
+    var(--color-primary) 40%
+  ) !important;
+  color: color-mix(
+    in srgb,
+    var(--text-color) 82%,
+    var(--color-primary) 18%
+  ) !important;
+  background: color-mix(
+    in srgb,
+    var(--color-card) 94%,
+    var(--color-bg) 6%
+  ) !important;
+}
+
+.schedule-header-btn--refresh:hover:not(.is-disabled):not([disabled]) {
+  background: var(--hover-bg) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--border-color) 48%,
+    var(--color-primary) 52%
+  ) !important;
+}
+
 .schedule-summary-card {
   padding: 18px 20px;
   border: 1px solid var(--el-border-color-light);
@@ -977,6 +1021,16 @@ watch(
 }
 
 @media (max-width: 640px) {
+  .schedule-header-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .schedule-header-btn {
+    width: 100%;
+  }
+
   .schedule-summary-grid {
     grid-template-columns: 1fr;
   }

@@ -1,6 +1,6 @@
 // frontend/src/modules/tables/columns/hr_admin/leaveColumns.ts
 import type { ColumnConfig } from "~/components/types/tableEdit";
-import type { LeaveDTO } from "~/api/hr_admin/leave/leave.dto";
+import type { LeaveDTO } from "~/api/hr_admin/leave/dto";
 import dayjs from "dayjs";
 
 export const leaveColumns: ColumnConfig<LeaveDTO>[] = [

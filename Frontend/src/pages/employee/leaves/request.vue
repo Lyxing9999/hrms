@@ -28,7 +28,7 @@ const actions = [
   {
     title: "Attendance",
     description: "Go back to the attendance workspace.",
-    route: ROUTES.EMPLOYEE.ATTENDANCE_CHECK,
+    route: ROUTES.EMPLOYEE.ATTENDANCE_TODAY,
     icon: Calendar,
     color: "#0f766e",
   },

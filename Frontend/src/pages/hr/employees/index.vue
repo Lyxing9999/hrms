@@ -1,1218 +1,1081 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { ElMessage, ElMessageBox, ElTag } from "element-plus";
+import { computed, onMounted, reactive, ref } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
-  ElButton,
-  ElCard,
-  ElCheckbox,
-  ElDatePicker,
-  ElDialog,
-  ElDivider,
-  ElForm,
-  ElFormItem,
-  ElInput,
-  ElInputNumber,
-  ElOption,
-  ElPagination,
-  ElSelect,
-} from "element-plus";
-import { Plus, Search } from "@element-plus/icons-vue";
-import { Role } from "~/api/types/enums/role.enum";
+  CirclePlus,
+  Delete,
+  DocumentAdd,
+  EditPen,
+  Refresh,
+  RefreshLeft,
+  Search,
+  User,
+  View,
+} from "@element-plus/icons-vue";
 
-import type { ColumnConfig } from "~/components/types/tableEdit";
-import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
 import OverviewHeader from "~/components/overview/OverviewHeader.vue";
-import ActionButtons from "~/components/buttons/ActionButtons.vue";
-import WorkingScheduleSelect from "~/components/selects/hr/WorkingScheduleSelect.vue";
-import WorkLocationSelect from "~/components/selects/hr/WorkLocationSelect.vue";
-import type { FormInstance } from "element-plus";
+import BaseButton from "~/components/base/BaseButton.vue";
+import SmartTable from "~/components/table-edit/core/table/SmartTable.vue";
+import type { ColumnConfig } from "~/components/types/tableEdit";
 
-import { useHrEmployeeStore } from "~/stores/hrEmployeeStore";
+import { hrmsAdminService } from "~/api/hr_admin";
 import type {
   HrCreateEmployeeDTO,
-  HrEmployeeContractDTO,
+  HrEmployeeAccountDTO,
   HrEmployeeDTO,
-  HrSalaryType,
-  HrEmployeeStatus,
-  HrEmploymentType,
-  HrUpdateEmployeeDTO,
-  ListEmployeesParams,
   HrEmployeeWithAccountSummaryDTO,
+  HrEmploymentType,
 } from "~/api/hr_admin/employees/dto";
+import { Role } from "~/api/types/enums/role.enum";
+import type { SelectOptionDTO } from "~/api/types/common/select-option.type";
+import { useHrEmployeeStore } from "~/stores/hrEmployeeStore";
 
 definePageMeta({ layout: "default" });
 
-type HrEmployeeViewDTO = HrEmployeeDTO & {
-  schedule_id?: string | null;
-  work_location_id?: string | null;
-  schedule_name?: string | null;
-  work_location_name?: string | null;
-  schedule?: {
-    id?: string;
-    name?: string | null;
-    label?: string | null;
-  } | null;
-  location?: {
-    id?: string;
-    name?: string | null;
-    label?: string | null;
-  } | null;
-};
+type LifecycleFilter = "active" | "deleted" | "all";
 
-type EmployeeScope = "active" | "all" | "deleted";
-
-type EmployeeFormModel = {
+interface EmployeeFormModel {
   employee_code: string;
   full_name: string;
-  department: string | null;
-  position: string | null;
+  department: string;
+  position: string;
   employment_type: HrEmploymentType;
-  schedule_id: string | null;
-  work_location_id: string | null;
-  basic_salary: number;
-  status: HrEmployeeStatus;
-  contract_salary_type: HrSalaryType;
-  start_date: string | null;
-  end_date: string | null;
-};
+  basic_salary: number | null;
+  status: "active" | "inactive";
+}
 
-type EmployeeTableRow = {
+interface OnboardFormModel extends EmployeeFormModel {
+  email: string;
+  username: string;
+  password: string;
+  role: Role.EMPLOYEE | Role.MANAGER | Role.PAYROLL_MANAGER;
+}
+
+interface EmployeeTableRow {
   id: string;
+  employee: HrEmployeeDTO;
   employee_code: string;
   full_name: string;
   department: string | null;
   position: string | null;
   employment_type: HrEmploymentType;
-  schedule: string;
-  work_location: string;
   basic_salary: number;
-  contract_range: string;
-  employee_status: string;
-  is_deleted: boolean;
-  employee: HrEmployeeViewDTO;
-};
+  status: "active" | "inactive";
+  deleted_at: string | null;
+  account: HrEmployeeAccountDTO | null;
+}
 
 const employeeStore = useHrEmployeeStore();
+const scheduleService = hrmsAdminService().workingSchedule;
+const { $api } = useNuxtApp();
+const router = useRouter();
 
-const rows = ref<EmployeeTableRow[]>([]);
-const loadingTable = ref(false);
-const currentPage = ref(1);
-const pageSize = ref(10);
+const loading = ref(false);
+const tableRows = ref<EmployeeTableRow[]>([]);
 const totalRows = ref(0);
-const search = ref("");
-const scope = ref<EmployeeScope>("active");
 
-const employeeDialogVisible = ref(false);
-const employeeDialogInitialLoading = ref(false);
-const loadingEmployeeForm = computed(
-  () =>
-    employeeStore.isLoading("createEmployee") ||
-    employeeStore.isLoading("updateEmployee") ||
-    employeeStore.createFlowStatus.creatingEmployee ||
-    employeeStore.createFlowStatus.creatingAccount,
-);
-const employeeFormRef = ref<FormInstance>();
-const isEdit = ref(false);
-const editingEmployeeId = ref<string | null>(null);
+const q = ref("");
+const lifecycleFilter = ref<LifecycleFilter>("active");
+const page = ref(1);
+const pageSize = ref(10);
 
-const deleteLoading = ref<Record<string, boolean>>({});
-const detailLoading = ref<Record<string, boolean>>({});
+const createDialogVisible = ref(false);
+const createSaving = ref(false);
+const createForm = reactive<EmployeeFormModel>(getDefaultEmployeeForm());
 
-const createLoginAccount = ref(false);
-const createAccountForm = reactive({
-  email: "",
-  username: "",
-  password: "",
-  role: Role.EMPLOYEE,
+const onboardDialogVisible = ref(false);
+const onboardSaving = ref(false);
+const onboardForm = reactive<OnboardFormModel>(getDefaultOnboardForm());
+
+const assignDialogVisible = ref(false);
+const assignSaving = ref(false);
+const scheduleOptionsLoading = ref(false);
+const scheduleOptions = ref<SelectOptionDTO[]>([]);
+const assignRow = ref<EmployeeTableRow | null>(null);
+const assignForm = reactive({
+  schedule_id: "",
 });
 
-const employeeForm = reactive<EmployeeFormModel>({
-  employee_code: "",
-  full_name: "",
-  department: "",
-  position: "",
-  employment_type: "contract",
-  schedule_id: null,
-  work_location_id: null,
-  basic_salary: 0,
-  status: "active",
-  contract_salary_type: "monthly",
-  start_date: "",
-  end_date: "",
-});
+const rowLoading = ref<Record<string, boolean>>({});
 
-const isContractEmployment = computed(
-  () => employeeForm.employment_type === "contract",
-);
-const showContractFields = computed(
-  () => employeeForm.employment_type === "contract",
-);
-
-const employeeDialogTitle = computed(() =>
-  isEdit.value ? "Edit Employee" : "Create Employee",
-);
-
-const summary = computed(() => {
-  const visibleTotal = rows.value.length;
-  const active = rows.value.filter(
-    (r) => !r.is_deleted && r.employee.status === "active",
-  ).length;
-  const inactive = rows.value.filter(
-    (r) => !r.is_deleted && r.employee.status === "inactive",
-  ).length;
-  const deleted = rows.value.filter((r) => r.is_deleted).length;
-
-  return {
-    visibleTotal,
-    active,
-    inactive,
-    deleted,
-  };
-});
-
-const scopeOptions = [
-  { label: "Active", value: "active" },
-  { label: "All", value: "all" },
-  { label: "Deleted", value: "deleted" },
-];
-
-const employmentTypeOptions = [
-  { label: "Contract", value: "contract" },
-  { label: "Permanent", value: "permanent" },
-];
-
-const statusOptions = [
-  { label: "Active", value: "active" },
-  { label: "Inactive", value: "inactive" },
-];
-
-const salaryTypeOptions = [
-  { label: "Monthly", value: "monthly" },
-  { label: "Daily", value: "daily" },
-  { label: "Hourly", value: "hourly" },
-];
-
-const employeeColumns: ColumnConfig<EmployeeTableRow>[] = [
+const tableColumns: ColumnConfig<EmployeeTableRow>[] = [
+  {
+    field: "employee",
+    label: "Employee",
+    minWidth: "240px",
+    useSlot: true,
+    slotName: "employee",
+  },
   {
     field: "employee_code",
     label: "Code",
+    width: "130px",
     useSlot: true,
-    slotName: "employee_code",
-    minWidth: "130px",
-  },
-  {
-    field: "full_name",
-    label: "Full Name",
-    useSlot: true,
-    slotName: "full_name",
-    minWidth: "180px",
+    slotName: "code",
   },
   {
     field: "department",
-    label: "Department",
+    label: "Department / Position",
+    minWidth: "200px",
     useSlot: true,
     slotName: "department",
-    minWidth: "150px",
-  },
-  {
-    field: "position",
-    label: "Position",
-    useSlot: true,
-    slotName: "position",
-    minWidth: "150px",
   },
   {
     field: "employment_type",
-    label: "Type",
+    label: "Employment",
+    width: "140px",
     useSlot: true,
-    slotName: "employment_type",
-    minWidth: "120px",
-  },
-  {
-    field: "schedule",
-    label: "Schedule",
-    useSlot: true,
-    slotName: "schedule",
-    minWidth: "170px",
-  },
-  {
-    field: "work_location",
-    label: "Work Location",
-    useSlot: true,
-    slotName: "work_location",
-    minWidth: "170px",
+    slotName: "employment",
   },
   {
     field: "basic_salary",
-    label: "Salary",
+    label: "Basic Salary",
+    width: "140px",
     useSlot: true,
-    slotName: "basic_salary",
-    minWidth: "130px",
+    slotName: "salary",
   },
   {
-    field: "contract_range",
-    label: "Contract Range",
-    useSlot: true,
-    slotName: "contract_range",
-    minWidth: "190px",
-  },
-  {
-    field: "employee_status",
+    field: "status",
     label: "Status",
+    width: "120px",
     useSlot: true,
-    slotName: "employee_status",
-    minWidth: "130px",
+    slotName: "status",
+  },
+  {
+    field: "account",
+    label: "Account",
+    minWidth: "180px",
+    useSlot: true,
+    slotName: "account",
   },
   {
     field: "id",
+    label: "Actions",
     operation: true,
-    label: "Operation",
-    inlineEditActive: false,
-    align: "center",
-    minWidth: "220px",
-    smartProps: {},
+    fixed: "right",
+    width: "330px",
+    useSlot: true,
+    slotName: "operation",
   },
 ];
 
-function normalizeNullableText(value?: string | null) {
-  const trimmed = (value ?? "").trim();
-  return trimmed.length ? trimmed : null;
-}
+const summaryCards = computed(() => {
+  const active = tableRows.value.filter((item) => !item.deleted_at).length;
+  const deleted = tableRows.value.filter((item) => !!item.deleted_at).length;
+  const inactive = tableRows.value.filter(
+    (item) => item.status === "inactive",
+  ).length;
+  const withAccount = tableRows.value.filter((item) => !!item.account).length;
 
-function normalizeEmploymentType(value?: string | null): HrEmploymentType {
-  const v = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  return v === "permanent" ? "permanent" : "contract";
-}
+  return [
+    { label: "Total", value: totalRows.value },
+    { label: "Active", value: active },
+    { label: "Inactive", value: inactive },
+    { label: "Deleted", value: deleted },
+    { label: "With Account", value: withAccount },
+  ];
+});
 
-function normalizeEmployeeStatus(value?: string | null): HrEmployeeStatus {
-  const v = String(value ?? "")
-    .trim()
-    .toLowerCase();
-  return v === "inactive" ? "inactive" : "active";
-}
-
-function formatDateOnly(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function addMonths(date: Date, months: number) {
-  const next = new Date(date);
-  next.setMonth(next.getMonth() + months);
-  return next;
-}
-
-function asDate(value?: string | null) {
-  if (!value) return null;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? null : d;
-}
-
-function toIsoDateTimeString(value?: string | null) {
-  const d = asDate(value);
-  if (!d) return "";
-  return new Date(
-    Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0),
-  ).toISOString();
-}
-
-function generateEmployeeCode() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  const rand = String(Math.floor(Math.random() * 900) + 100);
-  return `EMP-${y}${m}${d}-${rand}`;
-}
-
-function buildContractPayload(
-  model: Pick<
-    EmployeeFormModel,
-    "start_date" | "end_date" | "basic_salary" | "contract_salary_type"
-  >,
-): HrEmployeeContractDTO {
+function getDefaultEmployeeForm(): EmployeeFormModel {
   return {
-    start_date: toIsoDateTimeString(model.start_date),
-    end_date: toIsoDateTimeString(model.end_date),
-    salary_type: model.contract_salary_type,
-    rate: Number(model.basic_salary),
+    employee_code: "",
+    full_name: "",
+    department: "",
+    position: "",
+    employment_type: "permanent",
+    basic_salary: null,
+    status: "active",
   };
 }
 
-function getScheduleDisplay(employee: HrEmployeeViewDTO) {
-  return (
-    employee.schedule_name ??
-    employee.schedule?.name ??
-    employee.schedule?.label ??
-    employee.schedule_id ??
-    "-"
-  );
+function getDefaultOnboardForm(): OnboardFormModel {
+  return {
+    ...getDefaultEmployeeForm(),
+    email: "",
+    username: "",
+    password: "",
+    role: Role.EMPLOYEE,
+  };
 }
 
-function getLocationDisplay(employee: HrEmployeeViewDTO) {
-  return (
-    employee.work_location_name ??
-    employee.location?.name ??
-    employee.location?.label ??
-    employee.work_location_id ??
-    "-"
-  );
+function resetCreateForm() {
+  Object.assign(createForm, getDefaultEmployeeForm());
 }
 
-function getContractRange(employee: HrEmployeeViewDTO) {
-  if (employee.employment_type !== "contract") return "Permanent";
-  if (!employee.contract?.start_date || !employee.contract?.end_date)
-    return "-";
-  return `${employee.contract.start_date} to ${employee.contract.end_date}`;
+function resetOnboardForm() {
+  Object.assign(onboardForm, getDefaultOnboardForm());
 }
 
-function getEmployeeStatusTagType(row: EmployeeTableRow) {
-  if (row.is_deleted) return "danger";
-  return row.employee.status === "active" ? "success" : "warning";
+function employeePayloadFromForm(form: EmployeeFormModel): HrCreateEmployeeDTO {
+  return {
+    employee_code: form.employee_code.trim(),
+    full_name: form.full_name.trim(),
+    department: form.department.trim() || null,
+    position: form.position.trim() || null,
+    employment_type: form.employment_type,
+    basic_salary: Number(form.basic_salary ?? 0),
+    status: form.status,
+  };
 }
 
-function getEmployeeStatusLabel(row: EmployeeTableRow) {
-  if (row.is_deleted) return "deleted";
-  return row.employee.status;
+function resolveAccount(
+  row: HrEmployeeWithAccountSummaryDTO,
+): HrEmployeeAccountDTO | null {
+  return row.account ?? row.user ?? null;
 }
 
-function mapRows(items: HrEmployeeWithAccountSummaryDTO[]): EmployeeTableRow[] {
-  return items.map((item) => {
-    const employee = item.employee;
-    const isDeleted = Boolean(employee.lifecycle?.deleted_at);
+function toTableRow(item: HrEmployeeWithAccountSummaryDTO): EmployeeTableRow {
+  return {
+    id: item.employee.id,
+    employee: item.employee,
+    employee_code: item.employee.employee_code,
+    full_name: item.employee.full_name,
+    department: item.employee.department ?? null,
+    position: item.employee.position ?? null,
+    employment_type: item.employee.employment_type,
+    basic_salary: item.employee.basic_salary,
+    status: item.employee.status,
+    deleted_at: item.employee.lifecycle?.deleted_at ?? null,
+    account: resolveAccount(item),
+  };
+}
 
-    return {
-      id: employee.id,
-      employee_code: employee.employee_code,
-      full_name: employee.full_name,
-      department: employee.department ?? null,
-      position: employee.position ?? null,
-      employment_type: employee.employment_type,
-      schedule: getScheduleDisplay(employee),
-      work_location: getLocationDisplay(employee),
-      basic_salary: employee.basic_salary,
-      contract_range: getContractRange(employee),
-      employee_status: employee.status,
-      is_deleted: isDeleted,
-      employee,
+function formatCurrency(value: number | null | undefined) {
+  if (value == null) return "-";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function mapError(error: unknown, fallback: string) {
+  const fromStore =
+    employeeStore.getError("getEmployeesWithAccounts") ||
+    employeeStore.getError("createEmployee") ||
+    employeeStore.getError("onboardEmployee") ||
+    employeeStore.getError("softDeleteEmployee") ||
+    employeeStore.getError("restoreEmployee") ||
+    employeeStore.getError("getEmployee");
+
+  if (fromStore) return fromStore;
+
+  if (error && typeof error === "object" && "response" in error) {
+    const maybeResponse = error as {
+      response?: { data?: { user_message?: string; message?: string } };
     };
-  });
+    return (
+      maybeResponse.response?.data?.user_message ||
+      maybeResponse.response?.data?.message ||
+      fallback
+    );
+  }
+
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }
 
-function resetAccountForm() {
-  createAccountForm.email = "";
-  createAccountForm.username = "";
-  createAccountForm.password = "";
-  createAccountForm.role = Role.EMPLOYEE;
-}
-
-function resetEmployeeForm() {
-  employeeForm.employee_code = "";
-  employeeForm.full_name = "";
-  employeeForm.department = "";
-  employeeForm.position = "";
-  employeeForm.employment_type = "contract";
-  employeeForm.schedule_id = null;
-  employeeForm.work_location_id = null;
-  employeeForm.basic_salary = 0;
-  employeeForm.status = "active";
-  employeeForm.contract_salary_type = "monthly";
-  employeeForm.start_date = "";
-  employeeForm.end_date = "";
-
-  createLoginAccount.value = false;
-  resetAccountForm();
-}
-
-function fillEmployeeForm(employee: Partial<HrEmployeeViewDTO>) {
-  employeeForm.employee_code = employee.employee_code ?? "";
-  employeeForm.full_name = employee.full_name ?? "";
-  employeeForm.department = employee.department ?? "";
-  employeeForm.position = employee.position ?? "";
-  employeeForm.employment_type = normalizeEmploymentType(
-    employee.employment_type,
-  );
-  employeeForm.schedule_id =
-    employee.schedule_id ?? employee.schedule?.id ?? null;
-  employeeForm.work_location_id =
-    employee.work_location_id ?? employee.location?.id ?? null;
-  employeeForm.basic_salary = employee.basic_salary ?? 0;
-  employeeForm.status = normalizeEmployeeStatus(employee.status);
-  employeeForm.contract_salary_type =
-    employee.contract?.salary_type ?? "monthly";
-  employeeForm.start_date = employee.contract?.start_date ?? "";
-  employeeForm.end_date = employee.contract?.end_date ?? "";
-
-  createLoginAccount.value = false;
-  resetAccountForm();
-}
-
-function validateEmployeeFormBeforeSubmit(payload: Partial<EmployeeFormModel>) {
-  const employmentType =
-    payload.employment_type ?? employeeForm.employment_type;
-  const basicSalary = Number(payload.basic_salary ?? employeeForm.basic_salary);
-  const startDate = payload.start_date ?? employeeForm.start_date;
-  const endDate = payload.end_date ?? employeeForm.end_date;
-
-  if (!String(payload.full_name ?? employeeForm.full_name).trim()) {
-    return "Full name is required";
-  }
-
-  if (
-    !isEdit.value &&
-    !String(payload.employee_code ?? employeeForm.employee_code).trim()
-  ) {
-    return "Employee code is required";
-  }
-
-  if (employmentType === "contract" && basicSalary <= 0) {
-    return "Contract rate must be greater than 0";
-  }
-
-  if (employmentType !== "contract" && basicSalary < 0) {
-    return "Basic salary cannot be negative";
-  }
-
-  if (employmentType === "contract") {
-    if (!startDate) return "Contract start date is required";
-    if (!endDate) return "Contract end date is required";
-    if (new Date(endDate) < new Date(startDate))
-      return "Contract end date cannot be before start date";
-  }
-
-  if (!isEdit.value && createLoginAccount.value) {
-    if (!createAccountForm.email.trim()) return "Account email is required";
-    if (!createAccountForm.password || createAccountForm.password.length < 6) {
-      return "Account password must be at least 6 characters";
-    }
-  }
-
-  return null;
-}
-
-const employeeFormRules = computed(() => ({
-  employee_code: [
-    {
-      required: !isEdit.value,
-      message: "Employee code is required",
-      trigger: "blur",
-    },
-  ],
-  full_name: [
-    { required: true, message: "Full name is required", trigger: "blur" },
-  ],
-  basic_salary: [
-    {
-      validator: (
-        _rule: unknown,
-        value: number,
-        callback: (err?: Error) => void,
-      ) => {
-        const salary = Number(value ?? 0);
-        if (isContractEmployment.value && salary <= 0) {
-          callback(new Error("Contract rate must be greater than 0"));
-          return;
-        }
-        if (!isContractEmployment.value && salary < 0) {
-          callback(new Error("Basic salary cannot be negative"));
-          return;
-        }
-        callback();
-      },
-      trigger: ["blur", "change"],
-    },
-  ],
-}));
-
-async function submitEmployeeForm() {
-  if (!employeeFormRef.value) {
-    await handleSaveEmployeeForm();
-    return;
-  }
-
+async function loadEmployees() {
+  loading.value = true;
   try {
-    const valid = await employeeFormRef.value.validate();
-    if (valid !== false) {
-      await handleSaveEmployeeForm();
-    }
-  } catch {
-    // Keep form open for inline errors.
-  }
-}
-
-async function fetchEmployees(page = currentPage.value) {
-  loadingTable.value = true;
-  try {
-    const params: ListEmployeesParams = {
-      page,
+    const response = await employeeStore.getEmployeesWithAccounts({
+      page: page.value,
       limit: pageSize.value,
-      q: search.value.trim() || undefined,
-      include_deleted: scope.value === "all",
-      deleted_only: scope.value === "deleted",
-    };
+      q: q.value.trim() || undefined,
+      include_deleted: lifecycleFilter.value === "all" ? true : undefined,
+      deleted_only: lifecycleFilter.value === "deleted" ? true : undefined,
+      with_accounts: true,
+    });
 
-    const res = await employeeStore.getEmployeesWithAccounts(params);
-    rows.value = mapRows(res.items ?? []);
-    totalRows.value = res.total ?? 0;
-    currentPage.value = page;
+    tableRows.value = (response.items ?? []).map(toTableRow);
+    totalRows.value = Number(response.total ?? 0);
   } catch (error) {
-    console.error(error);
-    ElMessage.error(
-      employeeStore.getError("getEmployeesWithAccounts") ||
-        "Failed to load employees",
-    );
+    ElMessage.error(mapError(error, "Failed to load employees"));
   } finally {
-    loadingTable.value = false;
+    loading.value = false;
   }
 }
 
-function openCreateEmployeeDialog() {
-  isEdit.value = false;
-  editingEmployeeId.value = null;
-  resetEmployeeForm();
-  employeeForm.employee_code = generateEmployeeCode();
-  employeeDialogVisible.value = true;
+function applyFilterAndReload() {
+  page.value = 1;
+  loadEmployees();
 }
 
-async function openEditEmployeeDialog(row: EmployeeTableRow) {
-  const rowId = String(row.id);
-  detailLoading.value[rowId] = true;
-  isEdit.value = true;
-  editingEmployeeId.value = row.employee.id;
-  employeeDialogVisible.value = true;
-  employeeDialogInitialLoading.value = true;
+function openCreateDialog() {
+  resetCreateForm();
+  createDialogVisible.value = true;
+}
 
-  try {
-    const employee = await employeeStore.getEmployee(row.employee.id);
-    fillEmployeeForm(employee as HrEmployeeViewDTO);
-  } catch (error) {
-    console.error(error);
-    fillEmployeeForm(row.employee);
-    ElMessage.warning("Could not load full employee details, using row data");
-  } finally {
-    detailLoading.value[rowId] = false;
-    employeeDialogInitialLoading.value = false;
+function openOnboardDialog() {
+  resetOnboardForm();
+  onboardDialogVisible.value = true;
+}
+
+async function submitCreate() {
+  if (!createForm.employee_code.trim()) {
+    ElMessage.warning("Employee code is required");
+    return;
   }
-}
-
-function handleCancelEmployeeForm() {
-  employeeDialogVisible.value = false;
-  isEdit.value = false;
-  editingEmployeeId.value = null;
-  resetEmployeeForm();
-  employeeStore.resetCreateFlowStatus();
-}
-
-async function handleSaveEmployeeForm() {
-  const payload: Partial<EmployeeFormModel> = { ...employeeForm };
-  const validationError = validateEmployeeFormBeforeSubmit(payload);
-  if (validationError) {
-    ElMessage.error(validationError);
+  if (!createForm.full_name.trim()) {
+    ElMessage.warning("Full name is required");
+    return;
+  }
+  if (createForm.basic_salary == null || Number(createForm.basic_salary) < 0) {
+    ElMessage.warning("Basic salary must be 0 or greater");
     return;
   }
 
+  createSaving.value = true;
   try {
-    const employmentType =
-      payload.employment_type ?? employeeForm.employment_type;
-    const basicSalary = Number(
-      payload.basic_salary ?? employeeForm.basic_salary,
-    );
-
-    if (isEdit.value && editingEmployeeId.value) {
-      const updatePayload: HrUpdateEmployeeDTO & {
-        schedule_id?: string | null;
-        work_location_id?: string | null;
-      } = {
-        full_name: (payload.full_name ?? employeeForm.full_name).trim(),
-        department: normalizeNullableText(
-          payload.department ?? employeeForm.department,
-        ),
-        position: normalizeNullableText(
-          payload.position ?? employeeForm.position,
-        ),
-        employment_type: employmentType,
-        schedule_id: normalizeNullableText(
-          payload.schedule_id ?? employeeForm.schedule_id,
-        ),
-        work_location_id: normalizeNullableText(
-          payload.work_location_id ?? employeeForm.work_location_id,
-        ),
-        basic_salary: basicSalary,
-        status: payload.status ?? employeeForm.status,
-        contract:
-          employmentType === "contract"
-            ? buildContractPayload({
-                start_date: payload.start_date ?? employeeForm.start_date,
-                end_date: payload.end_date ?? employeeForm.end_date,
-                basic_salary: basicSalary,
-                contract_salary_type:
-                  payload.contract_salary_type ??
-                  employeeForm.contract_salary_type,
-              })
-            : null,
-      };
-
-      await employeeStore.updateEmployee(
-        editingEmployeeId.value,
-        updatePayload,
-      );
-      ElMessage.success("Employee updated successfully");
-    } else {
-      const createPayload: HrCreateEmployeeDTO & {
-        schedule_id?: string | null;
-        work_location_id?: string | null;
-      } = {
-        employee_code: (
-          payload.employee_code ?? employeeForm.employee_code
-        ).trim(),
-        full_name: (payload.full_name ?? employeeForm.full_name).trim(),
-        department: normalizeNullableText(
-          payload.department ?? employeeForm.department,
-        ),
-        position: normalizeNullableText(
-          payload.position ?? employeeForm.position,
-        ),
-        employment_type: employmentType,
-        schedule_id: normalizeNullableText(
-          payload.schedule_id ?? employeeForm.schedule_id,
-        ),
-        work_location_id: normalizeNullableText(
-          payload.work_location_id ?? employeeForm.work_location_id,
-        ),
-        basic_salary: basicSalary,
-        status: payload.status ?? employeeForm.status,
-        contract:
-          employmentType === "contract"
-            ? buildContractPayload({
-                start_date: payload.start_date ?? employeeForm.start_date,
-                end_date: payload.end_date ?? employeeForm.end_date,
-                basic_salary: basicSalary,
-                contract_salary_type:
-                  payload.contract_salary_type ??
-                  employeeForm.contract_salary_type,
-              })
-            : null,
-      };
-
-      if (createLoginAccount.value) {
-        await employeeStore.createEmployeeWithAccount(createPayload, {
-          email: createAccountForm.email.trim(),
-          username:
-            normalizeNullableText(createAccountForm.username) ?? undefined,
-          password: createAccountForm.password,
-          role: createAccountForm.role,
-        });
-        ElMessage.success("Employee and account created successfully");
-      } else {
-        await employeeStore.createEmployee(createPayload);
-        ElMessage.success("Employee created successfully");
-      }
-    }
-
-    employeeDialogVisible.value = false;
-    resetEmployeeForm();
-    await fetchEmployees(currentPage.value);
+    await employeeStore.createEmployee(employeePayloadFromForm(createForm));
+    ElMessage.success("Employee created successfully");
+    createDialogVisible.value = false;
+    await loadEmployees();
   } catch (error) {
-    console.error(error);
-    const actionError = isEdit.value
-      ? employeeStore.getError("updateEmployee")
-      : employeeStore.createFlowStatus.error ||
-        employeeStore.getError("createEmployee");
-
-    ElMessage.error(
-      actionError ||
-        (isEdit.value
-          ? "Failed to update employee"
-          : "Failed to create employee"),
-    );
+    ElMessage.error(mapError(error, "Failed to create employee"));
+  } finally {
+    createSaving.value = false;
   }
 }
 
-async function handleToggleDelete(row: EmployeeTableRow) {
-  const rowId = String(row.id);
-  deleteLoading.value[rowId] = true;
+async function submitOnboard() {
+  if (!onboardForm.employee_code.trim()) {
+    ElMessage.warning("Employee code is required");
+    return;
+  }
+  if (!onboardForm.full_name.trim()) {
+    ElMessage.warning("Full name is required");
+    return;
+  }
+  if (!onboardForm.email.trim()) {
+    ElMessage.warning("Email is required");
+    return;
+  }
+  if (!onboardForm.password || onboardForm.password.length < 6) {
+    ElMessage.warning("Password must be at least 6 characters");
+    return;
+  }
+  if (
+    onboardForm.basic_salary == null ||
+    Number(onboardForm.basic_salary) < 0
+  ) {
+    ElMessage.warning("Basic salary must be 0 or greater");
+    return;
+  }
 
+  onboardSaving.value = true;
   try {
-    if (row.is_deleted) {
-      await ElMessageBox.confirm(
-        `Restore employee \"${row.employee.full_name}\"?`,
-        "Confirm Restore",
-        {
-          type: "warning",
-          confirmButtonText: "Restore",
-          cancelButtonText: "Cancel",
-        },
-      );
-      await employeeStore.restoreEmployee(row.employee.id);
-      ElMessage.success("Employee restored successfully");
-    } else {
-      await ElMessageBox.confirm(
-        `Delete employee \"${row.employee.full_name}\"?`,
-        "Confirm Delete",
-        {
-          type: "warning",
-          confirmButtonText: "Delete",
-          cancelButtonText: "Cancel",
-        },
-      );
-      await employeeStore.softDeleteEmployee(row.employee.id);
-      ElMessage.success("Employee deleted successfully");
-    }
+    await employeeStore.onboardEmployee({
+      employee: employeePayloadFromForm(onboardForm),
+      email: onboardForm.email.trim(),
+      password: onboardForm.password,
+      username: onboardForm.username.trim() || undefined,
+      role: onboardForm.role,
+    });
 
-    await fetchEmployees(currentPage.value);
+    ElMessage.success("Employee onboarded successfully");
+    onboardDialogVisible.value = false;
+    await loadEmployees();
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to onboard employee"));
+  } finally {
+    onboardSaving.value = false;
+  }
+}
+
+async function openDetail(row: EmployeeTableRow) {
+  await router.push(`/hr/employees/${row.id}`);
+}
+
+async function confirmDelete(row: EmployeeTableRow) {
+  try {
+    await ElMessageBox.confirm(
+      `Soft delete ${row.full_name}?`,
+      "Delete Employee",
+      {
+        type: "warning",
+        confirmButtonText: "Delete",
+        cancelButtonText: "Cancel",
+      },
+    );
+
+    rowLoading.value[row.id] = true;
+    await employeeStore.softDeleteEmployee(row.id);
+    ElMessage.success("Employee deleted successfully");
+    await loadEmployees();
   } catch (error: unknown) {
     if (error === "cancel" || error === "close") return;
-    console.error(error);
-    ElMessage.error(
-      row.is_deleted
-        ? "Failed to restore employee"
-        : "Failed to delete employee",
-    );
+    ElMessage.error(mapError(error, "Failed to delete employee"));
   } finally {
-    deleteLoading.value[rowId] = false;
+    rowLoading.value[row.id] = false;
   }
 }
 
-async function handleSearch() {
-  currentPage.value = 1;
-  await fetchEmployees(1);
+async function confirmRestore(row: EmployeeTableRow) {
+  try {
+    await ElMessageBox.confirm(
+      `Restore ${row.full_name}?`,
+      "Restore Employee",
+      {
+        type: "info",
+        confirmButtonText: "Restore",
+        cancelButtonText: "Cancel",
+      },
+    );
+
+    rowLoading.value[row.id] = true;
+    await employeeStore.restoreEmployee(row.id);
+    ElMessage.success("Employee restored successfully");
+    await loadEmployees();
+  } catch (error: unknown) {
+    if (error === "cancel" || error === "close") return;
+    ElMessage.error(mapError(error, "Failed to restore employee"));
+  } finally {
+    rowLoading.value[row.id] = false;
+  }
 }
 
-async function handleRefresh() {
-  await fetchEmployees(currentPage.value);
+async function loadScheduleOptions() {
+  if (scheduleOptions.value.length) return;
+
+  scheduleOptionsLoading.value = true;
+  try {
+    scheduleOptions.value = await scheduleService.getScheduleSelectOptions();
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to load schedules"));
+  } finally {
+    scheduleOptionsLoading.value = false;
+  }
 }
 
-watch(
-  () => employeeForm.employment_type,
-  (newType) => {
-    if (newType !== "contract") {
-      employeeForm.start_date = "";
-      employeeForm.end_date = "";
-      if (employeeForm.basic_salary < 0) {
-        employeeForm.basic_salary = 0;
-      }
-      return;
+async function openAssignScheduleDialog(row: EmployeeTableRow) {
+  assignRow.value = row;
+  assignForm.schedule_id = "";
+  assignDialogVisible.value = true;
+  await loadScheduleOptions();
+}
+
+async function submitAssignSchedule() {
+  if (!assignRow.value) return;
+  if (!assignForm.schedule_id) {
+    ElMessage.warning("Please select a schedule");
+    return;
+  }
+
+  assignSaving.value = true;
+  try {
+    if (!$api) {
+      throw new Error("API client is unavailable");
     }
 
-    if (!employeeForm.start_date) {
-      employeeForm.start_date = formatDateOnly(new Date());
-    }
+    await ($api as any).post(
+      `/api/hrms/employees/${assignRow.value.id}/assign-schedule`,
+      {
+        schedule_id: assignForm.schedule_id,
+      },
+    );
 
-    if (!employeeForm.end_date) {
-      const base = new Date(employeeForm.start_date);
-      employeeForm.end_date = formatDateOnly(addMonths(base, 1));
-    }
+    ElMessage.success("Schedule assigned successfully");
+    assignDialogVisible.value = false;
+  } catch (error) {
+    ElMessage.error(mapError(error, "Failed to assign schedule"));
+  } finally {
+    assignSaving.value = false;
+  }
+}
 
-    if (employeeForm.basic_salary <= 0) {
-      employeeForm.basic_salary = 1;
-    }
-  },
-);
+function handlePageChange(value: number) {
+  page.value = value;
+  loadEmployees();
+}
 
-watch(scope, async () => {
-  await handleSearch();
-});
+function handlePageSizeChange(value: number) {
+  pageSize.value = value;
+  page.value = 1;
+  loadEmployees();
+}
 
-onMounted(async () => {
-  await fetchEmployees(1);
+onMounted(() => {
+  loadEmployees();
 });
 </script>
 
 <template>
-  <div class="employee-page">
+  <div class="employees-page">
     <OverviewHeader
-      title="Employee Index"
-      description="Main HR registry for employee records and onboarding"
-      @refresh="handleRefresh"
+      title="Employee Directory"
+      description="Manage employee records, onboarding, and schedule assignment"
+      @refresh="loadEmployees"
     >
       <template #actions>
         <div class="header-actions">
-          <ElInput
-            v-model="search"
-            placeholder="Search by code, name, department"
-            clearable
-            style="width: 280px"
-            @keyup.enter="handleSearch"
-            @clear="handleSearch"
-          />
+          <BaseButton type="primary" @click="openCreateDialog">
+            <template #iconPre>
+              <el-icon><CirclePlus /></el-icon>
+            </template>
+            Create Employee
+          </BaseButton>
 
-          <ElSelect v-model="scope" style="width: 120px">
-            <ElOption
-              v-for="option in scopeOptions"
-              :key="option.value"
-              :label="option.label"
-              :value="option.value"
-            />
-          </ElSelect>
+          <BaseButton type="success" plain @click="openOnboardDialog">
+            <template #iconPre>
+              <el-icon><DocumentAdd /></el-icon>
+            </template>
+            Onboard Employee
+          </BaseButton>
 
-          <ElButton :icon="Search" @click="handleSearch">Search</ElButton>
-          <ElButton
-            type="primary"
-            :icon="Plus"
-            @click="openCreateEmployeeDialog"
+          <BaseButton
+            type="info"
+            plain
+            @click="router.push('/hr/employees/accounts')"
           >
-            New Employee
-          </ElButton>
+            <template #iconPre>
+              <el-icon><User /></el-icon>
+            </template>
+            Accounts
+          </BaseButton>
+
+          <BaseButton
+            type="warning"
+            plain
+            @click="router.push('/hr/employees/archived')"
+          >
+            <template #iconPre>
+              <el-icon><RefreshLeft /></el-icon>
+            </template>
+            Archived
+          </BaseButton>
+
+          <el-input
+            v-model="q"
+            clearable
+            placeholder="Search by name, code, department"
+            class="search-input"
+            @keyup.enter="applyFilterAndReload"
+            @clear="applyFilterAndReload"
+          >
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
+
+          <el-radio-group
+            v-model="lifecycleFilter"
+            size="default"
+            class="lifecycle-group"
+            @change="applyFilterAndReload"
+          >
+            <el-radio-button label="active">Active</el-radio-button>
+            <el-radio-button label="deleted">Deleted</el-radio-button>
+            <el-radio-button label="all">All</el-radio-button>
+          </el-radio-group>
         </div>
       </template>
     </OverviewHeader>
 
     <div class="summary-grid">
-      <ElCard
-        ><div class="summary-title">Visible</div>
-        <div class="summary-value">{{ summary.visibleTotal }}</div></ElCard
-      >
-      <ElCard
-        ><div class="summary-title">Active</div>
-        <div class="summary-value">{{ summary.active }}</div></ElCard
-      >
-      <ElCard
-        ><div class="summary-title">Inactive</div>
-        <div class="summary-value">{{ summary.inactive }}</div></ElCard
-      >
-      <ElCard
-        ><div class="summary-title">Deleted</div>
-        <div class="summary-value">{{ summary.deleted }}</div></ElCard
-      >
+      <el-card v-for="card in summaryCards" :key="card.label" shadow="never">
+        <div class="summary-label">{{ card.label }}</div>
+        <div class="summary-value">{{ card.value }}</div>
+      </el-card>
     </div>
 
-    <ElCard>
+    <el-card shadow="never" class="table-card">
       <SmartTable
-        :columns="employeeColumns"
-        :data="rows"
-        :loading="loadingTable"
+        :columns="tableColumns"
+        :data="tableRows"
+        :loading="loading"
+        :total="totalRows"
+        :page="page"
+        :page-size="pageSize"
+        @page="handlePageChange"
+        @page-size="handlePageSizeChange"
       >
-        <template #employee_code="{ row }">{{
-          row.employee_code || "-"
-        }}</template>
-        <template #full_name="{ row }">{{ row.full_name || "-" }}</template>
-        <template #department="{ row }">{{ row.department || "-" }}</template>
-        <template #position="{ row }">{{ row.position || "-" }}</template>
-        <template #employment_type="{ row }"
-          ><ElTag effect="plain">{{
-            row.employment_type || "-"
-          }}</ElTag></template
-        >
-        <template #schedule="{ row }">{{ row.schedule || "-" }}</template>
-        <template #work_location="{ row }">{{
-          row.work_location || "-"
-        }}</template>
-        <template #basic_salary="{ row }">{{ row.basic_salary ?? 0 }}</template>
-        <template #contract_range="{ row }">{{
-          row.contract_range || "-"
-        }}</template>
-        <template #employee_status="{ row }"
-          ><ElTag :type="getEmployeeStatusTagType(row)">{{
-            getEmployeeStatusLabel(row)
-          }}</ElTag></template
-        >
+        <template #employee="{ row }">
+          <div
+            class="employee-cell employee-cell--clickable"
+            @click="openDetail(row as EmployeeTableRow)"
+          >
+            <el-avatar class="employee-avatar">
+              <el-icon><User /></el-icon>
+            </el-avatar>
+            <div>
+              <div class="employee-name">
+                {{ (row as EmployeeTableRow).full_name }}
+              </div>
+              <div class="employee-meta">
+                ID: {{ (row as EmployeeTableRow).id }}
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <template #code="{ row }">
+          {{ (row as EmployeeTableRow).employee_code }}
+        </template>
+
+        <template #department="{ row }">
+          <div class="department-cell">
+            <div>{{ (row as EmployeeTableRow).department || "-" }}</div>
+            <div class="employee-meta">
+              {{ (row as EmployeeTableRow).position || "-" }}
+            </div>
+          </div>
+        </template>
+
+        <template #employment="{ row }">
+          <el-tag effect="light" type="info">
+            {{ (row as EmployeeTableRow).employment_type }}
+          </el-tag>
+        </template>
+
+        <template #salary="{ row }">
+          {{ formatCurrency((row as EmployeeTableRow).basic_salary) }}
+        </template>
+
+        <template #status="{ row }">
+          <el-tag
+            :type="(row as EmployeeTableRow).status === 'active' ? 'success' : 'warning'"
+            effect="light"
+          >
+            {{ (row as EmployeeTableRow).status }}
+          </el-tag>
+        </template>
+
+        <template #account="{ row }">
+          <div class="account-cell">
+            <template v-if="(row as EmployeeTableRow).account">
+              <div>{{ (row as EmployeeTableRow).account?.email || "-" }}</div>
+              <div class="employee-meta">
+                {{ (row as EmployeeTableRow).account?.role || "-" }}
+              </div>
+            </template>
+            <el-tag v-else type="info" effect="plain">No account</el-tag>
+          </div>
+        </template>
 
         <template #operation="{ row }">
-          <ActionButtons
-            :row-id="row.id"
-            :detail-content="'Edit this employee'"
-            :delete-content="
-              row.is_deleted
-                ? 'Restore this employee?'
-                : 'Delete this employee?'
-            "
-            :detail-loading="detailLoading[row.id] ?? false"
-            :delete-loading="deleteLoading[row.id] ?? false"
-            :detail-text="'Edit'"
-            :delete-text="row.is_deleted ? 'Restore' : 'Delete'"
-            :on-detail="() => openEditEmployeeDialog(row)"
-            :on-delete="() => handleToggleDelete(row)"
-          />
+          <div class="row-actions">
+            <BaseButton
+              type="primary"
+              link
+              size="small"
+              @click="openDetail(row as EmployeeTableRow)"
+            >
+              <template #iconPre>
+                <el-icon><View /></el-icon>
+              </template>
+              Detail
+            </BaseButton>
+
+            <BaseButton
+              type="warning"
+              link
+              size="small"
+              @click="openAssignScheduleDialog(row as EmployeeTableRow)"
+            >
+              <template #iconPre>
+                <el-icon><EditPen /></el-icon>
+              </template>
+              Assign Schedule
+            </BaseButton>
+
+            <BaseButton
+              v-if="!(row as EmployeeTableRow).deleted_at"
+              type="danger"
+              link
+              size="small"
+              :loading="rowLoading[(row as EmployeeTableRow).id]"
+              @click="confirmDelete(row as EmployeeTableRow)"
+            >
+              <template #iconPre>
+                <el-icon><Delete /></el-icon>
+              </template>
+              Delete
+            </BaseButton>
+
+            <BaseButton
+              v-else
+              type="success"
+              link
+              size="small"
+              :loading="rowLoading[(row as EmployeeTableRow).id]"
+              @click="confirmRestore(row as EmployeeTableRow)"
+            >
+              <template #iconPre>
+                <el-icon><RefreshLeft /></el-icon>
+              </template>
+              Restore
+            </BaseButton>
+          </div>
         </template>
       </SmartTable>
+    </el-card>
 
-      <div class="pagination">
-        <ElPagination
-          v-model:current-page="currentPage"
-          :page-size="pageSize"
-          :total="totalRows"
-          layout="prev, pager, next"
-          @current-change="fetchEmployees"
-        />
-      </div>
-    </ElCard>
-
-    <ElDialog
-      v-model="employeeDialogVisible"
-      :title="employeeDialogTitle"
-      width="860px"
-      top="6vh"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-      @close="handleCancelEmployeeForm"
+    <el-dialog
+      v-model="createDialogVisible"
+      title="Create Employee"
+      width="720px"
     >
-      <div v-if="employeeDialogInitialLoading" class="p-4">
-        <el-skeleton :rows="6" animated />
-      </div>
-
-      <ElForm
-        v-else
-        ref="employeeFormRef"
-        :model="employeeForm"
-        :rules="employeeFormRules"
-        label-position="top"
-      >
-        <div class="form-row-grid">
-          <ElFormItem label="Employee Code" prop="employee_code">
-            <ElInput
-              v-model="employeeForm.employee_code"
-              placeholder="Enter employee code"
-              :disabled="isEdit"
-              clearable
+      <el-form label-position="top" class="dialog-form">
+        <div class="form-grid">
+          <el-form-item label="Employee Code" required>
+            <el-input
+              v-model="createForm.employee_code"
+              placeholder="EMP-001"
             />
-          </ElFormItem>
-          <ElFormItem label="Full Name" prop="full_name">
-            <ElInput
-              v-model="employeeForm.full_name"
-              placeholder="Enter full name"
-              clearable
+          </el-form-item>
+          <el-form-item label="Full Name" required>
+            <el-input
+              v-model="createForm.full_name"
+              placeholder="Employee full name"
             />
-          </ElFormItem>
-        </div>
-
-        <div class="form-row-grid">
-          <ElFormItem label="Department"
-            ><ElInput
-              v-model="employeeForm.department"
-              placeholder="Enter department"
-              clearable
-          /></ElFormItem>
-          <ElFormItem label="Position"
-            ><ElInput
-              v-model="employeeForm.position"
-              placeholder="Enter position"
-              clearable
-          /></ElFormItem>
-        </div>
-
-        <div class="form-row-grid">
-          <ElFormItem label="Employment Type">
-            <ElSelect
-              v-model="employeeForm.employment_type"
+          </el-form-item>
+          <el-form-item label="Department">
+            <el-input
+              v-model="createForm.department"
+              placeholder="Department"
+            />
+          </el-form-item>
+          <el-form-item label="Position">
+            <el-input v-model="createForm.position" placeholder="Position" />
+          </el-form-item>
+          <el-form-item label="Employment Type">
+            <el-select v-model="createForm.employment_type">
+              <el-option label="Permanent" value="permanent" />
+              <el-option label="Contract" value="contract" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-select v-model="createForm.status">
+              <el-option label="Active" value="active" />
+              <el-option label="Inactive" value="inactive" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Basic Salary" required>
+            <el-input-number
+              v-model="createForm.basic_salary"
+              :min="0"
+              :step="10"
+              :precision="2"
+              controls-position="right"
               style="width: 100%"
-            >
-              <ElOption
-                v-for="item in employmentTypeOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </ElSelect>
-          </ElFormItem>
-          <ElFormItem label="Status">
-            <ElSelect v-model="employeeForm.status" style="width: 100%">
-              <ElOption
-                v-for="item in statusOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </ElSelect>
-          </ElFormItem>
+            />
+          </el-form-item>
         </div>
-
-        <div class="form-row-grid">
-          <ElFormItem label="Working Schedule"
-            ><WorkingScheduleSelect
-              v-model="employeeForm.schedule_id"
-              clearable
-          /></ElFormItem>
-          <ElFormItem label="Work Location"
-            ><WorkLocationSelect
-              v-model="employeeForm.work_location_id"
-              clearable
-          /></ElFormItem>
-        </div>
-
-        <ElFormItem
-          :label="
-            employeeForm.employment_type === 'contract'
-              ? 'Contract Rate'
-              : 'Basic Salary'
-          "
-          prop="basic_salary"
-        >
-          <ElInputNumber
-            v-model="employeeForm.basic_salary"
-            :min="employeeForm.employment_type === 'contract' ? 1 : 0"
-            :step="1"
-            controls-position="right"
-            style="width: 100%"
-          />
-        </ElFormItem>
-
-        <template v-if="showContractFields">
-          <div class="form-row-grid">
-            <ElFormItem label="Contract Salary Type">
-              <ElSelect
-                v-model="employeeForm.contract_salary_type"
-                style="width: 100%"
-              >
-                <ElOption
-                  v-for="item in salaryTypeOptions"
-                  :key="item.value"
-                  :label="item.label"
-                  :value="item.value"
-                />
-              </ElSelect>
-            </ElFormItem>
-            <div />
-          </div>
-
-          <div class="form-row-grid">
-            <ElFormItem label="Contract Start Date" prop="start_date">
-              <ElDatePicker
-                v-model="employeeForm.start_date"
-                type="date"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-              />
-            </ElFormItem>
-            <ElFormItem label="Contract End Date" prop="end_date">
-              <ElDatePicker
-                v-model="employeeForm.end_date"
-                type="date"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-                :disabled-date="(date: Date) => { const start = asDate(employeeForm.start_date); return !!start && date.getTime() < start.getTime(); }"
-              />
-            </ElFormItem>
-          </div>
-        </template>
-
-        <template v-if="!isEdit">
-          <ElDivider content-position="left">Optional Login Account</ElDivider>
-          <ElCheckbox v-model="createLoginAccount"
-            >Create employee login account now</ElCheckbox
-          >
-
-          <div v-if="createLoginAccount" class="account-create-grid">
-            <ElFormItem label="Account Email">
-              <ElInput
-                v-model="createAccountForm.email"
-                placeholder="employee@company.com"
-                clearable
-              />
-            </ElFormItem>
-            <ElFormItem label="Account Username">
-              <ElInput
-                v-model="createAccountForm.username"
-                placeholder="Optional username"
-                clearable
-              />
-            </ElFormItem>
-            <ElFormItem label="Account Password">
-              <ElInput
-                v-model="createAccountForm.password"
-                type="password"
-                show-password
-                placeholder="At least 6 characters"
-              />
-            </ElFormItem>
-            <ElFormItem label="Account Role">
-              <ElSelect v-model="createAccountForm.role" style="width: 100%">
-                <ElOption label="Employee" :value="Role.EMPLOYEE" />
-                <ElOption label="Manager" :value="Role.MANAGER" />
-                <ElOption
-                  label="Payroll Manager"
-                  :value="Role.PAYROLL_MANAGER"
-                />
-              </ElSelect>
-            </ElFormItem>
-          </div>
-
-          <div v-if="createLoginAccount" class="flow-status-text">
-            Employee:
-            {{
-              employeeStore.createFlowStatus.employeeCreated
-                ? "created"
-                : employeeStore.createFlowStatus.creatingEmployee
-                ? "creating..."
-                : "pending"
-            }}
-            | Account:
-            {{
-              employeeStore.createFlowStatus.accountCreated
-                ? "created"
-                : employeeStore.createFlowStatus.creatingAccount
-                ? "creating..."
-                : "pending"
-            }}
-          </div>
-        </template>
-      </ElForm>
+      </el-form>
 
       <template #footer>
-        <div class="flex justify-end gap-2">
-          <ElButton @click="handleCancelEmployeeForm">Cancel</ElButton>
-          <ElButton
+        <div class="dialog-actions">
+          <BaseButton @click="createDialogVisible = false">Cancel</BaseButton>
+          <BaseButton
             type="primary"
-            :loading="loadingEmployeeForm"
-            @click="submitEmployeeForm"
-            >Save</ElButton
+            :loading="createSaving"
+            @click="submitCreate"
           >
+            Create
+          </BaseButton>
         </div>
       </template>
-    </ElDialog>
+    </el-dialog>
+
+    <el-dialog
+      v-model="onboardDialogVisible"
+      title="Onboard Employee"
+      width="760px"
+    >
+      <el-form label-position="top" class="dialog-form">
+        <div class="form-grid">
+          <el-form-item label="Employee Code" required>
+            <el-input
+              v-model="onboardForm.employee_code"
+              placeholder="EMP-001"
+            />
+          </el-form-item>
+          <el-form-item label="Full Name" required>
+            <el-input
+              v-model="onboardForm.full_name"
+              placeholder="Employee full name"
+            />
+          </el-form-item>
+          <el-form-item label="Department">
+            <el-input
+              v-model="onboardForm.department"
+              placeholder="Department"
+            />
+          </el-form-item>
+          <el-form-item label="Position">
+            <el-input v-model="onboardForm.position" placeholder="Position" />
+          </el-form-item>
+          <el-form-item label="Employment Type">
+            <el-select v-model="onboardForm.employment_type">
+              <el-option label="Permanent" value="permanent" />
+              <el-option label="Contract" value="contract" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Status">
+            <el-select v-model="onboardForm.status">
+              <el-option label="Active" value="active" />
+              <el-option label="Inactive" value="inactive" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="Basic Salary" required>
+            <el-input-number
+              v-model="onboardForm.basic_salary"
+              :min="0"
+              :step="10"
+              :precision="2"
+              controls-position="right"
+              style="width: 100%"
+            />
+          </el-form-item>
+
+          <el-form-item label="Email" required>
+            <el-input
+              v-model="onboardForm.email"
+              placeholder="employee@company.com"
+            />
+          </el-form-item>
+          <el-form-item label="Username">
+            <el-input
+              v-model="onboardForm.username"
+              placeholder="username (optional)"
+            />
+          </el-form-item>
+          <el-form-item label="Password" required>
+            <el-input
+              v-model="onboardForm.password"
+              type="password"
+              show-password
+            />
+          </el-form-item>
+          <el-form-item label="Role">
+            <el-select v-model="onboardForm.role">
+              <el-option label="Employee" :value="Role.EMPLOYEE" />
+              <el-option label="Manager" :value="Role.MANAGER" />
+              <el-option
+                label="Payroll Manager"
+                :value="Role.PAYROLL_MANAGER"
+              />
+            </el-select>
+          </el-form-item>
+        </div>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <BaseButton @click="onboardDialogVisible = false">Cancel</BaseButton>
+          <BaseButton
+            type="success"
+            :loading="onboardSaving"
+            @click="submitOnboard"
+          >
+            Onboard
+          </BaseButton>
+        </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="assignDialogVisible"
+      title="Assign Working Schedule"
+      width="520px"
+    >
+      <el-form label-position="top">
+        <el-form-item label="Employee">
+          <el-input :model-value="assignRow?.full_name || '-'" disabled />
+        </el-form-item>
+
+        <el-form-item label="Working Schedule" required>
+          <el-select
+            v-model="assignForm.schedule_id"
+            placeholder="Select a schedule"
+            :loading="scheduleOptionsLoading"
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="option in scheduleOptions"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <div class="dialog-actions">
+          <BaseButton @click="assignDialogVisible = false">Cancel</BaseButton>
+          <BaseButton
+            type="warning"
+            :loading="assignSaving"
+            @click="submitAssignSchedule"
+          >
+            <template #iconPre>
+              <el-icon><Refresh /></el-icon>
+            </template>
+            Assign
+          </BaseButton>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <style scoped>
-.employee-page {
-  padding: 20px;
+.employees-page {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+.header-actions {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, auto));
+  align-items: center;
+  gap: 10px;
+}
+
+.search-input {
+  min-width: 280px;
+}
+
+.lifecycle-group {
+  width: fit-content;
 }
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
-.summary-title {
+.summary-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
 }
 
 .summary-value {
+  margin-top: 6px;
   font-size: 24px;
   font-weight: 700;
-  line-height: 1.1;
+  color: var(--el-text-color-primary);
 }
 
-.pagination {
-  margin-top: 12px;
-  text-align: right;
+.table-card {
+  border: 1px solid color-mix(in srgb, var(--el-border-color) 75%, #ffffff 25%);
 }
 
-.form-row-grid,
-.account-create-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.employee-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.flow-status-text {
-  margin-top: 6px;
+.employee-cell--clickable {
+  cursor: pointer;
+}
+
+.employee-avatar {
+  background: color-mix(in srgb, var(--el-color-primary) 25%, #ffffff 75%);
+  color: var(--el-color-primary);
+}
+
+.employee-name {
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.employee-meta {
+  margin-top: 2px;
   font-size: 12px;
-  color: #606266;
+  color: var(--el-text-color-secondary);
 }
 
-@media (max-width: 960px) {
-  .summary-grid,
-  .form-row-grid,
-  .account-create-grid {
+.department-cell,
+.account-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dialog-form {
+  margin-top: 6px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.detail-item {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--el-border-color-lighter);
+  background: color-mix(in srgb, var(--el-fill-color-light) 90%, #ffffff 10%);
+}
+
+.detail-label {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.detail-value {
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+@media (max-width: 1200px) {
+  .header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .header-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .search-input {
+    grid-column: span 3;
+    width: 100%;
+  }
+
+  .lifecycle-group {
+    width: 100%;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 }

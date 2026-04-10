@@ -1,18 +1,32 @@
 // composables/useMessage.ts
 import { ElMessage } from "element-plus";
 
+const DEFAULT_DURATION = {
+  success: 3000,
+  error: 5000,
+  info: 3000,
+  warning: 4000,
+} as const;
+
+type MessageType = keyof typeof DEFAULT_DURATION;
+
 export function useMessage() {
+  function show(type: MessageType, msg: string, duration?: number) {
+    ElMessage({
+      message: msg,
+      type,
+      duration: duration ?? DEFAULT_DURATION[type],
+      showClose: true,
+      grouping: true,
+    });
+  }
+
   /**
    * Show a success message toast
    * @param msg - Message text to display
    */
   function showSuccess(msg: string) {
-    ElMessage({
-      message: msg,
-      type: "success",
-      duration: 3000,
-      showClose: true,
-    });
+    show("success", msg);
   }
 
   /**
@@ -20,12 +34,7 @@ export function useMessage() {
    * @param msg - Message text to display
    */
   function showError(msg: string) {
-    ElMessage({
-      message: msg,
-      type: "error",
-      duration: 5000,
-      showClose: true,
-    });
+    show("error", msg);
   }
 
   /**
@@ -33,12 +42,7 @@ export function useMessage() {
    * @param msg - Message text to display
    */
   function showInfo(msg: string) {
-    ElMessage({
-      message: msg,
-      type: "info",
-      duration: 3000,
-      showClose: true,
-    });
+    show("info", msg);
   }
 
   /**
@@ -46,12 +50,14 @@ export function useMessage() {
    * @param msg - Message text to display
    */
   function showWarning(msg: string) {
-    ElMessage({
-      message: msg,
-      type: "warning",
-      duration: 4000,
-      showClose: true,
-    });
+    show("warning", msg);
+  }
+
+  /**
+   * Show a standard warning for repeated clicks while an action is running.
+   */
+  function showActionInProgress() {
+    show("warning", "Action is already running. Please wait a moment.", 2200);
   }
 
   return {
@@ -59,5 +65,6 @@ export function useMessage() {
     showError,
     showInfo,
     showWarning,
+    showActionInProgress,
   };
 }

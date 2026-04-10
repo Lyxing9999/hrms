@@ -1,43 +1,61 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, useSlots } from "vue";
 import BaseInputSearch from "~/components/base/BaseInputSearch.vue";
 
-const props = defineProps({
-  title: { type: String, required: true },
-  description: { type: String, default: "" },
+type OverviewStat = {
+  key?: string | number;
+  value: number;
+  singular?: string;
+  plural?: string;
+  label?: string;
+  suffix?: string;
+  prefix?: string;
+  variant?: "primary" | "secondary";
+  dotClass?: string;
+};
 
-  // Search
-  showSearch: { type: Boolean, default: false },
-  searchModelValue: { type: String, default: "" },
-  searchPlaceholder: { type: String, default: "Search..." },
-  searchDisabled: { type: Boolean, default: false },
+const props = withDefaults(
+  defineProps<{
+    title: string;
+    description?: string;
 
-  // Reset
-  showReset: { type: Boolean, default: false },
-  resetLabel: { type: String, default: "Reset" },
-  resetDisabled: { type: Boolean, default: false },
+    // Search
+    showSearch?: boolean;
+    searchModelValue?: string;
+    searchPlaceholder?: string;
+    searchDisabled?: boolean;
 
-  // Refresh
-  showRefresh: { type: Boolean, default: false },
-  loading: { type: Boolean, default: false },
-  disabled: { type: Boolean, default: false },
-  refreshLabel: { type: String, default: "Refresh" },
+    // Reset
+    showReset?: boolean;
+    resetLabel?: string;
+    resetDisabled?: boolean;
 
-  stats: {
-    type: Array as () => Array<{
-      key?: string | number;
-      value: number;
-      singular?: string;
-      plural?: string;
-      label?: string;
-      suffix?: string;
-      prefix?: string;
-      variant?: "primary" | "secondary";
-      dotClass?: string;
-    }>,
-    default: () => [],
+    // Refresh
+    showRefresh?: boolean;
+    loading?: boolean;
+    disabled?: boolean;
+    refreshLabel?: string;
+
+    stats?: OverviewStat[];
+  }>(),
+  {
+    description: "",
+    showSearch: false,
+    searchModelValue: "",
+    searchPlaceholder: "Search...",
+    searchDisabled: false,
+    showReset: false,
+    resetLabel: "Reset",
+    resetDisabled: false,
+    showRefresh: false,
+    loading: false,
+    disabled: false,
+    refreshLabel: "Refresh",
+    stats: () => [],
   },
-});
+);
+
+const slots = useSlots();
 
 const emit = defineEmits<{
   (e: "refresh"): void;
@@ -47,8 +65,23 @@ const emit = defineEmits<{
 
 const searchValue = computed({
   get: () => props.searchModelValue,
-  set: (v: string) => emit("update:searchModelValue", v),
+  set: (v: string | number | null) =>
+    emit("update:searchModelValue", String(v ?? "")),
 });
+
+const hasTopActions = computed(
+  () => Boolean(slots.actions) || props.showRefresh,
+);
+
+const hasControlSection = computed(
+  () => props.showSearch || props.showReset || Boolean(slots.filters),
+);
+
+const hasControlRow = computed(() => props.showSearch || props.showReset);
+
+const hasStats = computed(
+  () => (props.stats?.length ?? 0) > 0 || Boolean(slots["custom-stats"]),
+);
 
 function onReset() {
   emit("update:searchModelValue", "");
@@ -69,14 +102,15 @@ function pluralize(stat: {
 </script>
 
 <template>
-  <div
-    class="mb-4 bg-gradient-to-r from-[var(--color-primary-light-9)] to-[var(--color-primary-light-9)] border border-[color:var(--color-primary-light-9)] shadow-sm rounded-2xl p-5"
-  >
-    <!-- Row 1: Title/Description + Actions -->
+  <div class="overview-header mb-4 rounded-2xl border p-5 shadow-sm">
     <el-row :gutter="16" align="top" class="overview-top">
-      <el-col :xs="24" :sm="16" :md="18">
+      <el-col
+        :xs="24"
+        :sm="hasTopActions ? 16 : 24"
+        :md="hasTopActions ? 18 : 24"
+      >
         <h1
-          class="text-2xl font-bold flex items-center gap-2 text-[color:var(--color-dark)]"
+          class="flex items-center gap-2 text-2xl font-bold text-[color:var(--color-dark)]"
         >
           {{ title }}
           <slot name="icon" />
@@ -84,44 +118,42 @@ function pluralize(stat: {
 
         <p
           v-if="description"
-          class="text-sm text-[color:var(--color-primary-light-1)] mt-1"
+          class="mt-1 text-sm text-[color:var(--color-primary-light-1)]"
         >
           {{ description }}
         </p>
       </el-col>
 
-      <el-col :xs="24" :sm="8" :md="6">
-        <div class="flex gap-2 justify-start sm:justify-end mt-3 sm:mt-0">
+      <el-col v-if="hasTopActions" :xs="24" :sm="8" :md="6">
+        <div class="overview-actions mt-3 sm:mt-0">
           <slot name="actions">
             <BaseButton
-              v-if="showReset"
+              v-if="showRefresh"
               plain
-              class="w-full sm:w-auto reset-btn"
-              :disabled="disabled || resetDisabled"
-              @click="onReset"
-              aria-label="Reset filters"
+              class="w-full sm:w-auto overview-action-btn overview-action-btn--neutral"
+              :loading="loading"
+              :disabled="disabled"
+              @click="emit('refresh')"
+              aria-label="Refresh data"
             >
-              {{ resetLabel }}
+              {{ refreshLabel }}
             </BaseButton>
           </slot>
         </div>
       </el-col>
     </el-row>
 
-    <!-- Divider + Row 2: Controls -->
     <div
-      v-if="showSearch || showReset || $slots.filters"
-      class="mt-4 pt-4 border-t border-[color:var(--color-primary-light-8)]"
+      v-if="hasControlSection"
+      class="mt-4 border-t border-[color:var(--color-primary-light-8)] pt-4"
     >
-      <!-- Search + Reset in a grid that wraps nicely -->
-      <el-row v-if="showSearch || showReset" :gutter="12" align="middle">
+      <el-row v-if="hasControlRow" :gutter="12" align="middle">
         <el-col :xs="24" :sm="16" :md="12">
           <BaseInputSearch
             v-if="showSearch"
-            :model-value="searchModelValue"
-            @update:modelValue="
-              (v) => emit('update:searchModelValue', String(v ?? ''))
-            "
+            v-model="searchValue"
+            :placeholder="searchPlaceholder"
+            :disabled="searchDisabled"
             :auto-search="true"
             :debounce="350"
             :ignore-empty="false"
@@ -133,7 +165,7 @@ function pluralize(stat: {
           <BaseButton
             v-if="showReset"
             plain
-            class="w-full sm:w-auto reset-btn reset-btn--danger"
+            class="w-full sm:w-auto overview-action-btn overview-action-btn--neutral"
             :disabled="disabled || resetDisabled"
             @click="onReset"
             aria-label="Reset filters"
@@ -143,16 +175,17 @@ function pluralize(stat: {
         </el-col>
       </el-row>
 
-      <!-- Filters slot (you can use el-row inside the slot too) -->
       <div v-if="$slots.filters" class="mt-3">
         <slot name="filters" />
       </div>
     </div>
 
-    <!-- Row 3: Stats -->
-    <div v-if="stats?.length" class="mt-4">
+    <div v-if="hasStats" class="mt-4">
       <div class="flex flex-wrap items-center gap-2 text-xs">
-        <template v-for="stat in stats" :key="stat.key ?? stat.label">
+        <template
+          v-for="(stat, index) in stats"
+          :key="stat.key ?? stat.label ?? index"
+        >
           <span
             v-if="stat.variant === 'primary'"
             class="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary-light-8)] text-[color:var(--color-primary)] px-3 py-0.5 border border-[var(--color-primary-light-5)]"
@@ -181,10 +214,41 @@ function pluralize(stat: {
 </template>
 
 <style scoped>
+.overview-header {
+  background: linear-gradient(
+    to right,
+    var(--color-primary-light-9),
+    var(--color-primary-light-9)
+  );
+  border-color: var(--color-primary-light-9);
+}
+
 .overview-top :deep(.el-col) {
   min-width: 0;
 }
-.reset-btn {
+
+.overview-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 640px) {
+  .overview-actions {
+    justify-content: flex-end;
+  }
+}
+
+.overview-actions :deep(.el-button),
+.overview-action-btn {
+  min-height: 36px;
+  border-radius: 10px;
+  font-weight: 650;
+}
+
+.overview-action-btn {
   border-radius: 10px;
   font-weight: 650;
 
@@ -206,7 +270,7 @@ function pluralize(stat: {
     transform var(--transition-base);
 }
 
-.reset-btn:hover:not(.is-disabled):not([disabled]) {
+.overview-action-btn:hover:not(.is-disabled):not([disabled]) {
   background: var(--hover-bg) !important;
   border-color: color-mix(
     in srgb,
@@ -217,13 +281,13 @@ function pluralize(stat: {
   transform: translateY(-0.5px);
 }
 
-.reset-btn:active:not(.is-disabled):not([disabled]) {
+.overview-action-btn:active:not(.is-disabled):not([disabled]) {
   transform: translateY(0);
 }
 
-.reset-btn.is-disabled,
-.reset-btn[disabled],
-.reset-btn:disabled {
+.overview-action-btn.is-disabled,
+.overview-action-btn[disabled],
+.overview-action-btn:disabled {
   background: color-mix(
     in srgb,
     var(--color-card) 75%,
@@ -241,7 +305,7 @@ function pluralize(stat: {
   transform: none !important;
 }
 
-html[data-theme="dark"] .reset-btn {
+html[data-theme="dark"] .overview-action-btn {
   background: color-mix(
     in srgb,
     var(--color-card) 88%,
@@ -254,9 +318,9 @@ html[data-theme="dark"] .reset-btn {
   ) !important;
 }
 
-html[data-theme="dark"] .reset-btn.is-disabled,
-html[data-theme="dark"] .reset-btn[disabled],
-html[data-theme="dark"] .reset-btn:disabled {
+html[data-theme="dark"] .overview-action-btn.is-disabled,
+html[data-theme="dark"] .overview-action-btn[disabled],
+html[data-theme="dark"] .overview-action-btn:disabled {
   background: color-mix(
     in srgb,
     var(--color-card) 92%,
@@ -290,7 +354,6 @@ html[data-theme="dark"] .reset-btn:disabled {
     border-color var(--transition-base), color var(--transition-base);
 }
 
-/* Optional: hover polish (safe) */
 .stat-pill--secondary:hover {
   background: var(--hover-bg);
   border-color: color-mix(

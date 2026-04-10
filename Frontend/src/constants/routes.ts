@@ -57,6 +57,7 @@ export const ROUTES = {
     DASHBOARD: "/hr",
 
     EMPLOYEES: "/hr/employees",
+    EMPLOYEE_DETAIL: (id: string) => `/hr/employees/${id}`,
     EMPLOYEE_ACCOUNTS: "/hr/employees/accounts",
     EMPLOYEE_ARCHIVED: "/hr/employees/archived",
 
@@ -65,10 +66,12 @@ export const ROUTES = {
     ATTENDANCE_REPORTS: "/hr/attendance/reports",
 
     OVERTIME: "/hr/overtime",
+    OVERTIME_DETAIL: (id: string) => `/hr/overtime/${id}`,
     OVERTIME_REVIEWS: "/hr/overtime/reviews",
     OVERTIME_HISTORY: "/hr/overtime/history",
 
     LEAVES: "/hr/leaves",
+    LEAVE_DETAIL: (id: string) => `/hr/leaves/${id}`,
     LEAVE_REVIEWS: "/hr/leaves/reviews",
     LEAVE_BALANCES: "/hr/leaves/balances",
 
@@ -86,14 +89,15 @@ export const ROUTES = {
     REPORTS_OVERTIME: "/hr/reports/overtime",
     REPORTS_PAYROLL: "/hr/reports/payroll",
     REPORTS_WRONG_LOCATION: "/hr/reports/wrong-location",
+    SETTINGS: "/hr/settings",
   },
 
   EMPLOYEE: {
     DASHBOARD: "/employee/dashboard",
     PROFILE: "/employee/profile",
 
-    ATTENDANCE_CHECK: "/employee/check-in",
-    ATTENDANCE_HISTORY: "/employee/attendance-history",
+    ATTENDANCE_TODAY: "/employee/attendance/today",
+    ATTENDANCE_HISTORY: "/employee/attendance/history",
 
     OVERTIME_REQUEST: "/employee/overtime/request",
     OVERTIME_HISTORY: "/employee/overtime/history",
@@ -101,12 +105,11 @@ export const ROUTES = {
 
     LEAVE_REQUEST: "/employee/leaves/request",
     LEAVE_HISTORY: "/employee/leaves/history",
-    LEAVE_DETAIL: (id: string) => `/employee/leaves/${id}`,
     LEAVE_BALANCE: "/employee/leaves/balance",
+    LEAVE_DETAIL: (id: string) => `/employee/leaves/${id}`,
 
     PAYSLIPS: "/employee/payslips",
     PAYSLIP_DETAIL: (id: string) => `/employee/payslips/${id}`,
-
     SETTINGS: "/employee/settings",
   },
 
@@ -125,27 +128,23 @@ export const ROUTES = {
     LEAVE_DETAIL: (id: string) => `/manager/leaves/${id}`,
 
     REPORTS_TEAM: "/manager/reports/team",
-
     SETTINGS: "/manager/settings",
   },
 
   PAYROLL_MANAGER: {
     DASHBOARD: "/payroll/dashboard",
 
-    PAYROLL_PROCESS: "/payroll/runs/generate",
-    PAYROLL_RUNS: "/payroll/runs",
-    PAYROLL_RUN_DETAIL: (id: string) => `/payroll/runs/${id}`,
-
-    PAYSLIPS: "/payroll/payslips",
-    PAYSLIP_DETAIL: (id: string) => `/payroll/payslips/${id}`,
-
     ATTENDANCE_FINAL: "/payroll/attendance/final",
 
     OVERTIME_APPROVED: "/payroll/overtime/approved",
     OVERTIME_DETAIL: (id: string) => `/payroll/overtime/${id}`,
 
-    REPORTS_PAYROLL: "/payroll/reports",
+    PAYROLL_GENERATE: "/payroll/runs/generate",
+    PAYROLL_RUNS: "/payroll/runs",
+    PAYSLIPS: "/payroll/payslips",
+    PAYSLIP_DETAIL: (id: string) => `/payroll/payslips/${id}`,
 
+    REPORTS_PAYROLL: "/payroll/reports",
     SETTINGS: "/payroll/settings",
   },
 } as const;

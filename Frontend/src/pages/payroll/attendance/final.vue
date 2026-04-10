@@ -11,14 +11,18 @@ const stats = [
   },
   { label: "Records", value: "142", hint: "Demo employee count" },
   { label: "Adjustments", value: "3", hint: "Manual corrections" },
-  { label: "Export", value: "Ready", hint: "Payroll handoff available" },
+  {
+    label: "Status",
+    value: "Ready",
+    hint: "Prepared for payroll generation",
+  },
 ];
 
 const actions = [
   {
     title: "Generate Payroll",
     description: "Proceed to the payroll generation flow.",
-    route: ROUTES.PAYROLL_MANAGER.PAYROLL_PROCESS,
+    route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
     color: "#0f766e",
   },
