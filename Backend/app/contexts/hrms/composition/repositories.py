@@ -18,7 +18,7 @@ from app.contexts.hrms.repositories.audit_log_repository import MongoAuditLogRep
 from app.contexts.hrms.integrations.iam_gateway import HRMSIamGateway
 from app.contexts.hrms.services.cambodia_public_holiday_provider import CambodiaPublicHolidayProvider
 from app.contexts.hrms.read_models.overtime_read_model import OvertimeReadModel
-
+from app.contexts.hrms.read_models.attendance_read_model import AttendanceReadModel
 
 class HrmsRepositories:
     def __init__(self, *, db: Database) -> None:

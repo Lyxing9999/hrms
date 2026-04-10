@@ -8,12 +8,17 @@ from app.contexts.iam.domain.iam import IAM
 from app.contexts.iam.mapper.iam_mapper import IAMMapper
 from app.contexts.shared.lifecycle.filters import not_deleted, by_show_deleted
 from app.contexts.shared.lifecycle.domain import now_utc as lifecycle_now_utc
-
+from app.contexts.shared.model_converter import mongo_converter
 
 class MongoIAMRepository(MongoErrorMixin):
     def __init__(self, collection: Collection):
         self.collection = collection
         self._iam_mapper = IAMMapper()
+
+
+    @staticmethod
+    def _oid(id: str | ObjectId) -> ObjectId:
+        return mongo_converter.convert_to_object_id(id)
 
     def find_one(self, id: ObjectId, *, include_deleted: bool = False) -> Optional[IAM]:
         show = "all" if include_deleted else "active"
@@ -36,7 +41,7 @@ class MongoIAMRepository(MongoErrorMixin):
         payload.pop("lifecycle", None)
 
         res = self.collection.update_one(
-            not_deleted({"_id": user_id}),
+            not_deleted({"_id": self._oid(user_id)}),
             {
                 "$set": {
                     **payload,
@@ -50,7 +55,7 @@ class MongoIAMRepository(MongoErrorMixin):
         return self.find_one(user_id)
 
     def update_password(self, user_id: ObjectId | str, password_hash: str) -> int:
-        oid = ObjectId(user_id) if isinstance(user_id, str) else user_id
+        oid = self._oid(user_id)
 
         res = self.collection.update_one(
             not_deleted({"_id": oid}),
@@ -63,5 +68,5 @@ class MongoIAMRepository(MongoErrorMixin):
         )
         return int(res.modified_count)
 
-    def hard_delete(self, user_id: ObjectId) -> None:
-        self.collection.delete_one({"_id": user_id})
+    def hard_delete(self, user_id: ObjectId | str) -> None:
+        self.collection.delete_one({"_id": self._oid(user_id)})

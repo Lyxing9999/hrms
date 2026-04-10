@@ -30,7 +30,7 @@ class MongoAttendanceRepository:
         return attendance
 
     def find_by_id(self, attendance_id: ObjectId) -> Attendance:
-        doc = self.collection.find_one({"_id": attendance_id})
+        doc = self.collection.find_one({"_id": self._oid(attendance_id)})
         if not doc:
             raise AttendanceNotFoundException(attendance_id)
         return self.mapper.to_domain(doc)
@@ -38,7 +38,7 @@ class MongoAttendanceRepository:
 
     def find_by_employee_and_date(self, employee_id: ObjectId, attendance_date: datetime) -> Attendance | None:
         doc = self.collection.find_one({
-            "employee_id": employee_id,
+            "employee_id": self._oid(employee_id),
             "attendance_date": attendance_date,
             "lifecycle.deleted_at": None,
         })
@@ -60,7 +60,7 @@ class MongoAttendanceRepository:
         query = {}
 
         if employee_id:
-            query["employee_id"] = employee_id
+            query["employee_id"] = self._oid(employee_id)
 
         if start_date or end_date:
             query["check_in_time"] = {}
@@ -102,7 +102,7 @@ class MongoAttendanceRepository:
         pipeline = [
             {
                 "$match": {
-                    "employee_id": employee_id,
+                    "employee_id": self._oid(employee_id),
                     "check_in_time": {"$gte": start_date, "$lte": end_date},
                     "lifecycle.deleted_at": None,
                 }
@@ -180,4 +180,4 @@ class MongoAttendanceRepository:
         return [self.mapper.to_domain(x) for x in docs]
     
     def delete(self, attendance_id: ObjectId) -> None:
-        self.collection.delete_one({"_id": attendance_id})
+        self.collection.delete_one({"_id": self._oid(attendance_id)})

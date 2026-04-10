@@ -204,8 +204,14 @@ class Attendance:
         if self.status != AttendanceStatus.WRONG_LOCATION_PENDING:
             raise AttendanceWrongLocationReviewStateException(
                 attendance_id=self.id,
-                current_status=str(self.status),
+                current_status=self.status.value if hasattr(self.status, "value") else str(self.status),
             )
+        self.status = AttendanceStatus.WRONG_LOCATION_APPROVED
+        self.location_reviewed_by = admin_id
+        self.admin_comment = (comment or "").strip() or None
+        self.lifecycle.touch(now_utc())
+
+        
         self.status = AttendanceStatus.WRONG_LOCATION_APPROVED
         self.location_reviewed_by = admin_id
         self.admin_comment = (comment or "").strip() or None

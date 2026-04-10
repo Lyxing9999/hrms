@@ -9,14 +9,25 @@ from app.contexts.shared.time_utils import (
     utc_now,
 )
 
-
+from app.contexts.shared.model_converter import mongo_converter
 class AttendanceReadModel:
     def __init__(self, db: Database):
         self.collection = db["hr_attendances"]
 
+
+    @staticmethod
+    def _oid(v) -> ObjectId | None:
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return v
+        if isinstance(v, str) and v.strip().lower() in {"", "null", "none", "undefined"}:
+            return None
+        return mongo_converter.convert_to_object_id(v)
+
     def find_by_id(self, attendance_id: ObjectId) -> dict | None:
         """Find attendance by ID"""
-        return self.collection.find_one({"_id": attendance_id})
+        return self.collection.find_one({"_id": self._oid(attendance_id)})
 
     def find_by_employee_today(self, employee_id: ObjectId) -> dict | None:
         """Find today's attendance for an employee"""
@@ -24,7 +35,7 @@ class AttendanceReadModel:
         end_of_day = start_of_day + timedelta(days=1)
         
         return self.collection.find_one({
-            "employee_id": employee_id,
+            "employee_id": self._oid(employee_id),
             "attendance_date": start_of_day,
             "lifecycle.deleted_at": None,
         })
@@ -45,7 +56,7 @@ class AttendanceReadModel:
         query = {}
 
         if employee_id:
-            query["employee_id"] = employee_id
+            query["employee_id"] = self._oid(employee_id)
 
         if start_date or end_date:
             query["check_in_time"] = {}
@@ -84,7 +95,7 @@ class AttendanceReadModel:
         pipeline = [
             {
                 "$match": {
-                    "employee_id": employee_id,
+                    "employee_id": self._oid(employee_id),
                     "check_in_time": {"$gte": start_date_utc, "$lte": end_date_utc},
                     "lifecycle.deleted_at": None,
                 }
@@ -134,3 +145,44 @@ class AttendanceReadModel:
             "total_early_leave_minutes": stats["total_early_leave_minutes"],
             "attendance_rate": (total_days / expected_days * 100) if expected_days > 0 else 0.0,
         }
+    def list_wrong_location_cases(
+        self,
+        *,
+        start_date=None,
+        end_date=None,
+        status: str | None = None,
+        page: int = 1,
+        limit: int = 10,
+    ):
+        query = {
+            "lifecycle.deleted_at": None,
+            "$or": [
+                {"status": {"$in": [
+                    "wrong_location_pending",
+                    "wrong_location_approved",
+                    "wrong_location_rejected",
+                ]}},
+                {"wrong_location_reason": {"$ne": None}},
+            ],
+        }
+
+        if status:
+            query["status"] = status
+
+        if start_date or end_date:
+            query["check_in_time"] = {}
+            if start_date:
+                query["check_in_time"]["$gte"] = ensure_utc(start_date)
+            if end_date:
+                query["check_in_time"]["$lte"] = ensure_utc(end_date)
+
+        total = self.collection.count_documents(query)
+        skip = (page - 1) * limit
+
+        items = list(
+            self.collection.find(query)
+            .sort("check_in_time", -1)
+            .skip(skip)
+            .limit(limit)
+        )
+        return items, total

@@ -129,12 +129,14 @@ def get_team_attendance():
 def get_wrong_location_report():
     page = max(int(request.args.get("page") or 1), 1)
     page_size = min(max(int(request.args.get("limit") or 10), 1), 100)
+    status = (request.args.get("status") or "").strip() or None
     start_date = request.args.get("start_date")
     end_date = request.args.get("end_date")
 
     items, total = g.hrms.attendance.get_wrong_location_report(
         page=page,
         page_size=page_size,
+        status=status,
         start_date=start_date,
         end_date=end_date,
     )

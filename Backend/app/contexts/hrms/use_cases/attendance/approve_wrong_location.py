@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+from app.contexts.hrms.domain.audit_log import AuditLog
 from app.contexts.hrms.errors.attendance_exceptions import (
     AttendanceNotFoundException,
     AttendanceWrongLocationReviewStateException,
 )
 from app.contexts.shared.time_utils import utc_now
+from app.contexts.shared.model_converter import mongo_converter
 
 
 class ApproveWrongLocationUseCase:
     def __init__(
         self,
         *,
-        attendance_repository, 
+        attendance_repository,
         audit_log_repository=None,
     ) -> None:
         self.attendance_repository = attendance_repository
@@ -24,43 +26,61 @@ class ApproveWrongLocationUseCase:
         admin_id,
         approved: bool,
         comment: str | None = None,
-    ) -> dict:
+        location_id: str | None = None,
+    ):
         attendance = self.attendance_repository.find_by_id(attendance_id)
         if not attendance:
             raise AttendanceNotFoundException(attendance_id)
 
-        current_status = str(attendance.get("status") or "unknown")
+        current_status = (
+            attendance.status.value
+            if hasattr(attendance.status, "value")
+            else str(attendance.status)
+        )
+
         if current_status != "wrong_location_pending":
             raise AttendanceWrongLocationReviewStateException(
                 attendance_id=attendance_id,
                 current_status=current_status,
             )
 
+        if location_id is not None:
+            attendance.location_id = mongo_converter.convert_to_object_id(location_id)
+
         if approved:
-            new_status = "late" if attendance.get("late_minutes", 0) > 0 else "checked_in"
+            attendance.approve_wrong_location(
+                admin_id=admin_id,
+                comment=comment,
+            )
+
+            if int(attendance.late_minutes or 0) > 0:
+                attendance.status = "late"
+            else:
+                attendance.status = "checked_in"
+
             action = "attendance_wrong_location_approved"
         else:
-            new_status = "wrong_location_rejected"
+            attendance.reject_wrong_location(
+                admin_id=admin_id,
+                comment=comment,
+            )
             action = "attendance_wrong_location_rejected"
 
-        updated = self.attendance_repository.update_fields(
-            attendance["_id"],
-            {
-                "status": new_status,
-                "admin_comment": comment,
-                "location_reviewed_by": admin_id,
-                "lifecycle.updated_at": utc_now(),
-            },
-        )
+        updated = self.attendance_repository.save(attendance)
 
         self._write_audit_log(
             action=action,
             actor_id=admin_id,
-            entity_id=updated["_id"],
+            entity_id=updated.id,
             details={
                 "approved": approved,
                 "comment": comment,
-                "attendance_date": str(updated["attendance_date"]),
+                "location_id": location_id,
+                "attendance_date": (
+                    updated.attendance_date.isoformat()
+                    if updated.attendance_date
+                    else None
+                ),
             },
         )
 
@@ -70,13 +90,13 @@ class ApproveWrongLocationUseCase:
         if not self.audit_log_repository:
             return
 
-        self.audit_log_repository.save(
-            {
-                "entity_type": "attendance",
-                "entity_id": entity_id,
-                "action": action,
-                "actor_id": actor_id,
-                "action_at": utc_now(),
-                "details": details,
-            }
+        audit_log = AuditLog(
+            id=None,
+            entity_type="attendance",
+            entity_id=entity_id,
+            action=action,
+            actor_id=actor_id,
+            action_at=utc_now(),
+            details=details,
         )
+        self.audit_log_repository.save(audit_log)

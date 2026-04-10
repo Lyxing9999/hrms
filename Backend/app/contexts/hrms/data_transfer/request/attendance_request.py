@@ -36,9 +36,12 @@ class AttendanceCheckOutSchema(BaseModel):
 class AttendanceApproveWrongLocationSchema(BaseModel):
     approved: bool
     comment: str | None = Field(default=None, max_length=300)
+    location_id: str | None = Field(default=None)
 
     @model_validator(mode="after")
     def normalize_comment(self):
         if self.comment is not None:
             self.comment = self.comment.strip() or None
+        if self.location_id is not None:
+            self.location_id = self.location_id.strip() or None
         return self

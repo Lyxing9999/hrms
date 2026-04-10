@@ -74,6 +74,7 @@ def review_wrong_location(attendance_id: str):
         admin_id=admin_id,
         approved=payload.approved,
         comment=payload.comment,
+        location_id=payload.location_id,
     )
 
     return mapper.to_dto(attendance)

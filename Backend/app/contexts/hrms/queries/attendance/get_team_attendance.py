@@ -6,6 +6,12 @@ class GetTeamAttendanceQuery:
         self.employee_repository = employee_repository
         self.attendance_repository = attendance_repository
 
+    @staticmethod
+    def _field(item, key: str, default=None):
+        if isinstance(item, dict):
+            return item.get(key, default)
+        return getattr(item, key, default)
+
     def execute(
         self,
         *,
@@ -49,7 +55,7 @@ class GetTeamAttendanceQuery:
             )
             all_items.extend(items)
 
-        all_items.sort(key=lambda x: x.get("check_in_time"), reverse=True)
+        all_items.sort(key=lambda x: self._field(x, "check_in_time"), reverse=True)
 
         start = (page - 1) * page_size
         end = start + page_size

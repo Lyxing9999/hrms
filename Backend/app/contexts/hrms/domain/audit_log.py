@@ -8,11 +8,11 @@ from app.contexts.shared.lifecycle.domain import Lifecycle
 
 
 class AuditAction(str, Enum):
-    WRONG_LOCATION_SUBMITTED = "wrong_location_submitted"
-    WRONG_LOCATION_APPROVED = "wrong_location_approved"
-    WRONG_LOCATION_REJECTED = "wrong_location_rejected"
     ATTENDANCE_CHECK_IN = "attendance_check_in"
     ATTENDANCE_CHECK_OUT = "attendance_check_out"
+    ATTENDANCE_WRONG_LOCATION_APPROVED = "attendance_wrong_location_approved"
+    ATTENDANCE_WRONG_LOCATION_REJECTED = "attendance_wrong_location_rejected"
+    ATTENDANCE_MARKED_MISSING_CHECK_OUT = "attendance_marked_missing_check_out"
     OT_SUBMITTED = "ot_submitted"
     OT_APPROVED = "ot_approved"
     OT_REJECTED = "ot_rejected"

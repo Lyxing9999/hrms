@@ -156,9 +156,10 @@ class UserManagementService:
         iam.update_info(password=hashed_password)
         self._iam_repository.update(user_oid, self._iam_mapper.to_persistence(iam))
 
-    def set_user_status(self, *, user_id: str | ObjectId, status) -> dict:
+    def set_user_status(self, *, user_id: str | ObjectId, status: str) -> dict:
         user_oid, iam = self._require_user(user_id)
         iam.set_status(status)
+        iam.update_info()  # to update the updated_at timestamp
         self._iam_repository.update(user_oid, self._iam_mapper.to_persistence(iam))
         return {"id": str(user_oid), "status": status.value if hasattr(status, "value") else str(status)}
 

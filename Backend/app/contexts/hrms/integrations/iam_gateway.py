@@ -134,7 +134,7 @@ class HRMSIamGateway:
 
         return result
     
-    def set_user_status(self, *, user_id: str | ObjectId, status) -> dict:
+    def set_user_status(self, *, user_id: str | ObjectId, status: str) -> dict:
         return self._user_management.set_user_status(
             user_id=user_id,
             status=status,

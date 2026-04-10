@@ -224,7 +224,7 @@ class HrmsApplicationServices:
             attendance_repository=repositories.attendance_repository,
         )
         self.get_wrong_location_report = GetWrongLocationReportQuery(
-            attendance_repository=repositories.attendance_repository,
+            attendance_read_model=repositories.attendance_read_model,
         )
         self.onboard_employee_with_account = OnboardEmployeeWithAccountUseCase(
             db=repositories.db,
@@ -468,7 +468,7 @@ class HrmsApplicationServices:
             link_account=self.link_employee_account.execute,
             list_accounts=self.list_employee_accounts.execute,
             find_by_user_id=self.find_employee_by_user_id.execute,
-            assign_schedule=self.assign_employee_schedule.execute,
+            assign_employee_schedule=self.assign_employee_schedule.execute,
             onboard_with_account=self.onboard_employee_with_account.execute,    
         )
 

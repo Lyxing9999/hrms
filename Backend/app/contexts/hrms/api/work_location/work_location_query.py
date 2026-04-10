@@ -11,6 +11,19 @@ work_location_query_bp = Blueprint("work_location_query_bp", __name__)
 mapper = WorkLocationMapper()
 
 
+def _parse_bool_arg(name: str) -> bool | None:
+    raw = request.args.get(name)
+    if raw is None:
+        return None
+
+    normalized = str(raw).strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off"}:
+        return False
+    return None
+
+
 @work_location_query_bp.route("/work-locations", methods=["GET"], strict_slashes=False)
 @login_required(allowed_roles=["hr_admin", "employee", "manager", "payroll_manager"])
 @wrap_response
@@ -18,7 +31,17 @@ def list_work_locations():
     q = request.args.get("q", "")
     status = request.args.get("status", "all")
 
-    items = g.hrms.work_location.list(q=q, status=status)
+    include_deleted = _parse_bool_arg("include_deleted")
+    deleted_only = _parse_bool_arg("deleted_only")
+    is_active = _parse_bool_arg("is_active")
+
+    items = g.hrms.work_location.list(
+        q=q,
+        status=status,
+        include_deleted=include_deleted,
+        deleted_only=deleted_only,
+        is_active=is_active,
+    )
     return [mapper.to_dto(item).model_dump(mode="json") for item in items]
 
 

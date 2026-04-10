@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 CAMBODIA_TZ = ZoneInfo("Asia/Phnom_Penh")
@@ -14,7 +14,29 @@ def cambodia_now() -> datetime:
     return datetime.now(CAMBODIA_TZ)
 
 
-def ensure_utc(dt: datetime | None) -> datetime | None:
+def _coerce_datetime(value: datetime | date | str | None) -> datetime | None:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, date):
+        return datetime.combine(value, datetime.min.time())
+
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        if text.endswith("Z"):
+            text = f"{text[:-1]}+00:00"
+        return datetime.fromisoformat(text)
+
+    raise TypeError(f"Expected datetime/date/ISO string, got {type(value)}")
+
+
+def ensure_utc(dt: datetime | date | str | None) -> datetime | None:
+    dt = _coerce_datetime(dt)
     if dt is None:
         return None
     if dt.tzinfo is None:
@@ -22,7 +44,8 @@ def ensure_utc(dt: datetime | None) -> datetime | None:
     return dt.astimezone(timezone.utc)
 
 
-def to_cambodia(dt: datetime | None) -> datetime | None:
+def to_cambodia(dt: datetime | date | str | None) -> datetime | None:
+    dt = _coerce_datetime(dt)
     if dt is None:
         return None
     if dt.tzinfo is None:

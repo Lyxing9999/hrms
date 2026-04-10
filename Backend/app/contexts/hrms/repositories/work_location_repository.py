@@ -5,6 +5,7 @@ from bson import ObjectId
 from pymongo.database import Database
 
 from app.contexts.hrms.mapper.work_location_mapper import WorkLocationMapper
+from app.contexts.hrms.errors.location_exceptions import WorkLocationNotFoundException
 
 
 class MongoWorkLocationRepository:
@@ -29,14 +30,14 @@ class MongoWorkLocationRepository:
             "lifecycle.deleted_at": None,
         })
         if not doc:
-            raise ValueError("Work location not found")
+            raise WorkLocationNotFoundException(str(location_id))
         return WorkLocationMapper.to_domain(doc)
 
     def find_by_id_including_deleted(self, location_id):
         location_id = ObjectId(location_id) if not isinstance(location_id, ObjectId) else location_id
         doc = self.collection.find_one({"_id": location_id})
         if not doc:
-            raise ValueError("Work location not found")
+            raise WorkLocationNotFoundException(str(location_id))
         return self.mapper.to_domain(doc)
 
     def list_locations(
@@ -44,6 +45,9 @@ class MongoWorkLocationRepository:
         *,
         q: str = "",
         status: str = "all",
+        include_deleted: bool | None = None,
+        deleted_only: bool | None = None,
+        is_active: bool | None = None,
     ) -> list:
         query: dict = {}
 
@@ -53,17 +57,44 @@ class MongoWorkLocationRepository:
                 {"address": {"$regex": q, "$options": "i"}},
             ]
 
-        if status == "active":
-            query["lifecycle.deleted_at"] = None
-            query["is_active"] = True
-        elif status == "inactive":
-            query["lifecycle.deleted_at"] = None
-            query["is_active"] = False
-        elif status == "deleted":
-            query["lifecycle.deleted_at"] = {"$ne": None}
+        # Backward-compatible branch: when explicit filter flags are not passed,
+        # keep original semantics of the `status` query parameter.
+        if include_deleted is None and deleted_only is None and is_active is None:
+            if status == "active":
+                query["lifecycle.deleted_at"] = None
+                query["is_active"] = True
+            elif status == "inactive":
+                query["lifecycle.deleted_at"] = None
+                query["is_active"] = False
+            elif status == "deleted":
+                query["lifecycle.deleted_at"] = {"$ne": None}
+            else:
+                # all (normal mode): include active + inactive, exclude deleted
+                query["lifecycle.deleted_at"] = None
         else:
-            # all
-            pass
+            # New explicit filter mode used by frontend:
+            # - deleted_only=true => deleted records only
+            # - include_deleted=true => include both deleted + non-deleted
+            # - default => non-deleted only
+            if deleted_only is None:
+                deleted_only = status == "deleted"
+            if include_deleted is None:
+                include_deleted = status == "all"
+            if is_active is None:
+                if status == "active":
+                    is_active = True
+                elif status == "inactive":
+                    is_active = False
+
+            if deleted_only:
+                query["lifecycle.deleted_at"] = {"$ne": None}
+            elif include_deleted:
+                pass
+            else:
+                query["lifecycle.deleted_at"] = None
+
+            if is_active is not None:
+                query["is_active"] = bool(is_active)
 
         docs = list(self.collection.find(query).sort("name", 1))
         return [self.mapper.to_domain(doc) for doc in docs]
