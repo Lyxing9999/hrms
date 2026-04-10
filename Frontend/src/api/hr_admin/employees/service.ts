@@ -45,6 +45,14 @@ export class EmployeeService {
     return data!;
   }
 
+  async getMyEmployee(options?: ApiCallOptions) {
+    const data = await this.callApi<HrEmployeeDTO>(
+      () => this.employeeApi.getMyEmployee(),
+      options,
+    );
+    return data!;
+  }
+
   async getEmployeeAccount(id: string, options?: ApiCallOptions) {
     const data = await this.callApi<HrEmployeeAccountDTO | null>(
       () => this.employeeApi.getEmployeeAccount(id),

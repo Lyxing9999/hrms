@@ -37,6 +37,7 @@ export interface AttendanceDTO {
   early_leave_minutes: number;
 
   wrong_location_reason?: string | null;
+  location_review_status?: string | null;
   late_reason?: string | null;
   early_leave_reason?: string | null;
   early_leave_review_status?: string | null;
@@ -106,6 +107,8 @@ export interface AttendanceTeamListParams {
 export interface WrongLocationReportParams {
   start_date?: string;
   end_date?: string;
+  status?: string;
+  review_status?: string;
   page?: number;
   limit?: number;
 }

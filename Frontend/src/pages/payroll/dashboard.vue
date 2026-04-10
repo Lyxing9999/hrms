@@ -34,42 +34,42 @@ const actions = [
     description: "Start a payroll batch for the current cycle.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
-    color: "#0f766e",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Payroll Runs",
     description: "Inspect generated payroll runs and statuses.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_RUNS,
     icon: TrendCharts,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Payslips",
     description: "Open the employee payslip publishing view.",
     route: ROUTES.PAYROLL_MANAGER.PAYSLIPS,
     icon: Document,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
   {
     title: "Attendance Final",
     description: "Review finalized attendance before pay calculation.",
     route: ROUTES.PAYROLL_MANAGER.ATTENDANCE_FINAL,
     icon: Clock,
-    color: "#7c3aed",
+    color: "var(--chart-7)",
   },
   {
     title: "Approved Overtime",
     description: "Bring approved overtime into payroll calculations.",
     route: ROUTES.PAYROLL_MANAGER.OVERTIME_APPROVED,
     icon: Timer,
-    color: "#16a34a",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Payroll Reports",
     description: "Open payroll summaries and reporting routes.",
     route: ROUTES.PAYROLL_MANAGER.REPORTS_PAYROLL,
     icon: Document,
-    color: "#475569",
+    color: "var(--muted-color)",
   },
 ];
 
@@ -100,7 +100,7 @@ const sections = [
     title="Payroll Workspace"
     description="Prototype landing page for payroll managers. It mirrors the backend payroll pipeline and exposes the core payroll review routes."
     badge="Payroll Prototype"
-    accent="#0f766e"
+    accent="var(--button-success-bg)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

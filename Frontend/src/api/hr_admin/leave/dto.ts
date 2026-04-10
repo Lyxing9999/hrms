@@ -1,5 +1,7 @@
 import type { LifecycleDTO } from "~/api/types/lifecycle.dto";
 
+export type LeaveType = "annual" | "sick" | "unpaid" | "other";
+
 export type LeaveRequestStatus =
   | "pending"
   | "approved"
@@ -12,7 +14,7 @@ export type LeaveRequestStatus =
 export interface LeaveRequestDTO {
   id: string;
   employee_id: string;
-  leave_type: string;
+  leave_type: LeaveType;
   start_date: string;
   end_date: string;
   reason: string;
@@ -31,7 +33,7 @@ export interface LeaveRequestDTO {
  * POST /api/hrms/leave-requests
  */
 export interface LeaveSubmitDTO {
-  leave_type: string;
+  leave_type: LeaveType;
   start_date: string;
   end_date: string;
   reason: string;
@@ -61,6 +63,8 @@ export interface LeaveRejectDTO {
 export interface LeaveRequestListParams {
   employee_id?: string;
   status?: LeaveRequestStatus;
+  start_date?: string;
+  end_date?: string;
   include_deleted?: boolean;
   deleted_only?: boolean;
   page?: number;

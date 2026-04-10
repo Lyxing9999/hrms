@@ -786,7 +786,7 @@ function formatRadius(radiusMeters: number): string {
 <style scoped>
 .work-locations-page {
   padding: 24px;
-  background: #f5f5f5;
+  background: var(--color-bg);
   min-height: 100vh;
 }
 
@@ -796,30 +796,30 @@ function formatRadius(radiusMeters: number): string {
   align-items: flex-start;
   margin-bottom: 24px;
   padding: 24px;
-  background: white;
+  background: var(--color-card);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--card-shadow);
 }
 
 .header-content h1 {
   margin: 0 0 8px 0;
   font-size: 28px;
   font-weight: 600;
-  color: #303133;
+  color: var(--color-dark);
 }
 
 .header-content p {
   margin: 0;
-  color: #606266;
+  color: var(--muted-color);
   font-size: 14px;
 }
 
 .filters-toolbar {
   margin-bottom: 16px;
   padding: 16px;
-  background: white;
+  background: var(--color-card);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--card-shadow);
 }
 
 .meta-strip {
@@ -869,9 +869,9 @@ function formatRadius(radiusMeters: number): string {
 }
 
 .table-container {
-  background: white;
+  background: var(--color-card);
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px var(--card-shadow);
   overflow: hidden;
 }
 
@@ -891,10 +891,10 @@ function formatRadius(radiusMeters: number): string {
 
 .coordinate-text {
   font-size: 12px;
-  background: #f5f7fa;
+  background: color-mix(in srgb, var(--color-card) 94%, var(--color-bg) 6%);
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--border-color);
 }
 
 .table-actions {
@@ -907,7 +907,7 @@ function formatRadius(radiusMeters: number): string {
   padding: 16px;
   display: flex;
   justify-content: center;
-  border-top: 1px solid #ebeef5;
+  border-top: 1px solid var(--border-color);
 }
 
 .dialog-footer {
@@ -918,7 +918,7 @@ function formatRadius(radiusMeters: number): string {
 
 .form-help-text {
   font-size: 12px;
-  color: #909399;
+  color: var(--muted-color);
   margin-top: 4px;
 }
 
@@ -960,8 +960,8 @@ function formatRadius(radiusMeters: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: color-mix(in srgb, var(--color-card) 94%, var(--color-bg) 6%);
   border-radius: 8px;
-  border: 1px solid #e4e7ed;
+  border: 1px solid var(--border-color);
 }
 </style>

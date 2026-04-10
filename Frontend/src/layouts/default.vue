@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 
 import AppSidebar from "~/components/layouts/AppSidebar.vue";
@@ -8,33 +8,71 @@ import AppFooter from "~/components/layouts/AppFooter.vue";
 import schoolLogoLight from "~/assets/image/school-logo-light.jpg";
 
 const route = useRoute();
+const MOBILE_BREAKPOINT = 768;
 
-/**
- * Drawer only for mobile. Desktop sidebar is handled by CSS.
- * This avoids SSR guessing.
- */
+/** Mobile drawer state */
 const sidebarOpen = ref(false);
 
+/** Desktop sidebar collapse state */
+const sidebarCollapsed = ref(false);
+
 function toggleSidebar() {
-  sidebarOpen.value = !sidebarOpen.value;
+  // Toggle mobile drawer
+  if (window.innerWidth < MOBILE_BREAKPOINT) {
+    sidebarOpen.value = !sidebarOpen.value;
+  } else {
+    // Toggle desktop collapse
+    sidebarCollapsed.value = !sidebarCollapsed.value;
+  }
 }
 
 function closeSidebar() {
   sidebarOpen.value = false;
 }
 
+function syncSidebarStateByViewport() {
+  const isMobile = window.innerWidth < MOBILE_BREAKPOINT;
+
+  if (isMobile) {
+    // Keep desktop sidebar expanded when returning from mobile.
+    sidebarCollapsed.value = false;
+  } else {
+    // Ensure mobile drawer is closed on desktop.
+    sidebarOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  syncSidebarStateByViewport();
+  window.addEventListener("resize", syncSidebarStateByViewport, {
+    passive: true,
+  });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", syncSidebarStateByViewport);
+});
+
 /** Close drawer after navigation (mobile) */
 watch(
   () => route.fullPath,
-  () => closeSidebar()
+  () => closeSidebar(),
 );
 </script>
 
 <template>
   <el-container class="app-layout">
     <!-- Desktop aside: CSS handles visibility -->
-    <el-aside width="240px" class="layout-aside hidden md:block">
-      <AppSidebar :logoSrc="schoolLogoLight" @navigate="closeSidebar" />
+    <el-aside
+      width="240px"
+      class="layout-aside hidden md:block"
+      :class="{ 'is-collapsed': sidebarCollapsed }"
+    >
+      <AppSidebar
+        :logoSrc="schoolLogoLight"
+        :collapsed="sidebarCollapsed"
+        @navigate="closeSidebar"
+      />
     </el-aside>
 
     <!-- Mobile drawer: client-only (Element Plus drawer depends on DOM) -->
@@ -79,6 +117,9 @@ watch(
 .layout-aside {
   background: transparent;
   border-right: none;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .layout-header {

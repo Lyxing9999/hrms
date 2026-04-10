@@ -937,8 +937,8 @@ onMounted(async () => {
   border-radius: 14px;
   padding: 14px;
   min-height: 88px;
-  background: var(--el-bg-color-overlay);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  background: var(--color-card);
+  box-shadow: 0 2px 10px var(--card-shadow);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -972,8 +972,8 @@ onMounted(async () => {
 .result-item {
   border: 1px solid var(--el-border-color-light);
   border-radius: 14px;
-  background: var(--el-bg-color-overlay);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  background: var(--color-card);
+  box-shadow: 0 2px 10px var(--card-shadow);
 }
 
 .table-section {

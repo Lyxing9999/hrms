@@ -16,21 +16,21 @@ const actions = [
     description: "Open the payroll generation flow.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
-    color: "#0f766e",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Payslips",
     description: "Inspect employee payslip output.",
     route: ROUTES.PAYROLL_MANAGER.PAYSLIPS,
     icon: Document,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Payroll Reports",
     description: "Open the reporting dashboard.",
     route: ROUTES.PAYROLL_MANAGER.REPORTS_PAYROLL,
     icon: Calendar,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
 ];
 
@@ -48,7 +48,7 @@ const sections = [
     description="Prototype list view for payroll run history and status tracking."
     back-path="/payroll/dashboard"
     badge="Runs"
-    accent="#0f766e"
+    accent="var(--button-success-bg)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

@@ -541,8 +541,12 @@ await fetchLeaveRequests(1, pagination.limit);
 .summary-card {
   border-radius: 16px;
   border: 1px solid
-    color-mix(in srgb, var(--color-primary-light-8) 82%, white 18%);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    color-mix(in srgb, var(--color-primary-light-8) 82%, var(--color-card) 18%);
+  background: linear-gradient(
+    180deg,
+    var(--color-card) 0%,
+    color-mix(in srgb, var(--hover-bg) 28%, var(--color-card) 72%) 100%
+  );
 }
 
 .summary-card__label {
@@ -550,7 +554,7 @@ await fetchLeaveRequests(1, pagination.limit);
   font-size: 12px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #7a7f89;
+  color: var(--muted-color);
 }
 
 .summary-card__value {
@@ -558,14 +562,14 @@ await fetchLeaveRequests(1, pagination.limit);
   font-size: 28px;
   line-height: 1;
   font-weight: 800;
-  color: var(--color-dark);
+  color: var(--text-color);
 }
 
 .leave-card {
   border-radius: 18px;
   border: 1px solid
-    color-mix(in srgb, var(--color-primary-light-8) 82%, white 18%);
-  box-shadow: 0 14px 36px rgba(16, 24, 40, 0.06);
+    color-mix(in srgb, var(--color-primary-light-8) 82%, var(--color-card) 18%);
+  box-shadow: 0 14px 36px var(--card-shadow);
 }
 
 .leave-card__header {
@@ -579,12 +583,12 @@ await fetchLeaveRequests(1, pagination.limit);
   margin: 0;
   font-size: 18px;
   font-weight: 800;
-  color: var(--color-dark);
+  color: var(--text-color);
 }
 
 .leave-card__subtitle {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--muted-color);
   font-size: 13px;
 }
 
@@ -593,7 +597,11 @@ await fetchLeaveRequests(1, pagination.limit);
   align-items: center;
   padding: 6px 12px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-primary-light-8) 70%, white 30%);
+  background: color-mix(
+    in srgb,
+    var(--color-primary-light-8) 70%,
+    var(--color-card) 30%
+  );
   color: var(--color-primary);
   font-size: 12px;
   font-weight: 700;
@@ -618,7 +626,11 @@ await fetchLeaveRequests(1, pagination.limit);
   border-radius: 10px;
   font-size: 11px;
   line-height: 18px;
-  background: color-mix(in srgb, var(--color-primary) 20%, white 80%);
+  background: color-mix(
+    in srgb,
+    var(--color-primary) 20%,
+    var(--color-card) 80%
+  );
 }
 
 .table-shell {
@@ -637,19 +649,19 @@ await fetchLeaveRequests(1, pagination.limit);
 
 .employee-cell__primary {
   font-weight: 700;
-  color: var(--color-dark);
+  color: var(--text-color);
 }
 
 .employee-cell__secondary {
   font-size: 12px;
-  color: #81868f;
+  color: var(--muted-color);
   word-break: break-all;
 }
 
 .reason-cell {
   display: block;
   line-height: 1.5;
-  color: var(--color-dark);
+  color: var(--text-color);
 }
 
 .status-pill {
@@ -658,27 +670,55 @@ await fetchLeaveRequests(1, pagination.limit);
 }
 
 .status-pill--pending {
-  border-color: #e6a23c;
-  color: #b88230;
-  background: #fff8eb;
+  border-color: color-mix(
+    in srgb,
+    var(--button-warning-bg) 55%,
+    var(--border-color) 45%
+  );
+  color: var(--button-warning-bg);
+  background: color-mix(
+    in srgb,
+    var(--button-warning-bg) 18%,
+    var(--color-card) 82%
+  );
 }
 
 .status-pill--approved {
-  border-color: #67c23a;
-  color: #3b8f1d;
-  background: #f1faec;
+  border-color: color-mix(
+    in srgb,
+    var(--button-success-bg) 55%,
+    var(--border-color) 45%
+  );
+  color: var(--button-success-bg);
+  background: color-mix(
+    in srgb,
+    var(--button-success-bg) 18%,
+    var(--color-card) 82%
+  );
 }
 
 .status-pill--rejected {
-  border-color: #f56c6c;
-  color: #c74141;
-  background: #fff2f2;
+  border-color: color-mix(
+    in srgb,
+    var(--button-danger-bg) 55%,
+    var(--border-color) 45%
+  );
+  color: var(--button-danger-bg);
+  background: color-mix(
+    in srgb,
+    var(--button-danger-bg) 18%,
+    var(--color-card) 82%
+  );
 }
 
 .status-pill--cancelled {
-  border-color: #909399;
-  color: #61656d;
-  background: #f5f6f7;
+  border-color: color-mix(
+    in srgb,
+    var(--muted-color) 45%,
+    var(--border-color) 55%
+  );
+  color: var(--muted-color);
+  background: var(--hover-bg);
 }
 
 .pagination-row {
@@ -698,12 +738,12 @@ await fetchLeaveRequests(1, pagination.limit);
   margin: 0;
   font-size: 18px;
   font-weight: 800;
-  color: var(--color-dark);
+  color: var(--text-color);
 }
 
 .detail-head__subtitle {
   margin: 4px 0 0;
-  color: #6b7280;
+  color: var(--muted-color);
   font-size: 13px;
 }
 

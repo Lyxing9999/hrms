@@ -94,22 +94,19 @@ const scheduleWorkingDaysLabel = computed(() => {
 
 const statusBadgeClasses = computed(() => {
   const map: Record<string, string> = {
-    checked_in: "bg-blue-100 text-blue-700 ring-blue-200",
-    checked_out: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-    late: "bg-amber-100 text-amber-700 ring-amber-200",
-    early_leave: "bg-orange-100 text-orange-700 ring-orange-200",
-    absent: "bg-rose-100 text-rose-700 ring-rose-200",
-    holiday_off: "bg-sky-100 text-sky-700 ring-sky-200",
-    weekend_off: "bg-slate-100 text-slate-700 ring-slate-200",
-    wrong_location_pending: "bg-yellow-100 text-yellow-700 ring-yellow-200",
-    wrong_location_approved: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-    wrong_location_rejected: "bg-rose-100 text-rose-700 ring-rose-200",
+    checked_in: "status-badge--info",
+    checked_out: "status-badge--success",
+    late: "status-badge--warning",
+    early_leave: "status-badge--warning",
+    absent: "status-badge--danger",
+    holiday_off: "status-badge--info",
+    weekend_off: "status-badge--neutral",
+    wrong_location_pending: "status-badge--warning",
+    wrong_location_approved: "status-badge--success",
+    wrong_location_rejected: "status-badge--danger",
   };
 
-  return (
-    map[attendance.value?.status ?? ""] ??
-    "bg-gray-100 text-gray-700 ring-gray-200"
-  );
+  return map[attendance.value?.status ?? ""] ?? "status-badge--neutral";
 });
 
 const clockLabel = computed(() =>
@@ -209,7 +206,7 @@ const checkOutGoogleMapsUrl = computed(() => {
 const formatStatusLabel = (status?: string | null) => {
   if (!status) return "Not Checked In";
 
-  const map: Record<AttendanceStatus, string> = {
+  const map: Record<string, string> = {
     checked_in: "Checked In",
     checked_out: "Checked Out",
     late: "Late",
@@ -578,7 +575,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6 pb-10">
+  <div class="attendance-today-page space-y-6 pb-10">
     <OverviewHeader
       :title="'My Attendance'"
       :description="'Check in and check out with GPS verification for accurate attendance records.'"
@@ -596,9 +593,7 @@ onUnmounted(() => {
       </template>
     </OverviewHeader>
 
-    <section
-      class="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-900 to-slate-700 p-5 text-white shadow-sm sm:p-6"
-    >
+    <section class="clock-hero rounded-2xl p-5 sm:p-6">
       <p class="text-xs uppercase tracking-[0.2em] text-slate-300">
         Local Time
       </p>
@@ -628,7 +623,7 @@ onUnmounted(() => {
             </p>
           </div>
           <span
-            class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset"
+            class="status-badge inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset"
             :class="statusBadgeClasses"
           >
             {{ formatStatusLabel(attendance?.status) }}
@@ -1114,3 +1109,165 @@ onUnmounted(() => {
     </el-dialog>
   </div>
 </template>
+
+<style scoped>
+.attendance-today-page {
+  color: var(--text-color);
+}
+
+.clock-hero {
+  border: 1px solid var(--border-color);
+  color: var(--color-light);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-primary) 62%, var(--color-dark)) 0%,
+    color-mix(in srgb, var(--color-primary-light-2) 46%, var(--color-dark)) 100%
+  );
+  box-shadow: 0 10px 24px var(--card-shadow);
+}
+
+.status-badge {
+  border-color: transparent;
+}
+
+.status-badge--success {
+  color: var(--status-success);
+  background: var(--status-success-bg);
+  box-shadow: inset 0 0 0 1px var(--status-success-border);
+}
+
+.status-badge--warning {
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+  box-shadow: inset 0 0 0 1px var(--status-warning-border);
+}
+
+.status-badge--danger {
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+  box-shadow: inset 0 0 0 1px var(--status-danger-border);
+}
+
+.status-badge--info {
+  color: var(--status-info);
+  background: var(--status-info-bg);
+  box-shadow: inset 0 0 0 1px var(--status-info-border);
+}
+
+.status-badge--neutral {
+  color: var(--status-neutral);
+  background: var(--status-neutral-bg);
+  box-shadow: inset 0 0 0 1px var(--status-neutral-border);
+}
+
+.attendance-today-page :deep(.bg-white) {
+  background-color: var(--color-card) !important;
+}
+
+.attendance-today-page :deep(.bg-slate-50) {
+  background-color: var(--hover-bg) !important;
+}
+
+.attendance-today-page :deep(.bg-slate-100) {
+  background-color: color-mix(
+    in srgb,
+    var(--hover-bg) 65%,
+    var(--color-card) 35%
+  ) !important;
+}
+
+.attendance-today-page :deep(.bg-slate-200) {
+  background-color: color-mix(
+    in srgb,
+    var(--muted-color) 18%,
+    var(--color-card) 82%
+  ) !important;
+}
+
+.attendance-today-page :deep(.border-slate-200),
+.attendance-today-page :deep(.border-slate-300),
+.attendance-today-page :deep(.border-dashed) {
+  border-color: var(--border-color) !important;
+}
+
+.attendance-today-page :deep(.text-slate-900),
+.attendance-today-page :deep(.text-slate-800),
+.attendance-today-page :deep(.text-slate-700) {
+  color: var(--text-color) !important;
+}
+
+.attendance-today-page :deep(.text-slate-600),
+.attendance-today-page :deep(.text-slate-500),
+.attendance-today-page :deep(.text-slate-300) {
+  color: var(--muted-color) !important;
+}
+
+.attendance-today-page :deep(.bg-slate-900) {
+  background-color: var(--button-primary-bg) !important;
+}
+
+.attendance-today-page :deep(.hover\:bg-slate-700:hover) {
+  background-color: var(--button-primary-hover-bg) !important;
+}
+
+.attendance-today-page :deep(.bg-emerald-600) {
+  background-color: var(--button-success-bg) !important;
+}
+
+.attendance-today-page :deep(.hover\:bg-emerald-500:hover) {
+  background-color: var(--button-success-hover-bg) !important;
+}
+
+.attendance-today-page :deep(.text-white) {
+  color: var(--button-primary-text) !important;
+}
+
+.attendance-today-page :deep(.text-sky-700) {
+  color: var(--button-info-bg) !important;
+}
+
+.attendance-today-page :deep(.border-rose-200) {
+  border-color: color-mix(
+    in srgb,
+    var(--button-danger-bg) 40%,
+    var(--border-color) 60%
+  ) !important;
+}
+
+.attendance-today-page :deep(.bg-rose-50) {
+  background-color: color-mix(
+    in srgb,
+    var(--button-danger-bg) 10%,
+    var(--color-card) 90%
+  ) !important;
+}
+
+.attendance-today-page :deep(.text-rose-700) {
+  color: var(--button-danger-bg) !important;
+}
+
+.attendance-today-page :deep(.border-amber-200) {
+  border-color: color-mix(
+    in srgb,
+    var(--button-warning-bg) 40%,
+    var(--border-color) 60%
+  ) !important;
+}
+
+.attendance-today-page :deep(.bg-amber-50) {
+  background-color: color-mix(
+    in srgb,
+    var(--button-warning-bg) 12%,
+    var(--color-card) 88%
+  ) !important;
+}
+
+.attendance-today-page :deep(.text-amber-800),
+.attendance-today-page :deep(.text-yellow-800) {
+  color: var(--button-warning-bg) !important;
+}
+
+.attendance-today-page :deep(.text-emerald-700) {
+  color: var(--button-success-bg) !important;
+}
+</style>

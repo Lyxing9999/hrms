@@ -11,6 +11,8 @@ import { LeaveRequestApi } from "./leave/api";
 import { LeaveRequestService } from "./leave/service";
 import { DeductionRuleApi } from "./deduction/api";
 import { DeductionRuleService } from "./deduction/service";
+import { PayrollRunApi } from "./payroll/api";
+import { PayrollRunService } from "./payroll/service";
 let _hrmsAdminService: ReturnType<typeof createHrmsAdminService> | null = null;
 
 function createHrmsAdminService() {
@@ -26,6 +28,7 @@ function createHrmsAdminService() {
     overtimeRequest: new OvertimeRequestApi($api),
     leaveRequest: new LeaveRequestApi($api),
     deductionRule: new DeductionRuleApi($api),
+    payrollRun: new PayrollRunApi($api),
   };
 
   return {
@@ -37,6 +40,7 @@ function createHrmsAdminService() {
     overtimeRequest: new OvertimeRequestService(hrmsApi.overtimeRequest),
     leaveRequest: new LeaveRequestService(hrmsApi.leaveRequest),
     deductionRule: new DeductionRuleService(hrmsApi.deductionRule),
+    payrollRun: new PayrollRunService(hrmsApi.payrollRun),
   };
 }
 

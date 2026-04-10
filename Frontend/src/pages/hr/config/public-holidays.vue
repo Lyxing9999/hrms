@@ -1275,15 +1275,15 @@ watch(filter, async () => {
 
 .holiday-summary-card {
   padding: 16px;
-  background: white;
+  background: var(--color-card);
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px var(--card-shadow);
 }
 
 .holiday-summary-label {
   font-size: 12px;
-  color: #999;
+  color: var(--muted-color);
   margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -1326,11 +1326,11 @@ watch(filter, async () => {
 }
 
 .holiday-table-card {
-  background: white;
+  background: var(--color-card);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 16px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 3px var(--card-shadow);
 }
 
 .holiday-by-date-checker {
@@ -1366,7 +1366,7 @@ watch(filter, async () => {
 }
 
 .holiday-description {
-  color: #666;
+  color: var(--muted-color);
   display: block;
   max-width: 300px;
   overflow: hidden;
@@ -1379,7 +1379,7 @@ watch(filter, async () => {
   line-height: 1.6;
 
   div:first-child {
-    color: #333;
+    color: var(--color-dark);
     font-weight: 500;
   }
 }
@@ -1407,7 +1407,7 @@ watch(filter, async () => {
   margin-bottom: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #333;
+  color: var(--color-dark);
 }
 
 .holiday-form-error {
@@ -1433,7 +1433,7 @@ watch(filter, async () => {
   gap: 12px;
 
   :deep(.el-segmented) {
-    background: white;
+    background: var(--color-card);
     border: 1px solid var(--border-color);
     border-radius: 4px;
   }
@@ -1447,12 +1447,16 @@ watch(filter, async () => {
 // Calendar view
 .holiday-calendar-view {
   animation: fadeIn 0.3s ease-in-out;
-  background: radial-gradient(circle at top right, #f8fbff 0%, transparent 40%),
-    white;
+  background: radial-gradient(
+      circle at top right,
+      color-mix(in srgb, var(--color-primary) 8%, var(--color-card) 92%) 0%,
+      transparent 40%
+    ),
+    var(--color-card);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 10px 30px var(--card-shadow);
 }
 
 .calendar-header {
@@ -1470,7 +1474,7 @@ watch(filter, async () => {
 .calendar-month-year {
   font-size: 24px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-dark);
   flex: 1;
   text-align: center;
   margin: 0;
@@ -1491,10 +1495,10 @@ watch(filter, async () => {
   padding: 10px;
   text-align: center;
   font-weight: 600;
-  color: #666;
+  color: var(--muted-color);
   font-size: 11px;
   text-transform: uppercase;
-  border-bottom: 1px solid #dbe3ef;
+  border-bottom: 1px solid var(--border-color);
   letter-spacing: 0.08em;
 }
 
@@ -1506,7 +1510,7 @@ watch(filter, async () => {
 
 .calendar-day {
   min-height: 110px;
-  border: 1px solid #e4eaf3;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 8px;
   display: flex;
@@ -1514,13 +1518,13 @@ watch(filter, async () => {
   align-items: stretch;
   justify-content: flex-start;
   gap: 6px;
-  background: white;
+  background: var(--color-card);
   transition: all 0.2s ease;
   cursor: default;
 
   &--other-month {
     opacity: 0.3;
-    background: #f5f5f5;
+    background: color-mix(in srgb, var(--color-card) 94%, var(--color-bg) 6%);
   }
 
   &--holiday {
@@ -1531,7 +1535,7 @@ watch(filter, async () => {
 
     &:hover {
       background: color-mix(in srgb, var(--color-primary) 15%, white);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px var(--card-shadow);
       transform: translateY(-2px);
     }
   }
@@ -1551,7 +1555,7 @@ watch(filter, async () => {
 .calendar-day-number {
   font-size: 13px;
   font-weight: 700;
-  color: #333;
+  color: var(--color-dark);
 }
 
 .calendar-day-count {
@@ -1559,7 +1563,7 @@ watch(filter, async () => {
   height: 20px;
   border-radius: 999px;
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-light);
   font-size: 11px;
   display: inline-flex;
   align-items: center;
@@ -1593,8 +1597,8 @@ watch(filter, async () => {
 }
 
 .calendar-more-pill {
-  background: #f2f4f8;
-  color: #5f6b7a;
+  background: color-mix(in srgb, var(--color-card) 88%, var(--color-bg) 12%);
+  color: var(--muted-color);
 }
 
 .calendar-holiday-indicator {
@@ -1615,7 +1619,7 @@ watch(filter, async () => {
   display: flex;
   gap: 24px;
   padding: 16px;
-  background: #f5f5f5;
+  background: color-mix(in srgb, var(--color-card) 94%, var(--color-bg) 6%);
   border-radius: 4px;
 }
 
@@ -1624,7 +1628,7 @@ watch(filter, async () => {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #666;
+  color: var(--muted-color);
 }
 
 .legend-dot {
@@ -1648,7 +1652,7 @@ watch(filter, async () => {
 
 .summary-holiday-card {
   padding: 16px;
-  background: #f9f9f9;
+  background: color-mix(in srgb, var(--color-card) 94%, var(--color-bg) 6%);
   border-left: 3px solid var(--color-primary);
   border-radius: 2px;
   margin-bottom: 16px;
@@ -1669,30 +1673,30 @@ watch(filter, async () => {
 .summary-holiday-name {
   font-size: 16px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-dark);
   flex: 1;
 }
 
 .summary-holiday-kh {
   font-size: 14px;
-  color: #666;
+  color: var(--muted-color);
   margin-bottom: 8px;
   font-weight: 500;
 }
 
 .summary-holiday-description {
   font-size: 13px;
-  color: #666;
+  color: var(--muted-color);
   line-height: 1.5;
   margin-bottom: 12px;
   padding: 8px 0;
-  border-top: 1px solid #e0e0e0;
-  border-bottom: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .summary-holiday-info {
   font-size: 12px;
-  color: #999;
+  color: var(--muted-color);
   margin-bottom: 12px;
 }
 
@@ -1708,19 +1712,19 @@ watch(filter, async () => {
 
 .info-label {
   font-weight: 600;
-  color: #666;
+  color: var(--muted-color);
   min-width: 60px;
 }
 
 .info-value {
-  color: #333;
+  color: var(--color-dark);
 }
 
 .summary-holiday-actions {
   display: flex;
   gap: 12px;
   padding-top: 12px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-color);
 }
 
 .import-summary-content {
@@ -1736,48 +1740,64 @@ watch(filter, async () => {
 }
 
 .import-summary-card {
-  border: 1px solid #e7ecf3;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 14px;
-  background: #fafcff;
+  background: color-mix(in srgb, var(--color-card) 96%, var(--color-bg) 4%);
 }
 
 .import-summary-card.success {
-  background: #f3fff7;
-  border-color: #b6efcc;
+  background: color-mix(
+    in srgb,
+    var(--button-success-bg) 8%,
+    var(--color-card) 92%
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--button-success-bg) 25%,
+    var(--border-color) 75%
+  );
 }
 
 .import-summary-card.warning {
-  background: #fffaf0;
-  border-color: #ffe1a8;
+  background: color-mix(
+    in srgb,
+    var(--button-warning-bg) 10%,
+    var(--color-card) 90%
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--button-warning-bg) 25%,
+    var(--border-color) 75%
+  );
 }
 
 .import-summary-label {
   font-size: 12px;
-  color: #64748b;
+  color: var(--muted-color);
 }
 
 .import-summary-value {
   margin-top: 6px;
   font-size: 24px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--color-dark);
 }
 
 .import-list-block {
-  border: 1px solid #e7ecf3;
+  border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 12px;
 }
 
 .import-list-block.skipped {
-  background: #fffdfa;
+  background: color-mix(in srgb, var(--color-card) 96%, var(--color-bg) 4%);
 }
 
 .import-list-title {
   font-size: 13px;
   font-weight: 600;
-  color: #334155;
+  color: var(--color-dark);
   margin-bottom: 10px;
 }
 
@@ -1803,20 +1823,20 @@ watch(filter, async () => {
 }
 
 .import-list-item .name {
-  color: #0f172a;
+  color: var(--color-dark);
   font-weight: 500;
 }
 
 .import-list-item .date {
-  color: #64748b;
+  color: var(--muted-color);
 }
 
 .skip-date-chip {
   padding: 4px 8px;
-  background: #f1f5f9;
+  background: color-mix(in srgb, var(--color-card) 88%, var(--color-bg) 12%);
   border-radius: 999px;
   font-size: 12px;
-  color: #475569;
+  color: var(--muted-color);
 }
 
 @keyframes fadeIn {

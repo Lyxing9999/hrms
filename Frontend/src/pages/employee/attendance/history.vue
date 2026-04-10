@@ -22,22 +22,21 @@ import OverviewHeader from "~/components/overview/OverviewHeader.vue";
 import BaseButton from "~/components/base/BaseButton.vue";
 import { hrmsAdminService } from "~/api/hr_admin";
 import type {
-  OvertimeRequestDTO,
-  OvertimeRequestListParams,
-  OvertimeRequestStatus,
-} from "~/api/hr_admin/overtime/dto";
+  AttendanceDTO,
+  AttendanceListParams,
+  AttendanceStatus,
+} from "~/api/hr_admin/attendance";
 import { ROUTES } from "~/constants/routes";
 
 definePageMeta({ layout: "default" });
 
-const overtimeService = hrmsAdminService().overtimeRequest;
-const router = useRouter();
+const attendanceService = hrmsAdminService().attendance;
 
 const loading = ref(false);
-const rows = ref<OvertimeRequestDTO[]>([]);
+const rows = ref<AttendanceDTO[]>([]);
 
 const detailDialogVisible = ref(false);
-const activeRow = ref<OvertimeRequestDTO | null>(null);
+const activeRow = ref<AttendanceDTO | null>(null);
 
 const pagination = reactive({
   page: 1,
@@ -46,7 +45,7 @@ const pagination = reactive({
 });
 
 const filters = reactive<{
-  status: OvertimeRequestStatus | "";
+  status: AttendanceStatus | "";
   start_date: string;
   end_date: string;
 }>({
@@ -55,40 +54,47 @@ const filters = reactive<{
   end_date: "",
 });
 
-const hasFilters = computed(() =>
-  Boolean(filters.status || filters.start_date || filters.end_date),
-);
-
-const summary = computed(() => {
+const statusSummary = computed(() => {
   const map = rows.value.reduce<Record<string, number>>((acc, row) => {
     const key = String(row.status || "unknown").toLowerCase();
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
 
-  return [
-    {
-      label: "Total Records",
-      value: pagination.total,
-      hint: "Total overtime requests in history",
-    },
-    {
-      label: "Pending",
-      value: map.pending || 0,
-      hint: "Requests waiting for review",
-    },
-    {
-      label: "Approved",
-      value: map.approved || 0,
-      hint: "Approved overtime requests",
-    },
-    {
-      label: "Rejected",
-      value: map.rejected || 0,
-      hint: "Rejected overtime requests",
-    },
-  ];
+  return {
+    checked_in: map.checked_in || 0,
+    checked_out: map.checked_out || 0,
+    late: map.late || 0,
+    absent: map.absent || 0,
+  };
 });
+
+const statCards = computed(() => [
+  {
+    label: "Total Records",
+    value: pagination.total,
+    hint: "Total rows from attendance history",
+  },
+  {
+    label: "Checked Out",
+    value: statusSummary.value.checked_out,
+    hint: "Attendance days completed",
+  },
+  {
+    label: "Late",
+    value: statusSummary.value.late,
+    hint: "Days with late check-in",
+  },
+  {
+    label: "Absent",
+    value: statusSummary.value.absent,
+    hint: "Days marked absent",
+  },
+]);
+
+const hasFilters = computed(() =>
+  Boolean(filters.status || filters.start_date || filters.end_date),
+);
 
 const paginationProps = computed(() => ({
   currentPage: pagination.page,
@@ -136,56 +142,39 @@ function formatDateTime(value?: string | null): string {
   });
 }
 
-function formatTime(value?: string | null): string {
-  if (!value) return "-";
-
-  if (/^\d{2}:\d{2}(:\d{2})?$/.test(value)) {
-    return value.slice(0, 5);
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  return date.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatMoney(value?: number | null): string {
-  const amount = Number(value ?? 0);
-  if (!Number.isFinite(amount)) return "-";
-
-  return amount.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function estimateHours(row: OvertimeRequestDTO): number {
-  if (Number.isFinite(Number(row.approved_hours)) && row.approved_hours > 0) {
-    return Number(row.approved_hours.toFixed(2));
-  }
-
-  const start = new Date(row.start_time);
-  const end = new Date(row.end_time);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-
-  const hours = (end.getTime() - start.getTime()) / 3_600_000;
-  return hours > 0 ? Number(hours.toFixed(2)) : 0;
-}
-
 function statusTagType(
   status?: string | null,
-): "warning" | "success" | "danger" | "info" {
-  const map: Record<string, "warning" | "success" | "danger" | "info"> = {
-    pending: "warning",
-    approved: "success",
-    rejected: "danger",
-    cancelled: "info",
+): "success" | "warning" | "danger" | "info" {
+  const key = String(status || "").toLowerCase();
+  if (key === "checked_out" || key === "wrong_location_approved")
+    return "success";
+  if (
+    key === "checked_in" ||
+    key === "late" ||
+    key === "wrong_location_pending"
+  )
+    return "warning";
+  if (key === "absent" || key === "wrong_location_rejected") return "danger";
+  return "info";
+}
+
+function statusLabel(status?: string | null): string {
+  if (!status) return "-";
+
+  const map: Record<string, string> = {
+    checked_in: "Checked In",
+    checked_out: "Checked Out",
+    late: "Late",
+    early_leave: "Early Leave",
+    absent: "Absent",
+    holiday_off: "Holiday Off",
+    weekend_off: "Weekend Off",
+    wrong_location_pending: "Wrong Location Pending",
+    wrong_location_approved: "Wrong Location Approved",
+    wrong_location_rejected: "Wrong Location Rejected",
   };
 
-  return map[String(status || "").toLowerCase()] || "info";
+  return map[String(status).toLowerCase()] || String(status);
 }
 
 function dayTypeLabel(dayType?: string | null): string {
@@ -195,13 +184,13 @@ function dayTypeLabel(dayType?: string | null): string {
     public_holiday: "Public Holiday",
   };
 
-  return map[String(dayType || "").toLowerCase()] || "Unknown";
+  return map[String(dayType || "").toLowerCase()] || "-";
 }
 
 function buildParams(
   page = pagination.page,
   limit = pagination.limit,
-): OvertimeRequestListParams {
+): AttendanceListParams {
   return {
     page,
     limit,
@@ -215,16 +204,18 @@ async function fetchHistory(page = pagination.page, limit = pagination.limit) {
   loading.value = true;
 
   try {
-    const response = await overtimeService.getMyRequests(
+    const response = await attendanceService.getMyAttendance(
       buildParams(page, limit),
     );
 
     rows.value = response.items ?? [];
-    pagination.total = response.total ?? rows.value.length;
-    pagination.page = response.page ?? page;
-    pagination.limit = response.limit ?? limit;
+
+    const paginationRes = response.pagination;
+    pagination.total = paginationRes?.total ?? rows.value.length;
+    pagination.page = paginationRes?.page ?? page;
+    pagination.limit = paginationRes?.page_size ?? limit;
   } catch {
-    ElMessage.error("Failed to load overtime history");
+    ElMessage.error("Failed to load attendance history");
   } finally {
     loading.value = false;
   }
@@ -254,7 +245,7 @@ async function handlePageSizeChange(size: number) {
   await fetchHistory(1, size);
 }
 
-function openDetail(row: OvertimeRequestDTO) {
+function openDetail(row: AttendanceDTO) {
   activeRow.value = row;
   detailDialogVisible.value = true;
 }
@@ -264,7 +255,7 @@ function closeDetail() {
   activeRow.value = null;
 }
 
-function refreshHistory() {
+function refreshList() {
   void fetchHistory(pagination.page, pagination.limit);
 }
 
@@ -272,30 +263,22 @@ await fetchHistory(1, pagination.limit);
 </script>
 
 <template>
-  <div class="employee-overtime-history-page">
+  <div class="attendance-history-page">
     <OverviewHeader
-      title="Overtime History"
-      description="My overtime requests from /api/hrms/overtime-requests/my"
+      title="Attendance History"
+      description="My attendance records from /api/hrms/attendance/me"
       :backPath="ROUTES.EMPLOYEE.DASHBOARD"
     >
       <template #actions>
-        <BaseButton plain :loading="loading" @click="refreshHistory">
+        <BaseButton plain :loading="loading" @click="refreshList">
           Refresh
-        </BaseButton>
-
-        <BaseButton
-          plain
-          :disabled="loading"
-          @click="router.push(ROUTES.EMPLOYEE.OVERTIME_REQUEST)"
-        >
-          Request Overtime
         </BaseButton>
       </template>
     </OverviewHeader>
 
     <el-row :gutter="16" class="summary-row">
       <el-col
-        v-for="item in summary"
+        v-for="item in statCards"
         :key="item.label"
         :xs="24"
         :sm="12"
@@ -313,9 +296,9 @@ await fetchHistory(1, pagination.limit);
       <template #header>
         <div class="history-card__header">
           <div>
-            <h2 class="history-card__title">My Requests</h2>
+            <h2 class="history-card__title">History Table</h2>
             <p class="history-card__subtitle">
-              Filter by status and period to review your overtime history.
+              Filter by status and date range, then browse paginated records.
             </p>
           </div>
 
@@ -331,10 +314,23 @@ await fetchHistory(1, pagination.limit);
             class="w-full"
             placeholder="Status"
           >
-            <ElOption label="Pending" value="pending" />
-            <ElOption label="Approved" value="approved" />
-            <ElOption label="Rejected" value="rejected" />
-            <ElOption label="Cancelled" value="cancelled" />
+            <ElOption label="Checked In" value="checked_in" />
+            <ElOption label="Checked Out" value="checked_out" />
+            <ElOption label="Late" value="late" />
+            <ElOption label="Early Leave" value="early_leave" />
+            <ElOption label="Absent" value="absent" />
+            <ElOption
+              label="Wrong Location Pending"
+              value="wrong_location_pending"
+            />
+            <ElOption
+              label="Wrong Location Approved"
+              value="wrong_location_approved"
+            />
+            <ElOption
+              label="Wrong Location Rejected"
+              value="wrong_location_rejected"
+            />
           </ElSelect>
         </el-col>
 
@@ -377,76 +373,59 @@ await fetchHistory(1, pagination.limit);
       <div class="table-shell" v-loading="loading">
         <ElEmpty
           v-if="!loading && rows.length === 0"
-          description="No overtime requests found"
+          description="No attendance history found"
         />
 
         <ElTable v-else :data="rows" stripe class="history-table">
-          <ElTableColumn label="Request Date" min-width="130">
+          <ElTableColumn label="Date" width="130">
             <template #default="{ row }">
-              {{ formatDate(row.request_date) }}
+              {{ formatDate(row.attendance_date) }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn label="Time Range" min-width="170">
+          <ElTableColumn label="Check In" min-width="170">
             <template #default="{ row }">
-              {{ formatTime(row.start_time) }} - {{ formatTime(row.end_time) }}
+              {{ formatDateTime(row.check_in_time) }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn label="Hours" width="110" align="right">
+          <ElTableColumn label="Check Out" min-width="170">
             <template #default="{ row }">
-              {{ estimateHours(row).toFixed(2) }}h
+              {{ formatDateTime(row.check_out_time) }}
             </template>
           </ElTableColumn>
 
-          <ElTableColumn label="Day Type" min-width="150">
+          <ElTableColumn label="Day Type" width="150">
             <template #default="{ row }">
-              <ElTag effect="plain" round size="small">
-                {{ dayTypeLabel(row.day_type) }}
+              {{ dayTypeLabel(row.day_type) }}
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn label="Late (min)" width="110" align="right">
+            <template #default="{ row }">
+              {{ row.late_minutes ?? 0 }}
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn label="Early Leave (min)" width="140" align="right">
+            <template #default="{ row }">
+              {{ row.early_leave_minutes ?? 0 }}
+            </template>
+          </ElTableColumn>
+
+          <ElTableColumn label="Status" width="190">
+            <template #default="{ row }">
+              <ElTag :type="statusTagType(row.status)" effect="plain" round>
+                {{ statusLabel(row.status) }}
               </ElTag>
-            </template>
-          </ElTableColumn>
-
-          <ElTableColumn label="Reason" min-width="260">
-            <template #default="{ row }">
-              {{ row.reason }}
-            </template>
-          </ElTableColumn>
-
-          <ElTableColumn label="Status" width="130">
-            <template #default="{ row }">
-              <ElTag
-                :type="statusTagType(row.status)"
-                effect="plain"
-                round
-                size="small"
-              >
-                {{
-                  String(row.status || "-")
-                    .charAt(0)
-                    .toUpperCase() + String(row.status || "-").slice(1)
-                }}
-              </ElTag>
-            </template>
-          </ElTableColumn>
-
-          <ElTableColumn label="Manager Comment" min-width="220">
-            <template #default="{ row }">
-              {{ row.manager_comment || "-" }}
-            </template>
-          </ElTableColumn>
-
-          <ElTableColumn label="Submitted" min-width="170">
-            <template #default="{ row }">
-              {{ formatDateTime(row.submitted_at) }}
             </template>
           </ElTableColumn>
 
           <ElTableColumn
             label="Actions"
             width="100"
-            align="center"
             fixed="right"
+            align="center"
           >
             <template #default="{ row }">
               <ElButton
@@ -478,53 +457,65 @@ await fetchHistory(1, pagination.limit);
 
     <ElDialog
       v-model="detailDialogVisible"
-      title="Overtime Request Detail"
-      width="760px"
+      title="Attendance Detail"
+      width="780px"
       @close="closeDetail"
     >
       <template v-if="activeRow">
         <ElDescriptions :column="2" border>
-          <ElDescriptionsItem label="Request ID">
+          <ElDescriptionsItem label="Attendance ID">
             {{ activeRow.id }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Request Date">
-            {{ formatDate(activeRow.request_date) }}
+          <ElDescriptionsItem label="Employee ID">
+            {{ activeRow.employee_id }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Start Time">
-            {{ formatDateTime(activeRow.start_time) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="End Time">
-            {{ formatDateTime(activeRow.end_time) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="Schedule End Time">
-            {{ formatDateTime(activeRow.schedule_end_time) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="Submitted At">
-            {{ formatDateTime(activeRow.submitted_at) }}
+          <ElDescriptionsItem label="Date">
+            {{ formatDate(activeRow.attendance_date) }}
           </ElDescriptionsItem>
           <ElDescriptionsItem label="Status">
-            {{ String(activeRow.status || "-").toUpperCase() }}
+            {{ statusLabel(activeRow.status) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Check In Time">
+            {{ formatDateTime(activeRow.check_in_time) }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Check Out Time">
+            {{ formatDateTime(activeRow.check_out_time) }}
           </ElDescriptionsItem>
           <ElDescriptionsItem label="Day Type">
             {{ dayTypeLabel(activeRow.day_type) }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Approved Hours">
-            {{ Number(activeRow.approved_hours || 0).toFixed(2) }}
+          <ElDescriptionsItem label="OT Eligible">
+            {{ activeRow.is_ot_eligible ? "Yes" : "No" }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Calculated Payment">
-            {{ formatMoney(activeRow.calculated_payment) }}
+          <ElDescriptionsItem label="Late Minutes">
+            {{ activeRow.late_minutes ?? 0 }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Basic Salary">
-            {{ formatMoney(activeRow.basic_salary) }}
+          <ElDescriptionsItem label="Early Leave Minutes">
+            {{ activeRow.early_leave_minutes ?? 0 }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Manager ID">
-            {{ activeRow.manager_id || "-" }}
+          <ElDescriptionsItem label="Check-In Latitude">
+            {{ activeRow.check_in_latitude ?? "-" }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Reason" :span="2">
-            {{ activeRow.reason }}
+          <ElDescriptionsItem label="Check-In Longitude">
+            {{ activeRow.check_in_longitude ?? "-" }}
           </ElDescriptionsItem>
-          <ElDescriptionsItem label="Manager Comment" :span="2">
-            {{ activeRow.manager_comment || "-" }}
+          <ElDescriptionsItem label="Check-Out Latitude">
+            {{ activeRow.check_out_latitude ?? "-" }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Check-Out Longitude">
+            {{ activeRow.check_out_longitude ?? "-" }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Notes" :span="2">
+            {{ activeRow.notes || "-" }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Wrong Location Reason" :span="2">
+            {{ activeRow.wrong_location_reason || "-" }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Late Reason" :span="2">
+            {{ activeRow.late_reason || "-" }}
+          </ElDescriptionsItem>
+          <ElDescriptionsItem label="Early Leave Reason" :span="2">
+            {{ activeRow.early_leave_reason || "-" }}
           </ElDescriptionsItem>
         </ElDescriptions>
       </template>
@@ -537,7 +528,7 @@ await fetchHistory(1, pagination.limit);
 </template>
 
 <style scoped>
-.employee-overtime-history-page {
+.attendance-history-page {
   padding: 20px;
   max-width: 1520px;
   margin: 0 auto;

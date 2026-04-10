@@ -14,28 +14,28 @@ const configModules = ref([
     description: "Configure working hours and days",
     icon: Clock,
     route: ROUTES.HR_ADMIN.WORKING_SCHEDULES,
-    color: "#409EFF",
+    color: "var(--el-color-primary)",
   },
   {
     title: "Work Locations",
     description: "Manage approved work locations",
     icon: Location,
     route: ROUTES.HR_ADMIN.WORK_LOCATIONS,
-    color: "#67C23A",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Public Holidays",
     description: "Khmer calendar and holidays",
     icon: Calendar,
     route: ROUTES.HR_ADMIN.PUBLIC_HOLIDAYS,
-    color: "#E6A23C",
+    color: "var(--button-warning-bg)",
   },
   {
     title: "Deduction Rules",
     description: "Late and absence deduction policies",
     icon: Coin,
     route: ROUTES.HR_ADMIN.DEDUCTION_RULES,
-    color: "#F56C6C",
+    color: "var(--button-danger-bg)",
   },
 ]);
 </script>
@@ -67,7 +67,7 @@ const configModules = ref([
               class="icon-wrapper mb-4"
               :style="{ backgroundColor: module.color }"
             >
-              <el-icon :size="32" color="#fff">
+              <el-icon :size="32" color="var(--color-light)">
                 <component :is="module.icon" />
               </el-icon>
             </div>
@@ -101,6 +101,6 @@ const configModules = ref([
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px var(--card-shadow);
 }
 </style>

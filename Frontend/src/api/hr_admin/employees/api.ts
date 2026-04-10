@@ -5,6 +5,7 @@ import type {
   HrUpdateEmployeeDTO,
   HrGetEmployeesWithAccountsResponse,
   HrGetEmployeeResponse,
+  HrGetMyEmployeeResponse,
   HrCreateEmployeeResponse,
   HrUpdateEmployeeResponse,
   HrGetEmployeeAccountResponse,
@@ -46,6 +47,13 @@ export class EmployeeApi {
   async getEmployee(id: string) {
     const res = await this.$api.get<HrGetEmployeeResponse>(
       `${this.baseURL}/${id}`,
+    );
+    return res.data;
+  }
+
+  async getMyEmployee() {
+    const res = await this.$api.get<HrGetMyEmployeeResponse>(
+      `${this.baseURL}/me`,
     );
     return res.data;
   }

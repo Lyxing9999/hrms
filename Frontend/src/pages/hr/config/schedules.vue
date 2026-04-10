@@ -749,7 +749,7 @@ watch(
                   :key="day.value"
                   :checked="form.working_days.includes(day.value)"
                   @change="
-                    (checked) => {
+                    (checked: boolean) => {
                       form.working_days = checked
                         ? [...form.working_days, day.value].sort(
                             (a, b) => a - b,
@@ -879,10 +879,10 @@ watch(
   border-radius: 18px;
   background: linear-gradient(
       135deg,
-      rgba(12, 74, 110, 0.06),
-      rgba(14, 116, 144, 0.12)
+      color-mix(in srgb, var(--el-color-primary) 6%, transparent),
+      color-mix(in srgb, var(--button-success-bg) 10%, transparent)
     ),
-    #fff;
+    var(--color-card);
 }
 
 .schedule-summary-label {
@@ -912,7 +912,7 @@ watch(
   padding: 8px;
   border: 1px solid var(--el-border-color-light);
   border-radius: 20px;
-  background: #fff;
+  background: var(--color-card);
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -956,16 +956,20 @@ watch(
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 18px;
   padding: 18px;
-  background: #fff;
+  background: var(--color-card);
 }
 
 .schedule-preview-panel {
   background: radial-gradient(
       circle at top right,
-      rgba(245, 158, 11, 0.12),
+      color-mix(in srgb, var(--button-warning-bg) 12%, transparent),
       transparent 42%
     ),
-    linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(255, 255, 255, 1));
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--button-warning-bg) 10%, var(--color-card) 90%),
+      var(--color-card)
+    );
 }
 
 .schedule-preview-title {

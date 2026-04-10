@@ -16,21 +16,21 @@ const actions = [
     description: "Continue to payroll generation.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
-    color: "#0f766e",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Payroll Runs",
     description: "Inspect the current payroll batch list.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_RUNS,
     icon: Document,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Attendance Final",
     description: "Cross-check the source attendance data.",
     route: ROUTES.PAYROLL_MANAGER.ATTENDANCE_FINAL,
     icon: Calendar,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
 ];
 
@@ -48,7 +48,7 @@ const sections = [
     description="Prototype page for overtime items that are approved and ready for payroll inclusion."
     back-path="/payroll/dashboard"
     badge="Approved OT"
-    accent="#d97706"
+    accent="var(--button-warning-bg)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

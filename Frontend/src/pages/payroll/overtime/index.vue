@@ -317,7 +317,7 @@ const handleDateRangeChange = async () => {
 
 .subtitle {
   margin: 4px 0 0 0;
-  color: #606266;
+  color: var(--muted-color);
   font-size: 14px;
 }
 
@@ -329,24 +329,24 @@ const handleDateRangeChange = async () => {
 }
 
 .summary-card {
-  background: white;
+  background: var(--color-card);
 }
 
 .card-header {
   font-weight: 600;
-  color: #303133;
+  color: var(--color-dark);
   font-size: 14px;
 }
 
 .card-value {
   font-size: 28px;
   font-weight: bold;
-  color: #303133;
+  color: var(--color-dark);
   margin-top: 10px;
 }
 
 .card-value.currency {
-  color: #67c23a;
+  color: var(--button-success-bg);
 }
 
 .requests-card {
@@ -386,7 +386,7 @@ const handleDateRangeChange = async () => {
   justify-content: space-between;
   align-items: center;
   padding: 8px 0;
-  border-bottom: 1px solid #ebeef5;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .detail-row:last-child {
@@ -395,10 +395,10 @@ const handleDateRangeChange = async () => {
 
 .label {
   font-weight: 600;
-  color: #606266;
+  color: var(--muted-color);
 }
 
 .value {
-  color: #303133;
+  color: var(--color-dark);
 }
 </style>

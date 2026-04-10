@@ -109,6 +109,7 @@ export interface HrEmployeeWithAccountSummaryPaginatedDTO {
 export type HrGetEmployeesWithAccountsResponse =
   ApiResponse<HrEmployeeWithAccountSummaryPaginatedDTO>;
 export type HrGetEmployeeResponse = ApiResponse<HrEmployeeDTO>;
+export type HrGetMyEmployeeResponse = ApiResponse<HrEmployeeDTO>;
 export type HrCreateEmployeeResponse = ApiResponse<HrEmployeeDTO>;
 export type HrUpdateEmployeeResponse = ApiResponse<HrEmployeeDTO>;
 export type HrGetEmployeeAccountResponse =

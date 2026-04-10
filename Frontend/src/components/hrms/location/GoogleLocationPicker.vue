@@ -116,9 +116,15 @@ const initMap = async () => {
     map: map.value,
     center: center.value,
     radius: props.radiusMeters,
-    fillColor: "#409eff",
+    fillColor:
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--color-primary")
+        .trim() || "#FF6BB0",
     fillOpacity: 0.18,
-    strokeColor: "#409eff",
+    strokeColor:
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--color-primary")
+        .trim() || "#FF6BB0",
     strokeOpacity: 0.8,
     strokeWeight: 1,
   });

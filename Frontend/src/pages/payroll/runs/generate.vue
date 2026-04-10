@@ -20,21 +20,21 @@ const actions = [
     description: "Go back to the payroll run list.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_RUNS,
     icon: Document,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Final Attendance",
     description: "Check the final attendance source.",
     route: ROUTES.PAYROLL_MANAGER.ATTENDANCE_FINAL,
     icon: Calendar,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
   {
     title: "Approved OT",
     description: "Inspect overtime approvals for payroll.",
     route: ROUTES.PAYROLL_MANAGER.OVERTIME_APPROVED,
     icon: Money,
-    color: "#16a34a",
+    color: "var(--button-success-bg)",
   },
 ];
 
@@ -57,7 +57,7 @@ const sections = [
     description="Prototype payroll generation page for the payroll manager role."
     back-path="/payroll/runs"
     badge="Generate"
-    accent="#0f766e"
+    accent="var(--button-success-bg)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

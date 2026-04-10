@@ -16,21 +16,21 @@ const actions = [
     description: "Return to the run history view.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_RUNS,
     icon: Calendar,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Generate Payroll",
     description: "Start or regenerate a payroll batch.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Document,
-    color: "#0f766e",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Employee Payslips",
     description: "Open the employee-facing payslip view.",
     route: ROUTES.EMPLOYEE.PAYSLIPS,
     icon: Document,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
 ];
 
@@ -53,7 +53,7 @@ const sections = [
     description="Prototype payslip publishing page for payroll managers."
     back-path="/payroll/dashboard"
     badge="Payslips"
-    accent="#2563eb"
+    accent="var(--chart-6)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

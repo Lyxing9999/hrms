@@ -20,21 +20,21 @@ const actions = [
     description: "Return to payroll run history.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_RUNS,
     icon: Document,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Generate Payroll",
     description: "Open the payroll generation page.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
-    color: "#0f766e",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Approved OT",
     description: "Review overtime included in payroll.",
     route: ROUTES.PAYROLL_MANAGER.OVERTIME_APPROVED,
     icon: Calendar,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
 ];
 
@@ -52,7 +52,7 @@ const sections = [
     description="Prototype payroll reporting hub for month-end review and summary analysis."
     back-path="/payroll/dashboard"
     badge="Reports"
-    accent="#2563eb"
+    accent="var(--chart-6)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

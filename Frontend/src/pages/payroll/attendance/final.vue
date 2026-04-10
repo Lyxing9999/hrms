@@ -24,21 +24,21 @@ const actions = [
     description: "Proceed to the payroll generation flow.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_GENERATE,
     icon: Money,
-    color: "#0f766e",
+    color: "var(--button-success-bg)",
   },
   {
     title: "Payroll Runs",
     description: "Inspect existing payroll batches.",
     route: ROUTES.PAYROLL_MANAGER.PAYROLL_RUNS,
     icon: Document,
-    color: "#2563eb",
+    color: "var(--chart-6)",
   },
   {
     title: "Approved OT",
     description: "Review overtime included in payroll.",
     route: ROUTES.PAYROLL_MANAGER.OVERTIME_APPROVED,
     icon: Calendar,
-    color: "#d97706",
+    color: "var(--button-warning-bg)",
   },
 ];
 
@@ -61,7 +61,7 @@ const sections = [
     description="Prototype final attendance page used by payroll to finalize the monthly batch."
     back-path="/payroll/dashboard"
     badge="Attendance"
-    accent="#0f766e"
+    accent="var(--button-success-bg)"
     :stats="stats"
     :actions="actions"
     :sections="sections"

@@ -43,7 +43,7 @@ const props = withDefaults(
   {
     backPath: "",
     badge: "Prototype",
-    accent: "#3b82f6",
+    accent: "var(--color-primary)",
     stats: () => [],
     actions: () => [],
     sections: () => [],
@@ -130,7 +130,7 @@ function goTo(route: string) {
                 class="action-icon"
                 :style="{ backgroundColor: action.color || 'var(--accent)' }"
               >
-                <el-icon :size="26" color="#fff">
+                <el-icon :size="26" color="var(--color-light)">
                   <component :is="action.icon" />
                 </el-icon>
               </div>
@@ -182,11 +182,7 @@ function goTo(route: string) {
       color-mix(in srgb, var(--accent) 18%, transparent),
       transparent 32%
     ),
-    linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.82),
-      rgba(255, 255, 255, 0.95)
-    );
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), var(--color-light));
 }
 
 .hero-card,
@@ -194,18 +190,19 @@ function goTo(route: string) {
 .action-card,
 .detail-card {
   border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--accent) 15%, #dbe3ef 85%);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid
+    color-mix(in srgb, var(--accent) 15%, var(--input-border) 85%);
+  box-shadow: 0 18px 40px var(--card-shadow);
 }
 
 .hero-card {
   padding: 24px;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 88%, #0f172a 12%),
-    #0f172a
+    color-mix(in srgb, var(--accent) 88%, var(--color-bg) 12%),
+    var(--color-bg)
   );
-  color: #fff;
+  color: var(--color-light);
 }
 
 .hero-top {
@@ -235,7 +232,7 @@ function goTo(route: string) {
 .back-button {
   border: 0;
   background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  color: var(--color-light);
 }
 
 .hero-meta {
@@ -273,18 +270,18 @@ function goTo(route: string) {
 .stat-value {
   font-size: 30px;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--color-dark);
 }
 
 .stat-label {
   margin-top: 4px;
   font-weight: 650;
-  color: #334155;
+  color: var(--muted-color);
 }
 
 .stat-hint {
   margin-top: 8px;
-  color: #64748b;
+  color: var(--muted-color);
   font-size: 13px;
 }
 
@@ -299,11 +296,11 @@ function goTo(route: string) {
 .section-header h2 {
   margin: 0;
   font-size: 18px;
-  color: #0f172a;
+  color: var(--color-dark);
 }
 
 .section-header span {
-  color: #64748b;
+  color: var(--muted-color);
   font-size: 13px;
 }
 
@@ -323,7 +320,8 @@ function goTo(route: string) {
 
 .action-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 24px 44px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 24px 44px
+    color-mix(in srgb, var(--card-shadow) 1.75, transparent);
 }
 
 .action-row {
@@ -346,7 +344,7 @@ function goTo(route: string) {
 .action-copy h3 {
   margin: 0;
   font-size: 16px;
-  color: #0f172a;
+  color: var(--color-dark);
 }
 
 .action-head {
@@ -358,13 +356,13 @@ function goTo(route: string) {
 
 .action-copy p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--muted-color);
   font-size: 13px;
   line-height: 1.55;
 }
 
 .action-chevron {
-  color: #94a3b8;
+  color: var(--muted-color);
 }
 
 .section-grid {
@@ -382,7 +380,7 @@ function goTo(route: string) {
   padding-left: 18px;
   display: grid;
   gap: 10px;
-  color: #334155;
+  color: var(--color-dark);
 }
 
 @media (max-width: 768px) {

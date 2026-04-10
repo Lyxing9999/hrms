@@ -30,6 +30,7 @@
 @import "./element-plus/el-message.css";
 @import "./element-plus/el-missing-coverage.css";
 @import "./dashboard.css";
+@import "./theme/menu-scroll.css";
 
 /* =========================================================
    0) BASE TOKENS (ALWAYS AVAILABLE)
@@ -150,6 +151,34 @@ html[data-theme="light"] {
 
   --hover-bg: rgba(255, 82, 161, 0.06);
   --active-bg: rgba(255, 82, 161, 0.10);
+
+  /* Semantic surfaces */
+  --surface-soft: var(--hover-bg);
+  --surface-strong: var(--active-bg);
+
+  /* Semantic status colors */
+  --status-success: var(--button-success-bg);
+  --status-warning: var(--button-warning-bg);
+  --status-danger: var(--button-danger-bg);
+  --status-info: var(--button-info-bg);
+  --status-neutral: var(--muted-color);
+
+  --status-success-bg: color-mix(in srgb, var(--status-success) 16%, var(--color-card) 84%);
+  --status-warning-bg: color-mix(in srgb, var(--status-warning) 18%, var(--color-card) 82%);
+  --status-danger-bg: color-mix(in srgb, var(--status-danger) 16%, var(--color-card) 84%);
+  --status-info-bg: color-mix(in srgb, var(--status-info) 16%, var(--color-card) 84%);
+  --status-neutral-bg: var(--surface-soft);
+
+  --status-success-border: color-mix(in srgb, var(--status-success) 45%, var(--border-color) 55%);
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 45%, var(--border-color) 55%);
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 45%, var(--border-color) 55%);
+  --status-info-border: color-mix(in srgb, var(--status-info) 45%, var(--border-color) 55%);
+  --status-neutral-border: var(--border-color);
+
+  /* Chart specific colors */
+  --chart-label-color: #73737f;
+  --chart-border-color: #ffffff;
+  --chart-tooltip-bg: rgba(15, 23, 42, 0.92);
 
   /* Element Plus sync */
   --el-color-primary: var(--color-primary);
@@ -321,6 +350,34 @@ html[data-theme="dark"] {
   --hover-bg: rgba(255, 255, 255, 0.06);
   --active-bg: rgba(255, 255, 255, 0.10);
 
+  /* Semantic surfaces */
+  --surface-soft: var(--hover-bg);
+  --surface-strong: var(--active-bg);
+
+  /* Semantic status colors */
+  --status-success: var(--button-success-bg);
+  --status-warning: var(--button-warning-bg);
+  --status-danger: var(--button-danger-bg);
+  --status-info: var(--button-info-bg);
+  --status-neutral: var(--muted-color);
+
+  --status-success-bg: color-mix(in srgb, var(--status-success) 16%, var(--color-card) 84%);
+  --status-warning-bg: color-mix(in srgb, var(--status-warning) 18%, var(--color-card) 82%);
+  --status-danger-bg: color-mix(in srgb, var(--status-danger) 16%, var(--color-card) 84%);
+  --status-info-bg: color-mix(in srgb, var(--status-info) 16%, var(--color-card) 84%);
+  --status-neutral-bg: var(--surface-soft);
+
+  --status-success-border: color-mix(in srgb, var(--status-success) 45%, var(--border-color) 55%);
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 45%, var(--border-color) 55%);
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 45%, var(--border-color) 55%);
+  --status-info-border: color-mix(in srgb, var(--status-info) 45%, var(--border-color) 55%);
+  --status-neutral-border: var(--border-color);
+
+  /* Chart specific colors */
+  --chart-label-color: #9ca3af;
+  --chart-border-color: #1f2937;
+  --chart-tooltip-bg: rgba(2, 6, 23, 0.95);
+
   /* Element Plus sync */
   --el-color-primary: var(--color-primary);
   --el-color-primary-light-3: var(--color-primary-light-5);
@@ -468,6 +525,19 @@ body {
 .el-drawer,
 .el-card {
   font-family: var(--el-font-family);
+}
+
+.el-card {
+  --el-card-border-color: var(--border-color);
+  --el-card-bg-color: var(--color-card);
+  border-color: var(--border-color);
+  background-color: var(--color-card);
+  box-shadow: 0 10px 24px var(--card-shadow);
+}
+
+.el-card.is-hover-shadow:hover,
+.el-card.is-always-shadow {
+  box-shadow: 0 14px 32px var(--card-shadow);
 }
 
 
