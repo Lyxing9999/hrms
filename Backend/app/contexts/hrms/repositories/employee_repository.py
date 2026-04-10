@@ -3,6 +3,7 @@ from __future__ import annotations
 from bson import ObjectId
 from pymongo.database import Database
 
+from app.contexts.hrms.errors.employee_exceptions import EmployeeNotFoundException
 from app.contexts.shared.model_converter import mongo_converter
 from pymongo import ReturnDocument
 
@@ -36,14 +37,14 @@ class MongoEmployeeRepository:
             "lifecycle.deleted_at": None,
         })
         if not doc:
-            raise ValueError("Employee not found")
+            raise EmployeeNotFoundException(str(employee_id))
         return doc
 
     def find_by_id_including_deleted(self, employee_id) -> dict:
         employee_id = self._oid(employee_id) if not isinstance(employee_id, ObjectId) else employee_id
         doc = self.collection.find_one({"_id": employee_id})
         if not doc:
-            raise ValueError("Employee not found")
+            raise EmployeeNotFoundException(str(employee_id))
         return doc
 
     def find_by_user_id(self, user_id) -> dict | None:

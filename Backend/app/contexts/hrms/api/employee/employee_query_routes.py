@@ -91,11 +91,12 @@ def get_employee_account(employee_id: str):
 
 
 @employee_query_bp.route("/employees/me", methods=["GET"], strict_slashes=False)
+@employee_query_bp.route("/employee/me", methods=["GET"], strict_slashes=False)
 @login_required(allowed_roles=["employee", "manager", "payroll_manager", "hr_admin"])
 @wrap_response
 def get_my_employee_profile():
     user_id = get_current_user_id()
-    employee = g.hrms.employee.me(user_id=user_id)
+    employee = g.hrms.employee.get_my_profile(user_id=user_id)
     return mapper.to_dto(employee)
 
 

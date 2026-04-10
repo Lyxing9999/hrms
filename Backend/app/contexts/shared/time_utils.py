@@ -44,6 +44,17 @@ def ensure_utc(dt: datetime | date | str | None) -> datetime | None:
     return dt.astimezone(timezone.utc)
 
 
+def ensure_utc_from_db(dt: datetime | None) -> datetime | None:
+    """Use this for datetimes read from MongoDB.
+    MongoDB stores and returns naive UTC datetimes — treat them as UTC, not Cambodia time.
+    """
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def to_cambodia(dt: datetime | date | str | None) -> datetime | None:
     dt = _coerce_datetime(dt)
     if dt is None:
@@ -56,3 +67,16 @@ def to_cambodia(dt: datetime | date | str | None) -> datetime | None:
 def cambodia_start_of_day_as_utc(dt: datetime) -> datetime:
     dt_kh = to_cambodia(dt)
     return dt_kh.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+
+
+def coerce_date(value: datetime | date | str | None) -> date | None:
+    if value is None:
+        return None
+
+    if isinstance(value, date) and not isinstance(value, datetime):
+        return value
+
+    dt = to_cambodia(value)
+    if dt is None:
+        return None
+    return dt.date()

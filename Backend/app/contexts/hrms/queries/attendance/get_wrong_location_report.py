@@ -10,12 +10,12 @@ class GetWrongLocationReportQuery:
         page_size: int = 10,
         start_date=None,
         end_date=None,
-        status: str | None = None,
+        review_status: str | None = None,
     ):
         return self.attendance_read_model.list_wrong_location_cases(
             start_date=start_date,
             end_date=end_date,
-            status=status,
+            review_status=review_status,
             page=page,
             limit=page_size,
         )

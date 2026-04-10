@@ -32,16 +32,16 @@ class ApproveWrongLocationUseCase:
         if not attendance:
             raise AttendanceNotFoundException(attendance_id)
 
-        current_status = (
-            attendance.status.value
-            if hasattr(attendance.status, "value")
-            else str(attendance.status)
+        current_review_status = (
+            attendance.location_review_status.value
+            if hasattr(attendance.location_review_status, "value")
+            else str(attendance.location_review_status)
         )
 
-        if current_status != "wrong_location_pending":
+        if current_review_status != "pending":
             raise AttendanceWrongLocationReviewStateException(
                 attendance_id=attendance_id,
-                current_status=current_status,
+                current_status=current_review_status,
             )
 
         if location_id is not None:
@@ -52,11 +52,6 @@ class ApproveWrongLocationUseCase:
                 admin_id=admin_id,
                 comment=comment,
             )
-
-            if int(attendance.late_minutes or 0) > 0:
-                attendance.status = "late"
-            else:
-                attendance.status = "checked_in"
 
             action = "attendance_wrong_location_approved"
         else:
@@ -76,6 +71,16 @@ class ApproveWrongLocationUseCase:
                 "approved": approved,
                 "comment": comment,
                 "location_id": location_id,
+                "status": (
+                    updated.status.value
+                    if hasattr(updated.status, "value")
+                    else str(updated.status)
+                ),
+                "location_review_status": (
+                    updated.location_review_status.value
+                    if hasattr(updated.location_review_status, "value")
+                    else str(updated.location_review_status)
+                ),
                 "attendance_date": (
                     updated.attendance_date.isoformat()
                     if updated.attendance_date

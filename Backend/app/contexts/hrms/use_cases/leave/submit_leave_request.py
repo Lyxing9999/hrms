@@ -10,6 +10,7 @@ from app.contexts.hrms.errors.leave_exceptions import (
     LeaveOutsideContractException,
     LeaveOverlapExistsException,
 )
+from app.contexts.shared.time_utils import coerce_date
 
 
 class SubmitLeaveRequestUseCase:
@@ -36,8 +37,8 @@ class SubmitLeaveRequestUseCase:
         employment_type = str(employee.get("employment_type") or "").strip().lower()
         contract = employee.get("contract") or {}
 
-        contract_start = contract.get("start_date")
-        contract_end = contract.get("end_date")
+        contract_start = coerce_date(contract.get("start_date"))
+        contract_end = coerce_date(contract.get("end_date"))
 
         if employment_type == "contract":
             if not contract_start or not contract_end:

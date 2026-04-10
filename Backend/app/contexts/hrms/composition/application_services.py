@@ -464,6 +464,7 @@ class HrmsApplicationServices:
             list=self.list_employees.execute,
             list_with_accounts=self.list_employees_with_accounts.execute,
             get=self.get_employee.execute,
+            me=self.get_my_employee_profile.execute,
             get_my_profile=self.get_my_employee_profile.execute,
             link_account=self.link_employee_account.execute,
             list_accounts=self.list_employee_accounts.execute,

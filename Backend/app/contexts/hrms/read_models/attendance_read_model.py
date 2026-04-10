@@ -150,13 +150,18 @@ class AttendanceReadModel:
         *,
         start_date=None,
         end_date=None,
-        status: str | None = None,
+        review_status: str | None = None,
         page: int = 1,
         limit: int = 10,
     ):
         query = {
             "lifecycle.deleted_at": None,
             "$or": [
+                {"location_review_status": {"$in": [
+                    "pending",
+                    "approved",
+                    "rejected",
+                ]}},
                 {"status": {"$in": [
                     "wrong_location_pending",
                     "wrong_location_approved",
@@ -166,8 +171,17 @@ class AttendanceReadModel:
             ],
         }
 
-        if status:
-            query["status"] = status
+        if review_status:
+            normalized_review_status = review_status.strip().lower()
+            legacy_map = {
+                "wrong_location_pending": "pending",
+                "wrong_location_approved": "approved",
+                "wrong_location_rejected": "rejected",
+            }
+            query["location_review_status"] = legacy_map.get(
+                normalized_review_status,
+                normalized_review_status,
+            )
 
         if start_date or end_date:
             query["check_in_time"] = {}

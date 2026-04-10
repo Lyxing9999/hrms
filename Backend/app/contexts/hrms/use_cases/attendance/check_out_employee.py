@@ -113,6 +113,11 @@ class CheckOutEmployeeUseCase:
                     if hasattr(attendance.early_leave_review_status, "value")
                     else str(attendance.early_leave_review_status)
                 ),
+                "location_review_status": (
+                    attendance.location_review_status.value
+                    if hasattr(attendance.location_review_status, "value")
+                    else str(attendance.location_review_status)
+                ),
                 "attendance_date": attendance.attendance_date.isoformat() if attendance.attendance_date else None,
                 "check_out_time": attendance.check_out_time.isoformat() if attendance.check_out_time else None,
                 "check_out_latitude": attendance.check_out_latitude,

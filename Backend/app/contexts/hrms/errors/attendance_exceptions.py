@@ -103,7 +103,7 @@ class AttendanceWrongLocationReviewStateException(AppBaseException):
                 "attendance_id": str(attendance_id),
                 "current_status": current_status,
             },
-            hint="Only attendance in 'wrong_location_pending' state can be reviewed.",
+            hint="Only attendance with location_review_status='pending' can be reviewed.",
             recoverable=True,
         )
 

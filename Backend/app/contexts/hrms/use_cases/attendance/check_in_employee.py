@@ -137,6 +137,7 @@ class CheckInEmployeeUseCase:
             late_minutes=0,
             early_leave_minutes=0,
             wrong_location_reason=None,
+            location_review_status="not_required",
             late_reason=None,
             early_leave_reason=None,
             early_leave_review_status="not_required",
@@ -175,6 +176,11 @@ class CheckInEmployeeUseCase:
                 "is_ot_eligible": attendance.is_ot_eligible,
                 "late_minutes": attendance.late_minutes,
                 "late_reason": attendance.late_reason,
+                "location_review_status": (
+                    attendance.location_review_status.value
+                    if hasattr(attendance.location_review_status, "value")
+                    else str(attendance.location_review_status)
+                ),
                 "attendance_date": attendance.attendance_date.isoformat() if attendance.attendance_date else None,
                 "check_in_time": attendance.check_in_time.isoformat() if attendance.check_in_time else None,
             },

@@ -13,6 +13,7 @@ from app.contexts.hrms.errors.leave_exceptions import (
     LeaveRejectionStateInvalidException,
 )
 from app.contexts.shared.lifecycle.domain import Lifecycle, now_utc
+from app.contexts.shared.time_utils import coerce_date
 
 
 class LeaveType(str, Enum):
@@ -62,11 +63,11 @@ class LeaveRequest:
         self.id = id or ObjectId()
         self.employee_id = employee_id
         self.leave_type = self._normalize_leave_type(leave_type)
-        self.start_date = start_date
-        self.end_date = end_date
+        self.start_date = coerce_date(start_date)
+        self.end_date = coerce_date(end_date)
         self.reason = (reason or "").strip()
-        self.contract_start = contract_start
-        self.contract_end = contract_end
+        self.contract_start = coerce_date(contract_start)
+        self.contract_end = coerce_date(contract_end)
         self.is_paid = bool(is_paid)
         self.status = self._normalize_status(status)
         self.manager_user_id = manager_user_id

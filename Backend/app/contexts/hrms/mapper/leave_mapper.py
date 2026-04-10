@@ -7,7 +7,7 @@ from app.contexts.hrms.data_transfer.response.leave_response import LeaveRequest
 from app.contexts.shared.lifecycle.domain import Lifecycle
 from app.contexts.shared.lifecycle.dto import LifecycleDTO
 from app.contexts.shared.model_converter import mongo_converter
-from datetime import date
+from app.contexts.shared.time_utils import coerce_date
 
 class LeaveMapper:
     @staticmethod
@@ -39,15 +39,15 @@ class LeaveMapper:
             deleted_by=lc_src.get("deleted_by") or data.get("deleted_by"),
         )
 
-        raw_start_date = data.get("start_date")
-        raw_end_date = data.get("end_date")
-        raw_contract_start = data.get("contract_start")
-        raw_contract_end = data.get("contract_end")
+        start_date = coerce_date(data.get("start_date"))
+        end_date = coerce_date(data.get("end_date"))
+        contract_start = coerce_date(data.get("contract_start"))
+        contract_end = coerce_date(data.get("contract_end"))
 
-        start_date = date.fromisoformat(raw_start_date) if isinstance(raw_start_date, str) else raw_start_date
-        end_date = date.fromisoformat(raw_end_date) if isinstance(raw_end_date, str) else raw_end_date
-        contract_start = date.fromisoformat(raw_contract_start) if isinstance(raw_contract_start, str) else raw_contract_start
-        contract_end = date.fromisoformat(raw_contract_end) if isinstance(raw_contract_end, str) else raw_contract_end
+        if contract_start is None:
+            contract_start = start_date
+        if contract_end is None:
+            contract_end = end_date
 
         return LeaveRequest(
             id=LeaveMapper._oid(data.get("_id") or data.get("id")),

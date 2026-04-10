@@ -32,6 +32,7 @@ class AttendanceDTO(BaseModel):
     early_leave_minutes: int = 0
 
     wrong_location_reason: str | None = None
+    location_review_status: str | None = None
     late_reason: str | None = None
     early_leave_reason: str | None = None
     early_leave_review_status: str | None = None

@@ -23,6 +23,7 @@ class AttendanceStatus(str, Enum):
     ABSENT = "absent"
     HOLIDAY_OFF = "holiday_off"
     WEEKEND_OFF = "weekend_off"
+    MISSING_CHECK_OUT = "missing_check_out"
     WRONG_LOCATION_PENDING = "wrong_location_pending"
     WRONG_LOCATION_APPROVED = "wrong_location_approved"
     WRONG_LOCATION_REJECTED = "wrong_location_rejected"
@@ -76,6 +77,7 @@ class Attendance:
         late_minutes: int = 0,
         early_leave_minutes: int = 0,
         wrong_location_reason: str | None = None,
+        location_review_status: ReviewStatus | str = ReviewStatus.NOT_REQUIRED,
         late_reason: str | None = None,
         early_leave_reason: str | None = None,
         early_leave_review_status: ReviewStatus | str = ReviewStatus.NOT_REQUIRED,
@@ -103,6 +105,11 @@ class Attendance:
         self.late_minutes = int(late_minutes)
         self.early_leave_minutes = int(early_leave_minutes)
         self.wrong_location_reason = (wrong_location_reason or "").strip() or None
+        self.location_review_status = self._enum_value(
+            location_review_status,
+            ReviewStatus,
+            ReviewStatus.NOT_REQUIRED,
+        )
         self.late_reason = (late_reason or "").strip() or None
         self.early_leave_reason = (early_leave_reason or "").strip() or None
         self.early_leave_review_status = self._enum_value(
@@ -110,6 +117,18 @@ class Attendance:
             ReviewStatus,
             ReviewStatus.NOT_REQUIRED,
         )
+
+        # Backward compatibility for older records that encoded review state in status.
+        if self.status == AttendanceStatus.WRONG_LOCATION_PENDING:
+            self.status = AttendanceStatus.CHECKED_IN
+            self.location_review_status = ReviewStatus.PENDING
+        elif self.status == AttendanceStatus.WRONG_LOCATION_APPROVED:
+            self.status = AttendanceStatus.CHECKED_IN
+            self.location_review_status = ReviewStatus.APPROVED
+        elif self.status == AttendanceStatus.WRONG_LOCATION_REJECTED:
+            self.status = AttendanceStatus.CHECKED_IN
+            self.location_review_status = ReviewStatus.REJECTED
+
         self.admin_comment = (admin_comment or "").strip() or None
         self.location_reviewed_by = location_reviewed_by
         self.early_leave_reviewed_by = early_leave_reviewed_by
@@ -143,10 +162,12 @@ class Attendance:
         self.check_in_latitude = latitude
         self.check_in_longitude = longitude
 
+        self.status = AttendanceStatus.CHECKED_IN
         if is_valid_location:
-            self.status = AttendanceStatus.CHECKED_IN
+            self.location_review_status = ReviewStatus.NOT_REQUIRED
+            self.wrong_location_reason = None
         else:
-            self.status = AttendanceStatus.WRONG_LOCATION_PENDING
+            self.location_review_status = ReviewStatus.PENDING
             self.wrong_location_reason = (reason or "").strip() or None
 
         self.lifecycle.touch(now_utc())
@@ -174,9 +195,7 @@ class Attendance:
         self.early_leave_minutes = int(early_leave_minutes)
         self.early_leave_reason = (early_leave_reason or "").strip() or None
 
-        if self.status == AttendanceStatus.WRONG_LOCATION_PENDING:
-            pass
-        elif early_leave_minutes > 0:
+        if early_leave_minutes > 0:
             self.status = AttendanceStatus.EARLY_LEAVE
             self.early_leave_review_status = (
                 ReviewStatus.PENDING if require_early_leave_review else ReviewStatus.NOT_REQUIRED
@@ -192,38 +211,36 @@ class Attendance:
         if late_minutes < 0:
             raise InvalidLateMinutesException(late_minutes)
         self.late_minutes = int(late_minutes)
-        if self.status not in {
-            AttendanceStatus.WRONG_LOCATION_PENDING,
-            AttendanceStatus.WRONG_LOCATION_APPROVED,
-            AttendanceStatus.WRONG_LOCATION_REJECTED,
-        } and late_minutes > 0:
+        if late_minutes > 0:
             self.status = AttendanceStatus.LATE
         self.lifecycle.touch(now_utc())
 
     def approve_wrong_location(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
-        if self.status != AttendanceStatus.WRONG_LOCATION_PENDING:
+        if self.location_review_status != ReviewStatus.PENDING:
             raise AttendanceWrongLocationReviewStateException(
                 attendance_id=self.id,
-                current_status=self.status.value if hasattr(self.status, "value") else str(self.status),
+                current_status=(
+                    self.location_review_status.value
+                    if hasattr(self.location_review_status, "value")
+                    else str(self.location_review_status)
+                ),
             )
-        self.status = AttendanceStatus.WRONG_LOCATION_APPROVED
-        self.location_reviewed_by = admin_id
-        self.admin_comment = (comment or "").strip() or None
-        self.lifecycle.touch(now_utc())
-
-        
-        self.status = AttendanceStatus.WRONG_LOCATION_APPROVED
+        self.location_review_status = ReviewStatus.APPROVED
         self.location_reviewed_by = admin_id
         self.admin_comment = (comment or "").strip() or None
         self.lifecycle.touch(now_utc())
 
     def reject_wrong_location(self, *, admin_id: ObjectId, comment: str | None = None) -> None:
-        if self.status != AttendanceStatus.WRONG_LOCATION_PENDING:
+        if self.location_review_status != ReviewStatus.PENDING:
             raise AttendanceWrongLocationReviewStateException(
                 attendance_id=self.id,
-                current_status=str(self.status),
+                current_status=(
+                    self.location_review_status.value
+                    if hasattr(self.location_review_status, "value")
+                    else str(self.location_review_status)
+                ),
             )
-        self.status = AttendanceStatus.WRONG_LOCATION_REJECTED
+        self.location_review_status = ReviewStatus.REJECTED
         self.location_reviewed_by = admin_id
         self.admin_comment = (comment or "").strip() or None
         self.lifecycle.touch(now_utc())

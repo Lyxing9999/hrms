@@ -25,7 +25,7 @@ from app.contexts.iam.auth.refresh_utils import (
     REFRESH_TTL,
 )
 
-from app.contexts.shared.time_utils import ensure_utc
+from app.contexts.shared.time_utils import ensure_utc, ensure_utc_from_db
 
 iam_bp = Blueprint("iam_bp", __name__)
 
@@ -82,8 +82,8 @@ def refresh_access_token():
     if doc.get("revoked_at") is not None:
         return jsonify({"msg": "Refresh token revoked"}), 401
 
-    # Ensure timezone-aware comparison
-    expires_at = ensure_utc(doc["expires_at"]) if doc.get("expires_at") else None
+    # Ensure timezone-aware comparison — MongoDB returns naive UTC datetimes
+    expires_at = ensure_utc_from_db(doc.get("expires_at"))
     if expires_at and expires_at < now_utc():
         return jsonify({"msg": "Refresh token expired"}), 401
 

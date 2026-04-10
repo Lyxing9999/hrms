@@ -171,6 +171,11 @@ class PayrollCalculator:
 
         for attendance in attendances:
             status = attendance.status.value if hasattr(attendance.status, "value") else str(attendance.status)
+            location_review_status = (
+                attendance.location_review_status.value
+                if hasattr(attendance.location_review_status, "value")
+                else str(attendance.location_review_status)
+            )
 
             if status == AttendanceStatus.HOLIDAY_OFF.value:
                 continue
@@ -182,7 +187,7 @@ class PayrollCalculator:
                 total += daily_salary
                 continue
 
-            if status == AttendanceStatus.WRONG_LOCATION_REJECTED.value:
+            if location_review_status == "rejected" or status == AttendanceStatus.WRONG_LOCATION_REJECTED.value:
                 total += daily_salary
                 continue
 
