@@ -7,25 +7,30 @@ on:
 
 jobs:
   deploy:
+    name: Deploy via SSH
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Deploy to EC2 via SSH
+      - name: Execute Deployment Script on EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ secrets.EC2_HOST }} # ដាក់ IP របស់ EC2
-          username: ${{ secrets.EC2_USERNAME }} # ជាទូទៅគឺ ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }} # Private Key (.pem) របស់អ្នក
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # ចូលទៅកាន់ Folder គម្រោងរបស់អ្នកលើ EC2
-            cd /home/ubuntu/school-management-system/backend
+            # Navigate to the backend directory
+            cd /home/ubuntu/hrms/backend
 
-            # ទាញកូដថ្មីពី GitHub
-            git pull origin main
+            # Pull the latest changes from the main branch
+            git fetch origin main
+            git reset --hard origin/main
 
-            # បញ្ឈប់ និង Build Docker Container ឡើងវិញ
-            docker-compose down
-            docker-compose up -d --build
+            # Stop and remove existing containers, then build and start new ones
+            docker compose down
+            docker compose up -d --build
+
+            # Clean up unused Docker images to free up space
+            docker image prune -f
