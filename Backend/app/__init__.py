@@ -291,7 +291,7 @@ def create_app():
         get_swaggerui_blueprint(
             "/api/docs",
             "/api/docs/openapi.yaml",
-            config={"app_name": "School Management System"},
+            config={"app_name": "HRMS API Documentation"},
         ),
         url_prefix="/api/docs",
     )
@@ -303,5 +303,20 @@ def create_app():
     # Indexes (run inside app context)
     with app.app_context():
         ensure_indexes(get_db())
+
+
+    @app.route('/health', methods=['GET'])
+    @limiter.exempt  # Exempt from rate limiting to allow easy health checks
+    def health_check():
+        return jsonify({
+            "status": "healthy",
+            "project": "HRMS Backend (Clean Architecture)",
+            "request_id": getattr(g, "request_id", ""),
+            "database": "connected"
+        }), 200
+
+
+
+
 
     return app
