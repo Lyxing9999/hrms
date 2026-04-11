@@ -21,16 +21,17 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Navigate to the backend directory
-            cd /home/ubuntu/hrms/backend
+            # 1. go to the project directory
+            cd /home/ubuntu/hrms
 
-            # Pull the latest changes from the main branch
+            # 2. update the codebase
             git fetch origin main
             git reset --hard origin/main
 
-            # Stop and remove existing containers, then build and start new ones
-            docker compose down
-            docker compose up -d --build
+            # 3. rebuild and restart the backend service
+            docker compose stop backend
+            docker compose rm -f backend
+            docker compose up -d --build backend
 
-            # Clean up unused Docker images to free up space
+            # 4. clean up unused Docker images
             docker image prune -f
