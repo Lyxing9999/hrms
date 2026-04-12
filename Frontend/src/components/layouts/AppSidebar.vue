@@ -634,6 +634,7 @@ function handleSelect() {
 }
 </script>
 
+<!-- Sidebar is now always visible on all screens. Mobile navigation is handled by this sidebar. -->
 <template>
   <aside class="app-aside" :class="{ 'is-collapsed': !!collapsed }">
     <div class="logo-section">
@@ -707,47 +708,15 @@ function handleSelect() {
 </template>
 
 <style scoped>
-.app-aside {
-  background: var(--app-surface);
-  border-right: 1px solid var(--app-border);
-  color: var(--app-text);
-}
-
-:deep(.el-menu) {
-  background: transparent;
-  border-right: 0;
-}
-
-:deep(.el-menu-item),
-:deep(.el-sub-menu__title) {
-  color: var(--app-text);
-}
-
-:deep(.el-menu-item.is-active) {
-  background: var(--app-active-bg);
-  color: var(--app-primary);
-  border-radius: 12px;
-}
-
-:deep(.el-menu-item .el-icon),
-:deep(.el-sub-menu__title .el-icon) {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--app-primary) 12%, transparent);
-  color: color-mix(in srgb, var(--app-primary) 70%, var(--app-text));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-:deep(.el-menu-item.is-active .el-icon) {
-  background: color-mix(in srgb, var(--app-primary) 22%, transparent);
-  color: var(--app-primary);
-}
+/* sidebar.scss (imported globally via nuxt.config) owns all .app-aside
+   and .app-menu rules using the real design tokens.
+   This block only adds what sidebar.scss does not cover. */
 
 .menu-skeleton .skeleton-item {
-  background: color-mix(in srgb, var(--app-muted) 25%, transparent);
+  background: color-mix(in srgb, var(--muted-color) 25%, transparent);
+  height: 36px;
+  border-radius: 9999px;
+  margin: 6px 0;
 }
 
 .menu-badge {

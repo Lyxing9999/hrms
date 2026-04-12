@@ -22,6 +22,7 @@ import { Role } from "~/api/types/enums/role.enum";
 import { ROUTES } from "~/constants/routes";
 import { usePreferencesStore } from "~/stores/preferencesStore";
 
+const props = defineProps<{ sidebarCollapsed?: boolean }>();
 const emit = defineEmits<{ (e: "toggle-sidebar"): void }>();
 
 const authStore = useAuthStore();
@@ -36,7 +37,7 @@ const { notifAutoRefresh } = storeToRefs(prefs);
 const { isDark, toggle } = useTheme();
 
 const displayName = computed(
-  () => authStore.user?.username || (authStore.isReady ? "User" : "Loading...")
+  () => authStore.user?.username || (authStore.isReady ? "User" : "Loading..."),
 );
 
 const settingsRoute = computed(() => {
@@ -107,21 +108,25 @@ watch(
     if (v) startPolling();
     else stopPolling();
   },
-  { immediate: false }
+  { immediate: false },
 );
 </script>
 
 <template>
   <div class="header-inner">
     <div class="header-left">
+      <!-- Desktop: collapse/expand sidebar button -->
       <el-button
         type="text"
-        class="icon-button mobile-toggle"
+        class="icon-button sidebar-toggle"
         aria-label="Toggle sidebar"
         @click="emit('toggle-sidebar')"
       >
         <el-icon><Menu /></el-icon>
+        <span v-if="props.sidebarCollapsed" class="toggle-label">Expand</span>
+        <span v-else class="toggle-label">Collapse</span>
       </el-button>
+      <!-- Mobile: no toggle, sidebar always visible -->
     </div>
 
     <div class="header-center" />

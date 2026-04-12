@@ -82,9 +82,14 @@
     min-width: 260px;
 }
 
-/* header icon buttons */
+/* header icon buttons — no border, no shadow */
 .icon-button {
     color: var(--text-color);
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+    padding: 6px !important;
 }
 
 .user-name {

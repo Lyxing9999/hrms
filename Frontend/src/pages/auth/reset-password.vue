@@ -75,8 +75,8 @@ const submit = async () => {
   <Transition name="fade-slide" appear>
     <div class="auth-shell">
       <div class="auth-card">
-        <div class="mb-5">
-          <img :src="schoolLogo" alt="Logo" class="auth-logo" />
+        <div class="auth-logo-wrap">
+          <img :src="schoolLogo" alt="HRM Logo" class="auth-logo" />
         </div>
 
         <div class="mb-4 text-center">
@@ -190,11 +190,18 @@ const submit = async () => {
   color: var(--text-color, #e5e7eb);
 }
 
+.auth-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
 .auth-logo {
   display: block;
-  width: 72%;
-  max-width: 260px;
-  margin: 0 auto;
+  width: 175px;
+  height: auto;
+  border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.20);
 }
 
 .auth-primary-btn {

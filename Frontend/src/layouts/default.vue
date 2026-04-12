@@ -62,11 +62,12 @@ watch(
 
 <template>
   <el-container class="app-layout">
-    <!-- Desktop aside: CSS handles visibility -->
+    <!-- Sidebar: desktop only -->
     <el-aside
+      v-if="!sidebarCollapsed"
       width="240px"
-      class="layout-aside hidden md:block"
-      :class="{ 'is-collapsed': sidebarCollapsed }"
+      class="layout-aside desktop-only"
+      tabindex="0"
     >
       <AppSidebar
         :logoSrc="schoolLogoLight"
@@ -75,27 +76,33 @@ watch(
       />
     </el-aside>
 
-    <!-- Mobile drawer: client-only (Element Plus drawer depends on DOM) -->
-    <ClientOnly>
-      <el-drawer
-        v-model="sidebarOpen"
-        direction="ltr"
-        size="260px"
-        :with-header="false"
-        append-to-body
-        lock-scroll
-        destroy-on-close
-        class="mobile-sidebar-drawer md:hidden"
-        @closed="sidebarOpen = false"
-      >
-        <AppSidebar :logoSrc="schoolLogoLight" @navigate="closeSidebar" />
-      </el-drawer>
-    </ClientOnly>
+    <!-- Mobile drawer popup -->
+    <el-drawer
+      v-model="sidebarOpen"
+      direction="ltr"
+      size="240px"
+      :with-header="false"
+      class="mobile-sidebar-drawer mobile-only"
+      @close="closeSidebar"
+    >
+      <AppSidebar
+        :logoSrc="schoolLogoLight"
+        :collapsed="false"
+        @navigate="closeSidebar"
+      />
+    </el-drawer>
 
     <!-- Main -->
-    <el-container direction="vertical" class="layout-main-container">
+    <el-container
+      direction="vertical"
+      :class="['layout-main-container', { 'sidebar-hidden': sidebarCollapsed }]"
+    >
+      <!-- Header can be hidden per-page using route.meta.noHeader -->
       <el-header v-if="!route.meta.noHeader" class="layout-header">
-        <AppHeader @toggle-sidebar="toggleSidebar" />
+        <AppHeader
+          :sidebar-collapsed="sidebarCollapsed"
+          @toggle-sidebar="toggleSidebar"
+        />
       </el-header>
 
       <el-main :key="route.fullPath" class="layout-main">
@@ -110,53 +117,67 @@ watch(
 </template>
 
 <style scoped>
-.app-layout {
-  min-height: 100vh;
-}
+/* ── layout.css handles background/border/padding via tokens ──
+   This block only owns: positioning, animation, mobile state */
 
 .layout-aside {
-  background: transparent;
-  border-right: none;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  width: 240px;
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s;
 }
 
-.layout-header {
-  padding: 0;
-  background: var(--header-bg);
-  border-bottom: 1px solid var(--header-border);
+/* Auto-hide on collapse (desktop) */
+.layout-aside:not(:hover):not(:focus-within).is-collapsed {
+  transform: translateX(-220px);
+  opacity: 0.1;
+  pointer-events: none;
 }
 
-.layout-main {
-  padding: 16px;
-  background: var(--color-bg);
-  flex: 1 1 auto;
-  overflow: auto;
+/* Desktop-only / mobile-only utilities */
+.desktop-only { display: block; }
+.mobile-only  { display: none; }
+
+@media (max-width: 768px) {
+  .layout-aside  { display: none !important; }
+  .desktop-only  { display: none !important; }
+  .mobile-only   { display: block !important; }
 }
 
-.layout-footer {
-  padding: 8px 16px;
-  background: var(--footer-bg);
-  border-top: 1px solid var(--footer-border);
-}
-
-/* Mobile Drawer theme */
+/* Mobile drawer: theme via real tokens */
 :deep(.mobile-sidebar-drawer .el-drawer) {
   background: var(--sidebar-bg);
   border-right: 1px solid var(--sidebar-border);
   box-shadow: 0 18px 42px var(--card-shadow);
 }
-
 :deep(.mobile-sidebar-drawer .el-drawer__body) {
   padding: 0;
   background: var(--sidebar-bg);
 }
-
 :deep(.mobile-sidebar-drawer .el-overlay) {
   background: rgba(0, 0, 0, 0.35);
 }
 :deep(html[data-theme="dark"] .mobile-sidebar-drawer .el-overlay) {
   background: rgba(0, 0, 0, 0.55);
 }
+
+/* Main container shifts right to clear the fixed sidebar */
+.layout-main-container {
+  margin-left: 240px;
+  transition: margin-left 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.layout-main-container.sidebar-hidden {
+  margin-left: 0;
+}
+@media (max-width: 768px) {
+  .layout-main-container {
+    margin-left: 0 !important;
+  }
+}
 </style>
+
